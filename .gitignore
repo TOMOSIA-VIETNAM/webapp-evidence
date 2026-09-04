@@ -1,0 +1,4 @@
+# Dependency của runner, cài bằng: npm install --prefix lib
+lib/node_modules/
+
+.DS_Store

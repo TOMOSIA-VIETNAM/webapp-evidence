@@ -1,0 +1,9 @@
+{
+  "name": "get-evidence-runner",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Playwright runner ghi evidence (video + screenshot) cho MR",
+  "dependencies": {
+    "playwright-core": "1.62.1"
+  }
+}
