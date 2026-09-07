@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Runner quay evidence cho MR: video thao tác + screenshot + timeline.
-// Cách dùng: OUT_DIR=<thư mục> node record.js <steps-file>   (xem --help)
+// Evidence recording runner for an MR: operation video + screenshots + timeline.
+// Usage: OUT_DIR=<directory> node record.js <steps-file>   (see --help)
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
@@ -13,9 +13,9 @@ const { createCaptions } = require('./captions');
 
 const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
-// Tên phím của Playwright ('ControlOrMeta+C') không phải thứ người xem đọc trên bàn phím của họ.
-// Bảng chú thích trong video hiển thị đúng ký hiệu của hệ điều hành đang quay: máy Mac thấy ⌘,
-// máy Windows/Linux thấy Ctrl.
+// Playwright's key names ('ControlOrMeta+C') are not what a viewer reads off their own keyboard.
+// The key hint overlay in the video shows the symbols of the operating system doing the recording:
+// a Mac shows ⌘, a Windows/Linux machine shows Ctrl.
 const IS_MAC = process.platform === 'darwin';
 const MODIFIER_CAPS = IS_MAC
   ? { Meta: '\u2318', ControlOrMeta: '\u2318', Control: '\u2303', Alt: '\u2325', Shift: '\u21e7' }
@@ -28,36 +28,36 @@ const NAMED_CAPS = {
 function keyCaps(keys) {
   return String(keys).split('+').map((raw) => {
     const key = raw.trim();
-    if (!key) throw new Error(`Chuỗi phím tắt không hợp lệ: ${JSON.stringify(keys)}`);
+    if (!key) throw new Error(`Invalid shortcut key string: ${JSON.stringify(keys)}`);
     return MODIFIER_CAPS[key] || NAMED_CAPS[key] || (key.length === 1 ? key.toUpperCase() : key);
   });
 }
 
 function help() {
-  console.log(`Quay evidence cho MR: video thao tác + screenshot + timeline.
+  console.log(`Record evidence for an MR: operation video + screenshots + timeline.
 
-  OUT_DIR=<thư mục> node record.js <steps-file>
+  OUT_DIR=<directory> node record.js <steps-file>
 
-    <steps-file>      Kịch bản của màn hình. Mẫu: ${path.join(__dirname, '../templates/steps.example.js')}
-    OUT_DIR           Thư mục ghi kết quả (bắt buộc)
-    VIDEO_NAME        Tên file video/runbook (mặc định lấy từ kịch bản)
-    CAPTIONS          on|off — câu chú thích trong video (mặc định on)
-    CAPTION_LOCALE    Ngôn ngữ chú thích: en | ja | vi (mặc định en)
+    <steps-file>      Step script for the screen. Example: ${path.join(__dirname, '../assets/steps.example.js')}
+    OUT_DIR           Directory the results are written to (required)
+    VIDEO_NAME        Video/runbook file name (defaults to the name in the step script)
+    CAPTIONS          on|off — captions in the video (default on)
+    CAPTION_LOCALE    Caption language: en | ja | vi (default en)
 
 ${HELP_ENV}
 
-Kết quả: <name>.mp4, <name>-runbook.md và các screenshot đánh số theo thứ tự chụp.
-Phần chờ trang load ở đầu bị cắt khỏi video; bước đăng nhập không được quay.`);
+Output: <name>.mp4, <name>-runbook.md and the screenshots numbered in capture order.
+The page-load wait at the start is trimmed off the video; the sign-in step is not recorded.`);
 }
 
-// ---------- helper thao tác ----------
-// Không phải cú click nào cũng có thứ để xem. Mở một tab, bung một menu, chuyển sang ô kế tiếp —
-// người thật bấm liền tay rồi đi tiếp; chỉ khi kết quả hiện ra trên màn hình họ mới dừng đọc.
-// Ba mức này để kịch bản nói ra ý đó thay vì rải số ms.
+// ---------- interaction helpers ----------
+// Not every click has something to look at. Opening a tab, expanding a menu, moving to the next field —
+// a real person clicks straight through those; they only stop to read once a result appears on screen.
+// These three levels let the step script say that instead of scattering ms numbers around.
 const PAUSE_LEVELS = {
-  quick: 'afterClickQuickMs',      // chỉ là bước dẫn tới thao tác sau, không có gì phải xem
-  normal: 'afterClickMs',          // mặc định
-  observe: 'afterClickObserveMs',  // phải đọc kết quả trên màn hình
+  quick: 'afterClickQuickMs',      // only a step towards the next action, nothing to look at
+  normal: 'afterClickMs',          // default
+  observe: 'afterClickObserveMs',  // the result on screen has to be read
 };
 
 function resolvePause(pause, pace) {
@@ -66,21 +66,21 @@ function resolvePause(pause, pace) {
   const key = PAUSE_LEVELS[pause];
   if (!key) {
     throw new Error(
-      `pause không hợp lệ: ${JSON.stringify(pause)}\n` +
-      `Dùng số ms, hoặc một trong ${Object.keys(PAUSE_LEVELS).join(' | ')}.`
+      `Invalid pause: ${JSON.stringify(pause)}\n` +
+      `Use a number of ms, or one of ${Object.keys(PAUSE_LEVELS).join(' | ')}.`
     );
   }
   return pace[key];
 }
 
-// Chuột di chuyển nội suy rồi mới bấm, để người xem kịp thấy click rơi vào đâu
+// The mouse interpolates its way over before clicking, so the viewer can see where the click lands
 function buildContext(page, outDir, marks, hotkeys, notes, startedAt, pace, viewport, human, captions) {
   const mark = (label) => marks.push({ at: (Date.now() - startedAt) / 1000, label });
   const since = () => (Date.now() - startedAt) / 1000;
 
-  // Mỗi lệnh move/keypress đi một vòng tới trình duyệt. Ngủ đủ `delay` SAU mỗi vòng thì thao
-  // tác dài hơn ý định 30–40%, và đó chính là cảm giác "sao nó chờ lâu thế". Nên ngủ tới mốc
-  // thời gian đã tính, không ngủ theo lượng.
+  // Every move/keypress command makes a round trip to the browser. Sleeping the full `delay` AFTER
+  // each round trip makes the action run 30–40% longer than intended, and that is exactly the
+  // "why is it waiting so long" feeling. So sleep until the computed timestamp, not by amount.
   function scheduler() {
     const from = Date.now();
     let planned = 0;
@@ -97,8 +97,8 @@ function buildContext(page, outDir, marks, hotkeys, notes, startedAt, pace, view
     page.__cursor = { x, y };
     if (!plan) return 0;
 
-    // Nội suy theo đồng hồ thật: vẽ được bao nhiêu khung hình tuỳ độ nhanh của trình duyệt,
-    // nhưng cú di chuyển luôn kết thúc đúng lúc đã định.
+    // Interpolate against the wall clock: how many frames get drawn depends on how fast the browser
+    // is, but the movement always finishes at the moment it was meant to.
     const startedMove = Date.now();
     for (;;) {
       const frameAt = Date.now();
@@ -114,8 +114,8 @@ function buildContext(page, outDir, marks, hotkeys, notes, startedAt, pace, view
   }
 
   async function click(locator, { pause } = {}) {
-    // scrollIntoViewIfNeeded tốn khoảng 64ms mỗi lần gọi. Phần tử đã nằm trong khung hình thì
-    // bỏ qua: chuỗi click trong cùng một màn hình mới không bị chậm đi vì việc không cần làm.
+    // scrollIntoViewIfNeeded costs about 64ms per call. Skip it when the element is already inside
+    // the frame: a run of clicks within the same screen is not slowed down by work nobody needs.
     let box = await locator.boundingBox();
     const inView = box
       && box.y >= 0 && box.y + box.height <= viewport.height
@@ -124,11 +124,11 @@ function buildContext(page, outDir, marks, hotkeys, notes, startedAt, pace, view
       await locator.scrollIntoViewIfNeeded();
       box = await locator.boundingBox();
     }
-    if (!box) throw new Error('Phần tử cần click không hiển thị');
+    if (!box) throw new Error('The element to click is not visible');
     const cx = box.x + box.width / 2;
     const cy = box.y + box.height / 2;
-    // Bấm không rơi vào đúng tâm: tay người đặt lệch tâm một chút, và phần tử càng lớn thì
-    // chỗ bấm càng tản ra — vẫn luôn nằm trong phần tử.
+    // The click does not land dead centre: a human hand lands slightly off centre, and the larger
+    // the element the wider the spread — always still inside the element.
     const spread = (size) => (size > 24 ? (human.rng() - 0.5) * Math.min(size * 0.3, 16) : 0);
     const tx = cx + spread(box.width);
     const ty = cy + spread(box.height);
@@ -138,12 +138,12 @@ function buildContext(page, outDir, marks, hotkeys, notes, startedAt, pace, view
     await sleep(human.wait(pace.clickHoldMs));
     await page.mouse.up();
     await sleep(human.wait(resolvePause(pause, pace)));
-    // Sau khi điều hướng, con trỏ giả được vẽ lại từ vị trí mặc định nên phải đồng bộ lại
+    // After a navigation the fake cursor is redrawn from its default position, so it has to be resynced
     await page.mouse.move(tx + 0.5, ty + 0.5);
   }
 
-  // Bấm vào ô rồi gõ. Nhịp gõ không đều: chậm lại ở dấu cách và sau dấu câu, thỉnh thoảng
-  // ngập ngừng — `delay` cố định của Playwright cho ra tiếng gõ đều như máy đánh chữ.
+  // Click the field, then type. The typing rhythm is uneven: slower at spaces and after punctuation,
+  // with the occasional hesitation — Playwright's fixed `delay` gives typewriter-even keystrokes.
   async function type(locator, text) {
     await click(locator, { pause: 'quick' });
     const chars = Array.from(String(text));
@@ -156,16 +156,18 @@ function buildContext(page, outDir, marks, hotkeys, notes, startedAt, pace, view
     await sleep(human.wait(pace.afterTypeMs));
   }
 
-  // Menu bung của <select> là widget do hệ điều hành vẽ nên không lọt vào video.
-  // Không tìm cách vẽ lại hay ép nó hiển thị trong trang: mọi cách đó đều phải sửa style của
-  // element thật, làm bố cục trong video khác bố cục app thật — evidence mất giá trị.
-  // Ở đây chỉ cho thấy tương tác (bấm vào ô, giá trị đổi dần) và đảm bảo chọn đúng giá trị.
+  // The <select> dropdown is a widget drawn by the operating system, so it never lands in the video.
+  // Do not look for a way to redraw it or force it to render inside the page: every one of those ways
+  // has to change the style of the real element, making the layout in the video differ from the layout
+  // of the real app — and the evidence loses its value.
+  // What is shown here is only the interaction (clicking the field, the value changing) plus a
+  // guarantee that the right value gets selected.
   async function select(locator, label) {
     await click(locator, { pause: 'quick' });
 
     const options = await locator.locator('option').allTextContents();
     const target = options.findIndex((o) => o.trim() === label);
-    if (target < 0) throw new Error(`Không tìm thấy lựa chọn: ${label}`);
+    if (target < 0) throw new Error(`Option not found: ${label}`);
 
     const current = await locator.evaluate((el) => el.selectedIndex);
     const key = target > current ? 'ArrowDown' : 'ArrowUp';
@@ -174,21 +176,21 @@ function buildContext(page, outDir, marks, hotkeys, notes, startedAt, pace, view
       await sleep(human.wait(pace.selectStepMs));
     }
 
-    // Có môi trường phím mũi tên không đổi được lựa chọn; chốt lại bằng dữ liệu vì
-    // hiển thị đẹp mà chọn sai thì evidence vô nghĩa
+    // In some environments the arrow keys cannot change the selection; settle it through the data,
+    // because looking good while selecting the wrong value makes the evidence meaningless
     if ((await locator.evaluate((el) => el.selectedIndex)) !== target) {
       await locator.selectOption({ label });
     }
 
-    // Người xem thấy giá trị trong ô đổi nhưng không thấy menu nào mở ra, vì menu đó do hệ
-    // điều hành vẽ. Câu chú thích nói ra điều đó thay vì để họ tự suy.
+    // The viewer sees the value in the field change but sees no menu open, because that menu is drawn
+    // by the operating system. The caption says so instead of leaving them to work it out.
     const shown = await showNote(captions.text('selectOption', { value: label }), locator);
     await sleep(Math.max(human.wait(pace.afterSelectMs), shown ? pace.noteHoldMs : 0));
     if (shown) await hideCaption();
   }
 
-  // Hộp thoại chọn file của hệ điều hành cũng không quay được. Nạp file trực tiếp rồi
-  // dừng lại đủ lâu để thấy tên file hiện lên trong ô — đó mới là thứ chứng minh được.
+  // The operating system's file picker cannot be recorded either. Set the file directly, then hold
+  // long enough to see the file name appear in the field — that is the part that proves anything.
   async function upload(locator, filePath) {
     await click(locator, { pause: 'quick' });
     await locator.setInputFiles(filePath);
@@ -197,9 +199,10 @@ function buildContext(page, outDir, marks, hotkeys, notes, startedAt, pace, view
     if (shown) await hideCaption();
   }
 
-  // boundingBox trả về {x, y, width, height}, còn phần vẽ chú thích tính chỗ đặt theo cạnh
-  // (left/top/right/bottom) như DOMRect. Thiếu bốn cạnh này thì mọi so sánh ra NaN và bảng âm
-  // thầm rơi xuống giữa đáy khung hình thay vì neo vào phần tử.
+  // boundingBox returns {x, y, width, height}, while the caption drawing works out its placement from
+  // the edges (left/top/right/bottom) like a DOMRect. Without those four edges every comparison comes
+  // out NaN and the overlay silently drops to the bottom centre of the frame instead of anchoring to
+  // the element.
   async function edgesOf(locator) {
     const box = await locator.boundingBox();
     if (!box) return null;
@@ -209,8 +212,8 @@ function buildContext(page, outDir, marks, hotkeys, notes, startedAt, pace, view
     };
   }
 
-  // Câu chú thích trong video. Trả về false khi chú thích đang tắt, để bên gọi biết là không
-  // có gì phải chờ đọc.
+  // A caption in the video. Returns false when captions are off, so the caller knows there is nothing
+  // to wait around for anyone to read.
   async function showNote(text, target) {
     if (!text) return false;
     const rect = target ? await edgesOf(target) : null;
@@ -221,11 +224,13 @@ function buildContext(page, outDir, marks, hotkeys, notes, startedAt, pace, view
 
   const hideCaption = () => page.evaluate(() => window.__evCaption?.hide());
 
-  // Chú thích do kịch bản tự viết, cho những chỗ chỉ người viết kịch bản mới biết là cần nói:
-  // dữ liệu đến từ đâu, vì sao trạng thái này mới là đúng, thao tác vừa rồi bị OS che.
+  // Captions written by the step script itself, for the places only the step script's author knows
+  // need saying: where the data came from, why this state is the correct one, that the OS hid the
+  // action that just happened.
   //
-  // Cũng tắt theo công tắc chung: người chạy đã nói "bản quay này không có chú thích" thì không
-  // có cái nào lọt ra, kể cả cái kịch bản gọi thẳng. Một công tắc, một kết quả đoán được.
+  // Also governed by the same switch: once the operator has said "this take has no captions", not one
+  // gets through, including the ones the step script calls for directly. One switch, one predictable
+  // result.
   async function note(text, { target, hold = pace.noteHoldMs } = {}) {
     if (!captions.enabled) return;
     if (!(await showNote(text, target))) return;
@@ -233,15 +238,15 @@ function buildContext(page, outDir, marks, hotkeys, notes, startedAt, pace, view
     await hideCaption();
   }
 
-  // Thao tác bằng bàn phím không để lại dấu vết nào trên hình: chuột đứng im, không có ripple,
-  // người xem chỉ thấy nội dung tự đổi và không biết vì sao. Nên mỗi lần bấm phím tắt đều hiện
-  // bảng chú thích ngay cạnh phần tử đang thao tác, giữ đủ lâu để đọc cả phím và kết quả.
+  // A keyboard action leaves no trace on screen: the mouse sits still, there is no ripple, the viewer
+  // just sees the content change with no idea why. So every shortcut press shows the key hint overlay
+  // right beside the element being acted on, held long enough to read both the keys and the result.
   async function hotkey(keys, { label, target, pause = pace.afterHotkeyMs, hold = pace.hotkeyHoldMs } = {}) {
     const waitFor = (ms) => sleep(human.wait(ms));
     const caps = keyCaps(keys);
 
-    // Có target thì bấm vào đó trước: người xem thấy phím tắt đang áp lên phần tử nào, và
-    // bảng chú thích neo được vào đúng phần tử đó thay vì rơi xuống đáy khung hình.
+    // With a target, click it first: the viewer sees which element the shortcut is being applied to,
+    // and the key hint overlay can anchor to that element instead of dropping to the bottom of the frame.
     let rect = null;
     if (target) {
       await click(target, { pause: 'quick' });
@@ -268,7 +273,7 @@ function buildContext(page, outDir, marks, hotkeys, notes, startedAt, pace, view
   return { page, mark, click, type, select, upload, hotkey, note, shot, sleep, moveTo };
 }
 
-// Timeline không xuất thành file riêng: nó nằm trong runbook để chỉ có một chỗ phải sửa.
+// The timeline is not written out as its own file: it lives in the runbook so there is only one place to edit.
 function buildTimeline(marks, trimAt, duration) {
   const rows = marks
     .map((m, i) => ({
@@ -280,23 +285,23 @@ function buildTimeline(marks, trimAt, duration) {
   return rows.map((r) => `${fmt(r.from)} - ${fmt(r.to)}  ${r.label}`).join('\n');
 }
 
-// Phím tắt là thao tác duy nhất người xem có thể bỏ sót dù bảng chú thích chỉ hiện hơn một giây,
-// nên liệt kê kèm mốc thời gian để tua lại đúng chỗ. Không có phím tắt thì không sinh mục này.
+// A shortcut is the one action a viewer can miss even though the key hint overlay shows for over a
+// second, so list them with timestamps to scrub back to the right spot. No shortcuts, no section.
 function buildHotkeySection(hotkeys, trimAt) {
   if (!hotkeys.length) return '';
   const rows = hotkeys.map((h) => {
     const at = fmt(Math.max(0, h.at - trimAt));
     return `- ${at}  \`${h.keys}\`${h.label ? ` — ${h.label}` : ''}`;
   });
-  return `## Phím tắt trong video\n\n${rows.join('\n')}\n\n`;
+  return `## Keyboard shortcuts in the video\n\n${rows.join('\n')}\n\n`;
 }
 
-// Chú thích ghi lại cả ở đây vì phần lớn chúng nói về thứ bản quay KHÔNG chứa (menu <select>,
-// hộp chọn file). Người đọc runbook cần thấy danh sách đó mà không phải xem lại video.
+// Captions are recorded here as well because most of them talk about things the recording does NOT
+// contain (the <select> dropdown, the file picker). A runbook reader needs that list without replaying the video.
 function buildNoteSection(notes, trimAt) {
   if (!notes.length) return '';
   const rows = notes.map((n) => `- ${fmt(Math.max(0, n.at - trimAt))}  ${n.text}`);
-  return `## Chú thích hiện trong video\n\n${rows.join('\n')}\n\n`;
+  return `## Captions shown in the video\n\n${rows.join('\n')}\n\n`;
 }
 
 function encodeMp4(outDir, name, webm, trimAt, video) {
@@ -310,12 +315,12 @@ function encodeMp4(outDir, name, webm, trimAt, video) {
   return mp4;
 }
 
-// Kết quả quay là file nặng và sinh lại được, không thuộc về lịch sử của repo. Chỗ lưu phải là
-// vùng ĐÃ ignore — không chỉ untracked: `git add -A` nuốt sạch file untracked, và một video lọt
-// vào commit thì phải viết lại lịch sử mới gỡ ra được.
+// The output of a recording is a heavy file that can be regenerated; it does not belong to the repo's
+// history. Where it is stored has to be an ALREADY-ignored area — not merely untracked: `git add -A`
+// swallows untracked files whole, and once a video lands in a commit only rewriting history gets it out.
 //
-// Skill không tự sửa .gitignore của dự án (đó là sửa repo người khác cho việc phụ trợ), nhưng đưa
-// sẵn dòng cần thêm để người dùng chỉ việc dán.
+// The skill does not edit the project's .gitignore itself (that would be editing someone else's repo for
+// an ancillary task), but it hands over the line to add so the user only has to paste it.
 function gitTop() {
   try {
     return execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
@@ -336,7 +341,7 @@ function isTracked(dir) {
 function ignoreHints(outDir, top) {
   const rel = path.relative(top, path.resolve(outDir)).split(path.sep).join('/');
   const hints = [`${rel}/`];
-  // Thư mục evidence nằm trong từng thư mục issue thì một dòng pattern gọn hơn là thêm từng issue
+  // When the evidence directory sits inside each issue's own directory, one pattern line is tidier than adding every issue
   const parts = rel.split('/');
   const idx = parts.lastIndexOf('evidence');
   if (idx > 0) hints.push(`${parts[0]}/**/evidence/`);
@@ -346,32 +351,33 @@ function ignoreHints(outDir, top) {
 function assertIgnoredByGit(outDir) {
   if (process.env.EVIDENCE_ALLOW_TRACKED === '1') return;
   const top = gitTop();
-  if (!top) return; // không phải git repo: không phải việc của skill
+  if (!top) return; // not a git repo: not the skill's business
 
   try {
     execFileSync('git', ['check-ignore', '-q', outDir], { stdio: 'ignore' });
-    return; // đã ignore
+    return; // already ignored
   } catch (e) {
-    if (e.status !== 1) return; // git lỗi vì lý do khác: bỏ qua
+    if (e.status !== 1) return; // git failed for some other reason: skip
   }
 
   const tracked = isTracked(outDir);
   const state = tracked
-    ? 'đang được git theo dõi — file quay sẽ đi thẳng vào commit tiếp theo'
-    : 'chưa được ignore — `git add -A` sẽ nuốt cả video và ảnh vào commit';
+    ? 'is tracked by git — the recording will go straight into the next commit'
+    : 'is not ignored — `git add -A` will swallow the video and the images into a commit';
 
   throw new Error(
     `OUT_DIR ${state}:\n  ${path.resolve(outDir)}\n\n` +
-    'Nhờ người dùng thêm một trong các dòng sau vào .gitignore rồi chạy lại:\n' +
+    'Ask the user to add one of the following lines to .gitignore, then run again:\n' +
     ignoreHints(outDir, top).map((h) => `  ${h}`).join('\n') + '\n\n' +
-    'Skill không tự sửa .gitignore. Người dùng đã cân nhắc và vẫn muốn ghi vào đây thì đặt ' +
-    'EVIDENCE_ALLOW_TRACKED=1.'
+    'The skill does not edit .gitignore itself. If the user has weighed it up and still wants to write ' +
+    'here, set EVIDENCE_ALLOW_TRACKED=1.'
   );
 }
 
-// Bản quay là bằng chứng đã gửi kèm MR; ghi đè là mất luôn cái để đối chiếu khi có tranh cãi.
-// Mặc định dồn kết quả cũ vào evidence/v1, v2… rồi mới quay bản mới vào thư mục gốc.
-// Kịch bản, fixture và cấu hình không phải kết quả nên giữ nguyên chỗ.
+// A take is evidence already attached to an MR; overwriting it loses the very thing to compare against
+// when there is a dispute. By default the previous results are moved into evidence/v1, v2… before the
+// new take is recorded into the root directory.
+// Step scripts, fixtures and configuration are not results, so they stay where they are.
 function runArtifacts(outDir, name) {
   return fs.readdirSync(outDir).filter((f) => (
     /^\d{2}-.*\.png$/.test(f)
@@ -397,12 +403,12 @@ function archivePreviousRun(outDir, name, overwrite) {
   const dir = path.join(outDir, `v${version}`);
   fs.mkdirSync(dir, { recursive: true });
   existing.forEach((f) => fs.renameSync(path.join(outDir, f), path.join(dir, f)));
-  console.log(`ARCHIVED: bản quay trước chuyển vào ${dir}`);
+  console.log(`ARCHIVED: previous take moved into ${dir}`);
   return dir;
 }
 
-// Đường dẫn tương đối chỉ dễ đọc khi nó thật sự ngắn hơn; kết quả nằm ngoài thư mục đang đứng
-// mà in ra một chuỗi ../../.. thì tuyệt đối lại rõ hơn.
+// A relative path is only easier to read when it really is shorter; when the results sit outside the
+// current directory and printing one gives a string of ../../.., the absolute path is clearer.
 function displayPath(target) {
   const abs = path.resolve(target);
   const rel = path.relative(process.cwd(), abs);
@@ -420,15 +426,16 @@ function dirSize(dir) {
   }, 0);
 }
 
-// Người dùng cần biết chính xác file nào vừa sinh ra để mở xem và đính lên MR. Các bản cũ được
-// giữ lại là có chủ đích, nhưng giữ mãi thì thư mục phình — nên nói luôn chúng chiếm bao nhiêu và
-// cách bỏ, thay vì để họ tự phát hiện sau vài tháng.
+// The user needs to know exactly which files were just produced so they can open them and attach them
+// to the MR. Keeping the old takes around is deliberate, but keeping them forever bloats the directory —
+// so say up front how much space they take and how to drop them, instead of leaving the user to find
+// out months later.
 function reportResult(outDir, name, mp4, runbook, shots, durationSeconds) {
   const rel = displayPath;
   console.log('');
   console.log(`VIDEO:   ${rel(mp4)}  (${durationSeconds.toFixed(1)}s, ${humanSize(fs.statSync(mp4).size)})`);
   console.log(`RUNBOOK: ${rel(runbook)}`);
-  console.log(`ẢNH:     ${shots.length} tấm trong ${rel(outDir)}`);
+  console.log(`SHOTS:   ${shots.length} in ${rel(outDir)}`);
 
   const olds = fs.readdirSync(outDir, { withFileTypes: true })
     .filter((e) => e.isDirectory() && /^v\d+$/.test(e.name))
@@ -439,11 +446,11 @@ function reportResult(outDir, name, mp4, runbook, shots, durationSeconds) {
 
   const sizes = olds.map((v) => `${v} (${humanSize(dirSize(path.join(outDir, v)))})`);
   console.log('');
-  console.log(`BẢN CŨ:  ${sizes.join(', ')}`);
-  console.log(`  Không cần đối chiếu nữa thì xoá: rm -rf ${olds.map((v) => rel(path.join(outDir, v))).join(' ')}`);
+  console.log(`PREVIOUS: ${sizes.join(', ')}`);
+  console.log(`  Once there is nothing left to compare against, delete them: rm -rf ${olds.map((v) => rel(path.join(outDir, v))).join(' ')}`);
 }
 
-// Bản mô tả để chạy lại lần sau mà không phải dò lại màn hình từ đầu.
+// A description for re-running later without having to work the screen out from scratch again.
 function writeRunbook(outDir, name, meta) {
   const file = path.join(outDir, `${name}-runbook.md`);
   const rel = displayPath;
@@ -462,36 +469,36 @@ recorded_at: ${meta.recordedAt}
 
 # Runbook — ${name}
 
-## Chạy lại
+## Re-run
 
 \`\`\`bash
 OUT_DIR=${rel(outDir)} node ${rel(meta.runner)} ${rel(meta.stepsFile)}
 \`\`\`
 
-Kịch bản, cấu hình và tài khoản đều đã cố định, nên lệnh trên tái tạo đúng bản quay này.
-Sửa nội dung quay thì sửa \`${rel(meta.stepsFile)}\`, không sửa file runbook.
+The step script, the configuration and the account are all fixed, so the command above reproduces exactly this take.
+To change what gets recorded, edit \`${rel(meta.stepsFile)}\`, not the runbook file.
 
-## Các bước trong video
+## Steps in the video
 
 ${meta.timeline}
 
-${meta.hotkeySection}${meta.noteSection}## Ảnh chụp
+${meta.hotkeySection}${meta.noteSection}## Screenshots
 
-${meta.shots.length ? meta.shots.map((f) => `- ${f}`).join('\n') : '- (không có)'}
+${meta.shots.length ? meta.shots.map((f) => `- ${f}`).join('\n') : '- (none)'}
 
-## Môi trường
+## Environment
 
-${meta.fixes.length ? meta.fixes.map((f) => `- đã tự sửa: ${f}`).join('\n') : '- không phải sửa gì'}
+${meta.fixes.length ? meta.fixes.map((f) => `- fixed automatically: ${f}`).join('\n') : '- nothing needed fixing'}
 
-## Lỗi trang ghi nhận khi quay
+## Page errors recorded during the take
 
-${meta.problems.length ? meta.problems.slice(0, 20).map((p) => `- ${p}`).join('\n') : '- không có'}
+${meta.problems.length ? meta.problems.slice(0, 20).map((p) => `- ${p}`).join('\n') : '- none'}
 `;
   fs.writeFileSync(file, body);
   return file;
 }
 
-// ---------- chạy ----------
+// ---------- run ----------
 async function main() {
   const stepsPath = process.argv[2];
   if (['--help', '-h'].includes(stepsPath) || !stepsPath) {
@@ -507,9 +514,9 @@ async function main() {
   const { name: app, appConfig, baseUrl } = resolveApp(config, steps.app);
 
   const outDir = process.env.OUT_DIR;
-  if (!outDir) throw new Error('Phải truyền OUT_DIR');
+  if (!outDir) throw new Error('OUT_DIR must be provided');
   assertOutsideSkill(outDir, 'OUT_DIR');
-  assertOutsideSkill(stepsFile, 'Kịch bản');
+  assertOutsideSkill(stepsFile, 'Step script');
   assertIgnoredByGit(outDir);
   const name = process.env.VIDEO_NAME || steps.name || 'evidence';
   fs.mkdirSync(outDir, { recursive: true });
@@ -519,8 +526,8 @@ async function main() {
   const fixes = await prepareApp({ appConfig, name: app, baseUrl });
   const browser = await launchBrowser(settings);
 
-  // Đăng nhập ở context riêng, không quay: người xem không cần thấy bước này và
-  // video cũng không được để lộ thông tin đăng nhập
+  // Sign in in a separate context, not recorded: the viewer does not need to see this step and
+  // the video must not leak the sign-in credentials
   const storageState = await signIn({ browser, appConfig, name: app, baseUrl, settings });
 
   const context = await browser.newContext({
@@ -528,8 +535,8 @@ async function main() {
     locale: settings.recording.locale,
     deviceScaleFactor: 1,
     storageState,
-    // App đặt Content-Security-Policy chặt sẽ chặn phần style của con trỏ; con trỏ chỉ là lớp
-    // phủ phục vụ quay hình, không phải thứ đang được kiểm chứng, nên bỏ qua CSP ở đây.
+    // An app with a strict Content-Security-Policy would block the cursor's styles; the cursor is only
+    // an overlay serving the recording, not the thing being verified, so bypass CSP here.
     bypassCSP: true,
     recordVideo: { dir: outDir, size: viewport },
   });
@@ -544,17 +551,17 @@ async function main() {
   const notes = [];
   const captions = createCaptions(settings.recording.captions);
 
-  // Hạt giống lấy từ tên kịch bản: nhịp lệch của một kịch bản giống nhau qua mọi lần quay, nên
-  // runbook vẫn giữ được lời hứa chạy lại ra đúng bản này.
+  // The seed comes from the step script's name: the pacing jitter of a given step script is the same
+  // across every take, so the runbook keeps its promise that re-running produces this same recording.
   const human = createHuman({ pace, viewport, seed: name });
 
-  // Thời gian chờ trang load bị cắt khỏi video
+  // The page-load wait is trimmed off the video
   await page.goto(`${baseUrl}${steps.start || '/'}`, { waitUntil: 'networkidle' });
   await sleep(pace.settleMs);
 
-  // Đặt con trỏ vào một chỗ lệch tâm trước khi video bắt đầu. Không làm thì khung hình đầu có
-  // con trỏ đứng đúng giữa màn hình rồi cú di chuyển đầu tiên xuất phát từ đó — không ai để
-  // chuột ở giữa màn hình.
+  // Park the cursor somewhere off centre before the video starts. Without this the first frame has the
+  // cursor sitting dead centre and the first movement starts from there — nobody leaves their mouse in
+  // the middle of the screen.
   const resting = human.restingPoint();
   await page.mouse.move(resting.x, resting.y);
   page.__cursor = resting;
@@ -572,7 +579,7 @@ async function main() {
   const video = page.video();
   await context.close();
 
-  // Ảnh fullPage phải chụp ngoài context đang quay, vì thao tác cuộn trang sẽ lọt vào video
+  // The fullPage screenshot has to be taken outside the recording context, because the scrolling would land in the video
   if (steps.fullPageShot !== false) {
     const shotContext = await browser.newContext({ viewport, locale: settings.recording.locale, storageState });
     const shotPage = await shotContext.newPage();
@@ -587,7 +594,7 @@ async function main() {
   const mp4 = encodeMp4(outDir, name, webm, trimAt, videoOpts);
   const timeline = buildTimeline(marks, trimAt, total - trimAt);
 
-  // Chỉ sinh file log khi thật sự có lỗi, để thư mục evidence không bị rác
+  // Only write the log file when there really are errors, so the evidence directory stays free of clutter
   let problemFile = null;
   if (problems.length) {
     problemFile = path.join(outDir, `${name}-console.log`);
@@ -607,12 +614,12 @@ async function main() {
   console.log(timeline);
   if (problemFile) {
     console.log('');
-    console.log(`PROBLEMS: ${problems.length} lỗi trang — xem ${path.relative(process.cwd(), problemFile)}`);
+    console.log(`PROBLEMS: ${problems.length} page errors — see ${path.relative(process.cwd(), problemFile)}`);
   }
   reportResult(outDir, name, mp4, runbook, shots, total - trimAt);
 }
 
-// Chỉ tự chạy khi được gọi thẳng; require vào thì chỉ lấy hàm (dùng khi kiểm thử)
+// Only self-runs when invoked directly; a require pulls in just the functions (used by the tests)
 if (require.main === module) {
   main().catch((e) => {
     console.error(String((e && e.message) || e));
@@ -620,6 +627,11 @@ if (require.main === module) {
   });
 }
 
-// buildContext lộ ra để đo nhịp thao tác thật (thời gian mỗi helper chiếm) mà không phải quay
-// cả một video; phần còn lại là hộp đen.
-module.exports = { main, buildContext, archivePreviousRun, reportResult, runArtifacts };
+// buildContext is exposed so the real pacing of the actions (how long each helper takes) can be measured
+// without recording a whole video; everything else is a black box.
+module.exports = {
+  main, buildContext, archivePreviousRun, reportResult, runArtifacts,
+  // Exported for the unit tests: pure helpers that decide timings, timeline rows and the
+  // .gitignore hints, none of which need a browser to be checked.
+  fmt, keyCaps, resolvePause, buildTimeline, buildHotkeySection, buildNoteSection, ignoreHints,
+};

@@ -1,148 +1,126 @@
 # get-evidence
 
-Quay lại thao tác trên app dev thành **video + ảnh + runbook** để đính lên MR/PR.
+Record what your change does on the local dev app into **a video, screenshots and a runbook**, ready
+to attach to an MR/PR — by asking your coding agent for it in plain words. Built and used on Claude
+Code; installs onto Cursor, Codex, Gemini CLI and Antigravity, which read the same skill format.
 
-Video được làm cho người xem chứ không phải cho máy: có con trỏ chuột hiển thị, mỗi lần bấm có hiệu
-ứng, thao tác bằng phím tắt có bảng chú thích phím hiện lên, tốc độ đủ chậm để theo kịp, và phần
-chờ trang load bị cắt bỏ.
+The video is made for a person to watch: the mouse cursor is visible, every click leaves a ripple,
+keyboard shortcuts raise a key hint overlay, the pace is slow enough to follow, and the page-load
+wait is trimmed off the front. The cursor moves the way a hand moves — a slightly curved path, quick
+to accelerate and slow to brake, overshooting a distant target before correcting — and clicks that
+only navigate go briskly while the moments with a result to read are held longer.
 
-Nhịp thao tác mô phỏng người thật: con trỏ đi đường hơi cong, tăng tốc nhanh rồi hãm dần, đi xa thì
-vượt qua đích một chút rồi chỉnh lại; quãng chờ không đều nhau; những cú click chỉ để đi tiếp thì
-bấm liền tay, chỗ có kết quả cần đọc thì dừng lâu hơn.
+## Install
 
-## Dùng khi nào
+Needs **Google Chrome**, **ffmpeg** and **Node.js** on the machine. On macOS: `brew install ffmpeg`.
 
-Gõ trong phiên chat với Claude:
+Claude Code:
 
-**Vừa code xong một task/bug — Claude đã biết màn hình vừa sửa:**
+```bash
+claude plugin marketplace add TOMOSIA-VIETNAM/webapp-evidence
+claude plugin install get-evidence@get-evidence
+```
+
+Cursor, Codex, Gemini CLI, Antigravity:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash
+```
+
+It asks which platform you want and sets up the runner's dependency itself. Full guide, including
+where each platform puts it and how to remove it: [Install](./docs/install.md).
+
+## Using it
+
+Type this in a chat session (`/get-evidence` on Claude Code, Cursor, Gemini CLI and Antigravity;
+`$get-evidence` on Codex):
+
+**You just finished a task or a bug fix — the agent already knows which screen changed:**
 
 ```
 /get-evidence
 ```
 
-**Phiên mới, chỉ có link MR/PR — Claude đọc MR rồi tự suy ra màn cần quay:**
+**A fresh session with only an MR/PR link — the agent reads the MR and works out what to record:**
 
 ```
 /get-evidence https://gitlab.example.com/group/admin/-/merge_requests/1783
 ```
 
-**Chỉ định thẳng màn hình và flow:**
+**Naming the screen and the flow yourself:**
 
 ```
-/get-evidence màn /users/new, quay flow nhập form rồi bấm đăng ký
+/get-evidence the /users/new screen, record filling the form and submitting
 ```
 
-**Chỉ cần ảnh, không cần video:**
+There is no syntax to remember — "get evidence for the screen I just fixed" works just as well.
+
+## What you get
+
+In the issue's evidence directory:
 
 ```
-/get-evidence chụp màn danh sách sau khi fix, không cần quay video
+user-search.mp4                        the operation video
+user-search-runbook.md                 timeline + shortcuts + captions + how to run it again
+01-index.png … 99-full-page.png        screenshots, one per step
+steps.js                               the recorded steps, editable and re-runnable
+user-search-console.log                only present when the page had errors
 ```
 
-**Quay lại bản cũ (dữ liệu đổi, video hỏng, hoặc cần bản mới):**
+The timeline lives in the runbook rather than being burned into the video, so fixing the wording
+does not mean recording again. Ask for a re-record at any time — the data moved on, the video
+broke, or the reviewer wants it slower.
+
+Videos and screenshots are **not committed** to Git. Upload them to the MR/PR yourself.
+
+## First time in a new project
+
+The skill needs to know where the app runs, how to bring the environment up and how to log in. Ask
+for that once:
 
 ```
-/get-evidence quay lại evidence của ISSUE-421
+/get-evidence set up the evidence config for this project
 ```
 
-**Dự án mới, chưa có cấu hình:**
+The agent probes the login screen, finds a dev account and writes an `evidence.config.js` into the
+project. After that, asking for evidence is all it takes.
 
-```
-/get-evidence dựng config evidence cho dự án này
-```
+## Tuning it
 
-Không nhớ cú pháp cũng không sao — nói "lấy evidence cho màn vừa sửa" là đủ.
-
-## Kết quả nhận được
-
-Trong thư mục evidence của issue:
-
-```
-user-search.mp4                        video thao tác
-user-search-runbook.md                 timeline + phím tắt + chú thích + cách chạy lại
-01-index.png … 99-full-page.png        ảnh theo từng bước
-steps.js                               kịch bản, sửa được rồi quay lại
-user-search-console.log                chỉ có khi trang bị lỗi
-```
-
-Timeline nằm trong runbook chứ không nhúng vào video — sửa câu chữ không phải quay lại.
-
-Video và ảnh **không commit** vào Git. Tự tải lên MR/PR.
-
-## Lần đầu ở một dự án mới
-
-Cần một file `evidence.config.js` mô tả: app chạy ở URL nào, cách dựng môi trường, cách đăng nhập.
-
-```
-/get-evidence dựng config evidence cho dự án này
-```
-
-Claude sẽ dò màn đăng nhập, tìm tài khoản dev, viết file đó. Từ lần sau chỉ cần `/get-evidence`.
-
-Đặt file ở thư mục evidence chung của dự án. Issue nào cần khác biệt riêng thì thêm một
-`evidence.config.js` ngay trong thư mục của issue đó — nó được ưu tiên.
-
-## Chỉnh theo ý mình
-
-Trong `evidence.config.js` của dự án:
+Anything about the recording can be changed by asking — "record it slower", "captions in Japanese",
+"keep only the newest take". The settings live in the project's `evidence.config.js`:
 
 ```js
 recording: {
-  speed: 'slow',        // như tốc độ phát video: 'fast' | 'normal' | 'slow' | 'slowest', hoặc số
+  speed: 'slow',                             // like video playback speed: 'fast' | 'normal' | 'slow' | 'slowest'
+  captions: { enabled: true, locale: 'ja' }, // caption language: en | ja | vi
 },
 output: {
-  overwrite: false,     // false: bản quay cũ được giữ lại trong evidence/v1, v2…
+  overwrite: false,                          // false: previous takes are kept in evidence/v1, v2…
 },
 ```
 
-Còn nhiều thứ chỉnh được nữa (khung hình, chất lượng video, thời gian chờ của từng loại thao tác) —
-bảo Claude "chỉnh <cái bạn muốn> cho evidence" là nó biết chỗ sửa.
+Frame size, video quality and the wait after each kind of action are adjustable too — saying what
+you want is enough for the agent to find the right setting.
 
-## Cần sẵn trên máy
+## Limitations
 
-- Google Chrome
-- ffmpeg
-- Node.js
+The video records the page, not your screen, so anything the operating system draws stays out of
+frame: `<select>` dropdowns, the file picker, and the browser's `confirm`/`alert` dialogs.
 
-## Giới hạn
+Those moments instead carry **a caption inside the video** saying what was chosen and why the widget
+is not visible, plus a screenshot of the state afterwards to prove the result. Before recording,
+the agent asks whether to show captions and in which language (English by default; 日本語 for a
+Japanese customer).
 
-Video quay nội dung trang chứ không quay màn hình máy, nên những hộp thoại do hệ điều hành vẽ
-không lọt vào: menu của `<select>`, hộp chọn file, `confirm`/`alert` của trình duyệt.
+Keyboard actions leave no trace on screen either — so every shortcut raises a key hint overlay
+(`⌘ + C`, with a description) next to where the action happens, and they are listed again with
+timestamps in the runbook.
 
-Bù lại, những chỗ đó có **câu chú thích hiện trong video** nói rõ vừa chọn gì và vì sao không thấy
-widget — kèm ảnh chụp trạng thái sau khi chọn để chứng minh kết quả. Trước khi quay, Claude hỏi bạn
-có bật chú thích không và viết bằng ngôn ngữ nào (mặc định English; khách Nhật thì chọn 日本語).
-Muốn cố định cho cả dự án thì đặt trong `evidence.config.js`:
+Modals, date pickers and dropdowns built in JS record normally.
 
-```js
-recording: {
-  captions: { enabled: true, locale: 'ja' },   // en | ja | vi
-},
-```
+Recording only ever runs against local dev — never staging, never production.
 
-Modal, datepicker, dropdown dựng bằng JS thì quay bình thường.
+---
 
-Thao tác bằng bàn phím cũng không thấy được trên hình — bù lại, mỗi phím tắt trong kịch bản hiện
-một bảng chú thích (`⌘ + C`, kèm câu mô tả) ngay cạnh chỗ đang thao tác, và được liệt kê lại kèm
-mốc thời gian trong runbook.
-
-## Chạy tay (không qua Claude)
-
-`$SKILL` là thư mục chứa skill: `~/.claude/skills/get-evidence` (dùng chung mọi dự án) hoặc
-`.claude/skills/get-evidence` (nằm trong dự án).
-
-Chạy **từ thư mục dự án**, không `cd` vào thư mục skill — runner từ chối chạy khi thư mục làm việc
-nằm trong đó, để kết quả không rơi vào tài sản dùng chung.
-
-```bash
-SKILL=~/.claude/skills/get-evidence
-
-# xem tham số
-node $SKILL/lib/record.js --help
-node $SKILL/lib/inspect.js --help
-
-# liệt kê phần tử của một màn để viết kịch bản
-node $SKILL/lib/inspect.js /duong-dan-man-hinh
-
-# quay
-OUT_DIR=<thư mục lưu> node $SKILL/lib/record.js <đường-dẫn>/steps.js
-```
+Working on the skill itself? See `CONTRIBUTING.md`.

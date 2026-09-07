@@ -1,17 +1,20 @@
-// Nhịp thao tác giống người thật: đường đi con trỏ, quãng chờ, tốc độ gõ.
+// Human-like pacing: cursor paths, waits, typing speed.
 //
-// Máy thao tác đều tăm tắp — mỗi cú click cách nhau đúng 800ms, con trỏ đi đường thẳng hết
-// 312ms bất kể xa gần. Người xem không gọi tên được cái sai đó, chỉ thấy video "máy quay".
-// Ba thứ tạo ra khác biệt, theo thứ tự dễ thấy:
-//   1. Quãng chờ không đều — mỗi lần lệch nhau một chút.
-//   2. Thời gian di chuyển phụ thuộc khoảng cách và độ lớn của đích (định luật Fitts).
-//   3. Đường đi hơi cong, tăng tốc nhanh rồi hãm dần, đi xa thì vượt qua đích một chút rồi
-//      chỉnh lại — đúng cách tay người điều khiển chuột.
+// A machine operates with machine-even pacing — every click exactly 800ms apart, the cursor
+// travelling in a straight line in 312ms no matter how far. A viewer cannot name what is wrong,
+// they just see a "machine-recorded" video. Three things make the difference, in order of how
+// noticeable they are:
+//   1. Uneven waits — each one off by a little.
+//   2. Movement time that depends on distance and target size (Fitts's law).
+//   3. A slightly curved path, accelerating fast then decelerating, and on long moves
+//      overshooting the target a little before correcting back — the way a human hand drives
+//      a mouse.
 //
-// Ngẫu nhiên ở đây có hạt giống cố định theo tên kịch bản: cùng một kịch bản thì nhịp lệch
-// giống nhau ở mọi lần quay, nên runbook vẫn giữ được lời hứa "chạy lại ra đúng bản này".
+// The randomness here is seeded from the step script name: the same step script gets the same
+// pacing deviations on every take, so the runbook keeps its promise that "running it again
+// produces this exact take".
 
-// mulberry32: đủ tốt cho việc rung nhịp, và quan trọng hơn là tái lập được.
+// mulberry32: good enough for jittering pacing, and more importantly reproducible.
 function createRng(seed) {
   let state = seed >>> 0;
   return () => {
@@ -32,10 +35,11 @@ function hashSeed(text) {
   return hash >>> 0;
 }
 
-// Vận tốc của một cú với chuột: bung nhanh trong khoảng 1/5 đầu thời gian rồi hãm dần suốt
-// phần còn lại. Đối xứng (nhanh dần rồi chậm dần đều nhau) là nhịp của máy, không phải của tay.
-const ACCEL_T = 0.22;   // phần thời gian dành cho pha bung
-const ACCEL_D = 0.18;   // phần khoảng cách đi được trong pha đó
+// The velocity of a mouse move: a fast burst over roughly the first fifth of the time, then
+// decelerating for the rest. Symmetry (speeding up and slowing down by equal amounts) is the
+// pacing of a machine, not of a hand.
+const ACCEL_T = 0.22;   // the fraction of the time spent in the burst phase
+const ACCEL_D = 0.18;   // the fraction of the distance covered during that phase
 function ballistic(t) {
   if (t <= 0) return 0;
   if (t >= 1) return 1;
@@ -49,15 +53,16 @@ function createHuman({ pace, viewport, seed }) {
 
   const between = (min, max) => min + rng() * (max - min);
 
-  // Quãng chờ lệch nhau một chút quanh giá trị cấu hình. `jitter: 0` thì tắt hẳn, dùng khi
-  // cần đối chiếu hai bản quay khung-trên-khung.
+  // Waits deviate a little around the configured value. `jitter: 0` turns it off entirely, for
+  // when two takes have to be compared frame by frame.
   const wait = (ms) => {
     if (!ms || !jitterRatio) return Math.round(ms || 0);
     return Math.max(0, Math.round(ms * (1 + between(-jitterRatio, jitterRatio))));
   };
 
-  // Định luật Fitts: đích càng nhỏ và càng xa thì tay càng phải đi lâu. Đây là lý do một cú
-  // rê 40px sang ô bên cạnh không thể mất cùng thời gian với cú vượt 900px sang góc màn hình.
+  // Fitts's law: the smaller and the farther the target, the longer the hand has to travel. This
+  // is why a 40px slide to the neighbouring cell cannot take the same time as a 900px crossing to
+  // the corner of the screen.
   const moveDuration = (dist, targetSize) => {
     if (dist < 4) return 0;
     const width = Math.max(16, Math.min(targetSize || 40, 220));
@@ -66,13 +71,13 @@ function createHuman({ pace, viewport, seed }) {
     return Math.round(Math.max(pace.cursorMinMs, Math.min(raw, pace.cursorMaxMs)) * (1 + between(-0.12, 0.12)));
   };
 
-  // Kế hoạch cho một cú di chuyển: tổng thời gian và vị trí con trỏ tại từng mốc t (0 → 1).
+  // The plan for one move: the total duration and the cursor position at each point t (0 → 1).
   //
-  // Trả về hàm vị trí chứ không trả về danh sách khung hình, vì mỗi lệnh page.mouse.move mất
-  // khoảng 17ms đi về trình duyệt — nhiều hơn cả khoảng giữa hai khung hình. Bơm một danh sách
-  // cố định thì cú di chuyển nào cũng dài hơn ý định, và `speed` mất tác dụng lên con trỏ.
-  // Bên gọi nội suy theo đồng hồ thật: máy chậm thì được ít khung hình hơn, còn thời lượng và
-  // hình dáng đường đi vẫn đúng.
+  // It returns a position function rather than a list of frames, because each page.mouse.move
+  // command costs about 17ms of round trip to the browser — more than the interval between two
+  // frames. Pumping a fixed list through would make every move longer than intended, and `speed`
+  // would lose its effect on the cursor. The caller interpolates against the real clock: a slow
+  // machine gets fewer frames, while the duration and the shape of the path stay correct.
   const movePlan = (from, to, targetSize) => {
     const dx = to.x - from.x;
     const dy = to.y - from.y;
@@ -81,14 +86,15 @@ function createHuman({ pace, viewport, seed }) {
 
     const moveMs = Math.max(moveDuration(dist, targetSize), pace.cursorFrameMs);
 
-    // Tay không đi thẳng: quỹ đạo phình ra một bên, đi càng xa phình càng rõ nhưng có trần
-    // để không thành đường vòng kỳ dị.
+    // A hand does not travel in a straight line: the trajectory bulges out to one side, more
+    // visibly the farther it goes, but with a ceiling so it does not turn into a bizarre detour.
     const arc = Math.min(dist * 0.06, 34) * between(0.4, 1) * (rng() < 0.5 ? -1 : 1);
     const nx = -dy / dist;
     const ny = dx / dist;
 
-    // Đi xa thì mắt bắt đích trễ hơn tay: chuột vượt qua đích vài pixel rồi mới chỉnh lại.
-    // Cú chỉnh lại đó là chi tiết mà người xem nhận ra ngay là "có người đang điều khiển".
+    // Over a long distance the eye locks onto the target later than the hand: the mouse
+    // overshoots the target by a few pixels before correcting back. That correction is the detail
+    // a viewer immediately reads as "someone is driving this".
     const overshoot = dist > 260 ? between(5, 13) : 0;
     const aimX = to.x + (dx / dist) * overshoot;
     const aimY = to.y + (dy / dist) * overshoot;
@@ -97,8 +103,9 @@ function createHuman({ pace, viewport, seed }) {
     const duration = moveMs + settleMs;
     const split = moveMs / duration;
 
-    // Rung tay dưới một pixel. Bảng cố định thay vì gọi rng() trong hàm vị trí: cùng một t
-    // phải luôn ra cùng một chỗ, nếu không đường đi rung theo số khung hình máy chạy được.
+    // Sub-pixel hand tremor. A fixed table instead of calling rng() inside the position function:
+    // the same t must always produce the same spot, otherwise the path shakes according to how
+    // many frames the machine manages to run.
     const noise = Array.from({ length: 24 }, () => ({ x: between(-0.4, 0.4), y: between(-0.4, 0.4) }));
 
     const at = (t) => {
@@ -107,7 +114,7 @@ function createHuman({ pace, viewport, seed }) {
 
       const shake = noise[Math.floor(clamped * (noise.length - 1))];
       if (clamped >= split) {
-        // Pha chỉnh lại: từ chỗ vượt quá về đúng đích, chậm dần.
+        // The correction phase: from the overshoot back onto the target, decelerating.
         const local = (clamped - split) / (1 - split);
         const p = 1 - (1 - local) ** 2;
         return { x: aimX + (to.x - aimX) * p, y: aimY + (to.y - aimY) * p };
@@ -125,14 +132,15 @@ function createHuman({ pace, viewport, seed }) {
     return { duration, frameMs: pace.cursorFrameMs, at };
   };
 
-  // Ngắm rồi mới bấm. Rê sang ô ngay bên cạnh thì gần như bấm luôn, còn vừa vượt cả màn hình
-  // thì mất một nhịp định vị lại.
+  // Aim first, then click. Sliding to the cell right next door is almost an immediate click,
+  // while having just crossed the whole screen costs a beat to re-locate.
   const aimDelay = (dist) => {
     const share = Math.max(0.35, Math.min(dist / 600, 1));
     return wait(pace.beforeClickMs * share);
   };
 
-  // Người gõ không đều: chậm lại ở dấu cách và sau dấu câu, thỉnh thoảng ngập ngừng một nhịp.
+  // People do not type evenly: they slow down on spaces and after punctuation, and now and then
+  // hesitate for a beat.
   const charDelay = (char, prev) => {
     let ms = pace.typeCharMs * between(0.65, 1.35);
     if (char === ' ') ms *= 1.4;
@@ -143,8 +151,8 @@ function createHuman({ pace, viewport, seed }) {
 
   const typeDelays = (text) => Array.from(String(text)).map((char, i, all) => charDelay(char, all[i - 1]));
 
-  // Con trỏ chưa xuất hiện trong khung hình thì không có chỗ nào là "chỗ nó đang đứng".
-  // Cho nó vào từ một điểm lệch tâm để cú di chuyển đầu tiên không giống một cú nhảy.
+  // Until the cursor has appeared in the frame there is no such thing as "where it is standing".
+  // Bring it in from a point off the centre so the first move does not look like a jump.
   const restingPoint = () => ({
     x: viewport.width * between(0.42, 0.58),
     y: viewport.height * between(0.5, 0.66),

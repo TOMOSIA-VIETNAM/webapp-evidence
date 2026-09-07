@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// Dò các phần tử tương tác trên một màn hình để viết kịch bản quay bằng selector có thật,
-// thay vì đoán rồi chạy-lỗi-sửa nhiều vòng.
-// Cách dùng: node inspect.js <path> [--app <app>] [--shot <file.png>] [--limit <n>]
+// Probe the interactive elements on a screen so the recording step script can be written with real selectors,
+// instead of guessing and going through several run-fail-fix rounds.
+// Usage: node inspect.js <path> [--app <app>] [--shot <file.png>] [--limit <n>]
 const path = require('path');
 const { loadProjectConfig, openSession, closeSession, HELP_ENV } = require('./session');
 
@@ -22,28 +22,28 @@ function parseArgs(argv) {
 }
 
 function help() {
-  console.log(`Dò phần tử tương tác của một màn hình (dùng trước khi viết kịch bản quay).
+  console.log(`Probe the interactive elements of a screen (use this before writing the recording step script).
 
-  node inspect.js <path> [tuỳ chọn]
+  node inspect.js <path> [options]
 
-    <path>            Đường dẫn trong app, ví dụ /users hoặc /users/new
-    --app <app>       App khai báo trong evidence.config.js (mặc định: defaultApp)
-    --shot <file>     Chụp thêm ảnh toàn trang ra file này
-    --limit <n>       Số phần tử tối đa in ra mỗi nhóm (mặc định 40)
-    --all             In cả phần tử của menu/điều hướng chung (mặc định bỏ qua cho gọn)
+    <path>            Path inside the app, for example /users or /users/new
+    --app <app>       App declared in evidence.config.js (default: defaultApp)
+    --shot <file>     Also capture a full-page screenshot into this file
+    --limit <n>       Max number of elements printed per group (default 40)
+    --all             Also print elements of the shared navigation chrome (skipped by default to keep it short)
 
 ${HELP_ENV}
 
-Kết quả in ra theo nhóm: nút, ô nhập, select (kèm danh sách lựa chọn), liên kết.
-Mỗi dòng là một selector dùng được ngay trong kịch bản.`);
+The output is printed in groups: buttons, inputs, selects (with their options), links.
+Each line is a selector you can use directly in the step script.`);
 }
 
-// Ưu tiên selector bền: id > role kèm nhãn > name > css rút gọn
+// Prefer stable selectors: id > role with label > name > shortened css
 const COLLECT = (limit, all) => `(() => {
   const out = { buttons: [], inputs: [], selects: [], links: [] };
   const text = (el) => (el.innerText || el.value || el.getAttribute('aria-label') || el.getAttribute('title') || '')
     .trim().replace(/\\s+/g, ' ').slice(0, 60);
-  // Menu/điều hướng chung lặp lại ở mọi màn nên chỉ gây nhiễu khi viết kịch bản
+  // The shared navigation chrome repeats on every screen, so it is only noise when writing a step script
   const skipChrome = ${all ? 'false' : 'true'};
   const chrome = (el) => skipChrome && !!el.closest('nav, aside, .navbar, .sidebar, header');
   const visible = (el) => {
@@ -98,7 +98,7 @@ const COLLECT = (limit, all) => `(() => {
 function print(group, rows, render) {
   console.log(`\n## ${group} (${rows.length})`);
   if (!rows.length) {
-    console.log('  (không có)');
+    console.log('  (none)');
     return;
   }
   rows.forEach((r) => console.log(`  ${render(r)}`));
@@ -123,20 +123,20 @@ function print(group, rows, render) {
 
   console.log(`# ${url}`);
   console.log(`title: ${await page.title()}`);
-  print('Nút', found.buttons, (r) => `${r.selector}${r.disabled ? '  [disabled]' : ''}  — ${r.label}`);
-  print('Ô nhập', found.inputs, (r) => `${r.selector}  (${r.type})  — ${r.label}`);
-  print('Select', found.selects, (r) => `${r.selector}  — ${r.label}\n      lựa chọn: ${r.options.join(' / ')}`);
-  print('Liên kết', found.links, (r) => `${r.href}  — ${r.label}`);
+  print('Buttons', found.buttons, (r) => `${r.selector}${r.disabled ? '  [disabled]' : ''}  — ${r.label}`);
+  print('Inputs', found.inputs, (r) => `${r.selector}  (${r.type})  — ${r.label}`);
+  print('Selects', found.selects, (r) => `${r.selector}  — ${r.label}\n      options: ${r.options.join(' / ')}`);
+  print('Links', found.links, (r) => `${r.href}  — ${r.label}`);
 
   if (session.problems.length) {
-    console.log(`\n## Lỗi trang khi mở (${session.problems.length})`);
+    console.log(`\n## Page errors while opening (${session.problems.length})`);
     session.problems.slice(0, 10).forEach((p) => console.log(`  ${p}`));
   }
 
   if (args.shot) {
     const file = path.resolve(args.shot);
     await page.screenshot({ path: file, fullPage: true });
-    console.log(`\nẢnh: ${file}`);
+    console.log(`\nScreenshot: ${file}`);
   }
 
   await closeSession(session);

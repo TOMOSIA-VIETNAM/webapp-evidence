@@ -1,18 +1,19 @@
-// Lớp chú thích phủ lên trang khi quay. Hai loại, chung một cách định vị:
+// The caption layer overlaid on the page while recording. Two kinds, positioned the same way:
 //
-//   keys()  bảng phím tắt — thao tác bàn phím không để lại dấu vết nào trên hình
-//   note()  câu chú thích — dùng cho những khoảnh khắc trang không tự nói ra được, rõ nhất là
-//           widget do hệ điều hành vẽ (menu <select>, hộp chọn file): người xem thấy giá trị
-//           đổi mà không thấy vì sao, câu chú thích lấp đúng khoảng trống đó.
+//   keys()  the key hint overlay — keyboard actions leave no trace at all on screen
+//   note()  a caption sentence — for the moments the page cannot speak for itself, most clearly
+//           widgets drawn by the operating system (the <select> dropdown, the file picker): the
+//           viewer sees the value change without seeing why, and the caption fills exactly that
+//           gap.
 //
-// Chỉ dựng trong frame trên cùng: node gọi qua main frame, và mỗi frame tự vẽ một bảng thì
-// video có hai bảng chồng nhau.
+// Only built in the top frame: node calls through the main frame, and if every frame drew its own
+// overlay the video would have two overlapping ones.
 (() => {
   if (window.top !== window.self) return;
   if (window.__evCaption) return;
 
-  const GAP = 14;      // khoảng cách từ bảng tới phần tử đang thao tác
-  const EDGE = 16;     // lề tối thiểu so với cạnh khung hình
+  const GAP = 14;      // the distance from the overlay to the element being operated on
+  const EDGE = 16;     // the minimum margin from the edge of the frame
 
   const ensureStyle = () => {
     if (document.getElementById('__ev_caption_style')) return;
@@ -43,7 +44,7 @@
         border-left: 1px solid rgba(255, 255, 255, .22);
         font-weight: 500; font-size: 14px;
       }
-      /* Câu chú thích là văn xuôi nên phải xuống dòng được; bảng phím thì luôn một dòng. */
+      /* A caption sentence is prose, so it has to wrap; the key hint overlay is always one line. */
       #__ev_caption[data-kind="note"] {
         max-width: 420px; white-space: normal; line-height: 1.45;
         border-left: 3px solid #c66a42; padding-left: 13px;
@@ -53,8 +54,8 @@
     document.head.appendChild(style);
   };
 
-  // Gắn vào documentElement chứ không phải body: framework thay cả body (Turbo, SPA) giữa lúc
-  // bảng đang hiện thì bảng biến mất, đúng khoảnh khắc cần nhìn nhất.
+  // Attached to documentElement rather than body: if a framework swaps the whole body (Turbo, an
+  // SPA) while the overlay is up, the overlay disappears at the very moment it is most needed.
   const ensureBox = () => {
     let box = document.getElementById('__ev_caption');
     if (!box) {
@@ -65,11 +66,11 @@
     return box;
   };
 
-  // Neo vào thứ đang được thao tác, theo thứ tự thứ nào nói lên nhiều nhất:
-  //   1. rect do kịch bản truyền vào (phần tử vừa được bấm)
-  //   2. vùng văn bản đang chọn — đúng thứ mà Cmd+C/Cmd+X đang tác động
-  //   3. phần tử đang giữ focus (ô nhập đang gõ)
-  // Không có neo nào thì trả null: bảng rơi về giữa đáy khung hình.
+  // Anchor to whatever is being operated on, in order of how much it says:
+  //   1. the rect passed in by the step script (the element that was just clicked)
+  //   2. the selected text range — exactly what Cmd+C/Cmd+X is acting on
+  //   3. the element holding focus (the input being typed into)
+  // With no anchor it returns null: the overlay falls back to the bottom centre of the frame.
   const anchorRect = (explicit) => {
     if (explicit && explicit.width > 1 && explicit.height > 1) return explicit;
 
@@ -87,8 +88,8 @@
     return null;
   };
 
-  // Bảng không được che chính phần tử đang thao tác — che thì mất luôn thứ cần chứng minh.
-  // Nên đặt bên dưới nó, hết chỗ thì bên trên, hết cả hai thì cạnh bên.
+  // The overlay must not cover the element being operated on — covering it loses the very thing
+  // being proven. So place it below, above if there is no room, and beside it if neither fits.
   const place = (box, rect) => {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
@@ -115,7 +116,8 @@
     return { left: Math.round((vw - w) / 2), top: Math.round(vh - h - 2 * EDGE) };
   };
 
-  // Nội dung do kịch bản viết, có thể chứa < & " — chèn thô vào innerHTML thì bảng vỡ.
+  // The content is written by the step script and may contain < & " — dropping it raw into
+  // innerHTML breaks the overlay.
   const escape = (text) => String(text).replace(/[&<>"]/g, (c) => (
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]
   ));
@@ -126,8 +128,8 @@
     box.dataset.kind = kind;
     box.innerHTML = html;
 
-    // Đo trước khi hiện: đo lúc còn ẩn thì kích thước đã đúng, còn nếu hiện rồi mới dời
-    // thì người xem thấy bảng nhảy một nhịp.
+    // Measure before showing: measuring while still hidden already gives the right size, whereas
+    // showing it first and then moving it makes the viewer see the overlay jump a beat.
     box.style.visibility = 'hidden';
     box.removeAttribute('data-shown');
     const { left, top } = place(box, anchorRect(rect));
@@ -150,7 +152,8 @@
       const box = document.getElementById('__ev_caption');
       if (!box) return;
       box.removeAttribute('data-shown');
-      // Hai chú thích liền nhau: lần sau đã hiện lại bảng thì đừng xoá nó theo lệnh ẩn cũ.
+      // Two captions back to back: if the overlay has already been shown again by then, do not
+      // remove it because of the older hide call.
       setTimeout(() => {
         if (!box.hasAttribute('data-shown')) box.remove();
       }, 220);

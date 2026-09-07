@@ -1,0 +1,23 @@
+[
+  {"query": "ok vừa fix xong cái bug validate ở màn /users/new (form submit không báo lỗi khi email trùng), giờ lấy evidence để đính lên MR 1783 nhé", "should_trigger": true},
+  {"query": "quay evidence cho màn danh sách user sau khi tôi sửa filter theo status", "should_trigger": true},
+  {"query": "https://gitlab.example.com/beeb/admin/-/merge_requests/1783 — reviewer đang hỏi có bằng chứng chạy thật không, làm giúp tôi", "should_trigger": true},
+  {"query": "cần chụp màn hình chứng minh cái fix pagination hoạt động, khách Nhật review nên chú thích tiếng Nhật giùm", "should_trigger": true},
+  {"query": "i need proof that the new bulk-import flow actually works end to end on my local dev, something i can attach to the PR", "should_trigger": true},
+  {"query": "dự án này chưa có evidence.config.js, dựng giúp tôi config để lần sau quay cho nhanh, app chạy ở localhost:3000 rails", "should_trigger": true},
+  {"query": "video evidence của ISSUE-421 bị hỏng file rồi, quay lại giúp tôi cái mới", "should_trigger": true},
+  {"query": "record a short video of me filling the search form and hitting submit on the admin screen so the reviewer can see the modal behaviour", "should_trigger": true},
+  {"query": "cái MR này reviewer bảo thiếu bằng chứng test tay, mà tôi không nhớ màn nào, đọc diff rồi làm giúp", "should_trigger": true},
+  {"query": "video quay hôm qua nhanh quá reviewer xem không kịp, quay lại chậm hơn được không", "should_trigger": true},
+
+  {"query": "viết testcase từ file TVP 観点 cho màn user list, xuất ra xlsx theo template của khách", "should_trigger": false},
+  {"query": "review giúp tôi diff của PR 1783, chú ý phần validate email trùng", "should_trigger": false},
+  {"query": "mở chrome vào localhost:3000/users xem trang có render đúng không, console có lỗi gì đọc giúp", "should_trigger": false},
+  {"query": "viết e2e test cho flow đăng nhập rồi tìm kiếm user, dùng matrix json sẵn có trong repo", "should_trigger": false},
+  {"query": "convert file backlogs/1599/report.md sang pdf để tôi đính lên MR", "should_trigger": false},
+  {"query": "chụp screenshot cái lỗi 500 này rồi tạo issue trên redmine cho team backend", "should_trigger": false},
+  {"query": "quay lại màn hình máy tôi lúc chạy docker compose up bị lỗi, gửi cho devops xem", "should_trigger": false},
+  {"query": "cái test playwright trong spec/e2e/user_search.spec.ts đang fail ở CI, debug giúp tôi", "should_trigger": false},
+  {"query": "làm cái dashboard hiển thị số MR đã merge theo tuần cho team", "should_trigger": false},
+  {"query": "viết mô tả cho MR 1783: cái gì sai, sửa ở đâu, test nào khoá lại", "should_trigger": false}
+]

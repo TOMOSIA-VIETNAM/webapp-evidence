@@ -1,12 +1,13 @@
-// Câu chú thích hiện trong video, theo ngôn ngữ của người review MR.
+// The caption sentences shown in the video, in the language of the MR reviewer.
 //
-// Có những khoảnh khắc bản quay không tự nói ra được, rõ nhất là widget do hệ điều hành vẽ:
-// menu của <select> và hộp chọn file nằm ngoài nội dung trang nên không lọt vào khung hình.
-// Người xem thấy giá trị đổi mà không thấy vì sao. Câu chú thích lấp đúng khoảng trống đó, và
-// nói thẳng rằng phần đó không quay được — thà thiếu hình còn hơn để người xem tự suy ra sai.
+// There are moments the recording cannot speak for itself, most clearly the widgets drawn by the
+// operating system: the <select> dropdown and the file picker sit outside the page content, so
+// they never make it into the frame. The viewer sees the value change without seeing why. The
+// caption fills exactly that gap, and says outright that this part could not be recorded — a
+// missing image is better than letting the viewer infer something wrong.
 //
-// Chỗ này là nguồn duy nhất của mọi câu chú thích tự sinh. Thêm ngôn ngữ thì thêm một khoá ở
-// đây, không rải chuỗi trong runner.
+// This is the single source of every generated caption. Adding a language means adding a key
+// here, not scattering strings through the runner.
 const LOCALES = {
   en: {
     label: 'English',
@@ -30,13 +31,13 @@ const LOCALE_KEYS = Object.keys(LOCALES);
 function assertLocale(locale, source) {
   if (LOCALES[locale]) return locale;
   throw new Error(
-    `Ngôn ngữ chú thích không hợp lệ (${source}): ${JSON.stringify(locale)}\n` +
-    `Dùng một trong: ${LOCALE_KEYS.map((k) => `${k} (${LOCALES[k].label})`).join(', ')}.`
+    `Invalid caption language (${source}): ${JSON.stringify(locale)}\n` +
+    `Use one of: ${LOCALE_KEYS.map((k) => `${k} (${LOCALES[k].label})`).join(', ')}.`
   );
 }
 
-// Bộ sinh câu cho một lần quay. `enabled: false` thì trả về null cho mọi khoá, và runner hiểu
-// là không hiện gì — không phải hiện một bảng trống.
+// The sentence builder for one take. With `enabled: false` it returns null for every key, and the
+// runner reads that as showing nothing — not as showing an empty overlay.
 function createCaptions({ enabled, locale }) {
   const dict = LOCALES[assertLocale(locale, 'recording.captions.locale')];
   return {
@@ -45,7 +46,7 @@ function createCaptions({ enabled, locale }) {
     text(key, params = {}) {
       if (!enabled) return null;
       const build = dict[key];
-      if (!build) throw new Error(`Không có câu chú thích cho khoá "${key}" ở ngôn ngữ ${locale}`);
+      if (!build) throw new Error(`There is no caption sentence for the key "${key}" in language ${locale}`);
       return build(params);
     },
   };

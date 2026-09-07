@@ -1,0 +1,6 @@
+{
+  "name": "get-evidence",
+  "description": "Record evidence (video + screenshots + runbook) for a merge request",
+  "version": "0.1.0",
+  "skills": "./src/skills/"
+}

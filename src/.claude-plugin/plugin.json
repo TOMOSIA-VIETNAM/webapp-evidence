@@ -1,0 +1,11 @@
+{
+  "name": "get-evidence",
+  "description": "Record evidence — an operation video, screenshots and a runbook — to attach to a pull or merge request.",
+  "version": "0.1.0",
+  "homepage": "https://github.com/TOMOSIA-VIETNAM/webapp-evidence",
+  "repository": "https://github.com/TOMOSIA-VIETNAM/webapp-evidence",
+  "license": "MIT",
+  "author": {
+    "name": "TOMOSIA-VIETNAM"
+  }
+}

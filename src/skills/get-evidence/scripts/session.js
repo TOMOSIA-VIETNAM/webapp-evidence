@@ -1,5 +1,5 @@
-// Phần dùng chung của record.js và inspect.js: đọc cấu hình dự án, nhớ tài khoản,
-// dựng môi trường, đăng nhập và mở sẵn một trang đã đăng nhập.
+// Shared part of record.js and inspect.js: read the project config, remember the account,
+// prepare the environment, sign in and hand back an already signed-in page.
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -11,38 +11,38 @@ const VIEWPORT = { width: 1280, height: 800 };
 const SKILL_DIR = path.resolve(__dirname, '..');
 const ROOT = process.env.PROJECT_ROOT || process.cwd();
 
-// Thư mục skill là tài sản dùng chung cho mọi dự án: mọi thứ sinh ra khi quay (cấu hình, tài
-// khoản, kịch bản, kết quả, file thử tạm) đều thuộc về dự án, không được nằm ở đây. Chặn sớm
-// thay vì để rác tích lại rồi lẫn sang dự án khác.
+// The skill directory is a shared asset for every project: everything produced by a recording (config,
+// account, step script, results, temporary test files) belongs to the project and must not live here. Block it
+// early instead of letting junk pile up and then bleed into another project.
 function assertOutsideSkill(target, what) {
   const resolved = path.resolve(target);
   if (resolved === SKILL_DIR || resolved.startsWith(`${SKILL_DIR}${path.sep}`)) {
     throw new Error(
-      `${what} đang trỏ vào trong thư mục skill (${resolved}).\n` +
-      'Chạy lại từ thư mục gốc của dự án, hoặc đặt PROJECT_ROOT / OUT_DIR về đường dẫn trong dự án.'
+      `${what} points inside the skill directory (${resolved}).\n` +
+      'Run again from the project root, or point PROJECT_ROOT / OUT_DIR at a path inside the project.'
     );
   }
   return resolved;
 }
 
-assertOutsideSkill(ROOT, 'Thư mục đang chạy');
+assertOutsideSkill(ROOT, 'The working directory');
 
-const HELP_ENV = `Biến môi trường:
-    EVIDENCE_CONFIG   Đường dẫn cấu hình dự án (mặc định: dò từ thư mục kịch bản đi lên)
-    BASE_URL          Ghi đè URL gốc của app
-    HEADED=1          Hiện cửa sổ trình duyệt (mặc định ẩn, tránh người dùng lỡ thao tác)
-    BROWSER_CHANNEL   Kênh trình duyệt của Playwright (mặc định chrome)`;
+const HELP_ENV = `Environment variables:
+    EVIDENCE_CONFIG   Path to the project config (default: probe upward from the step script directory)
+    BASE_URL          Override the base URL of the app
+    HEADED=1          Show the browser window (hidden by default, so the user cannot interact by accident)
+    BROWSER_CHANNEL   Playwright browser channel (default: chrome)`;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// Runner không biết gì về app cụ thể: URL, cách dựng môi trường và cách đăng nhập
-// đều do dự án khai báo trong evidence.config.js.
+// The runner knows nothing about a specific app: the URL, how to prepare the environment and how to sign in
+// are all declared by the project in evidence.config.js.
 //
-// Tìm theo thứ tự từ gần đến xa, để một issue có thể có cấu hình riêng đặt cạnh kịch bản
-// mà vẫn dùng chung cấu hình của dự án khi không cần gì đặc biệt:
+// Search from nearest to farthest, so one issue can have its own config sitting next to the step script
+// while still falling back to the shared project config when nothing special is needed:
 //   1. EVIDENCE_CONFIG
-//   2. <thư mục kịch bản>/evidence.config.js
-//   3. leo dần lên: <cấp>/evidence.config.js hoặc <cấp>/evidence/evidence.config.js
+//   2. <step script directory>/evidence.config.js
+//   3. walk up level by level: <level>/evidence.config.js or <level>/evidence/evidence.config.js
 //   4. <root>/.claude/evidence.config.js
 function configCandidates(startDir) {
   const found = [];
@@ -60,8 +60,9 @@ function configCandidates(startDir) {
   return found;
 }
 
-// Khi chạy từ thư mục gốc (ví dụ lúc dò selector, chưa có kịch bản) thì đường leo lên
-// không đi qua nơi đặt cấu hình, nên quét nông thêm vài cấp để khỏi bắt người dùng gõ --config.
+// When running from the project root (for example while probing selectors, before any step script exists) the
+// upward walk does not pass through where the config lives, so scan a few levels down as well instead of
+// forcing the user to type --config.
 function scanForConfig(maxDepth = 3) {
   const skip = new Set(['node_modules', '.git', 'tmp', 'log', 'coverage', 'public', 'vendor']);
   const found = [];
@@ -87,7 +88,7 @@ function scanForConfig(maxDepth = 3) {
 function loadProjectConfig(startDir) {
   if (process.env.EVIDENCE_CONFIG) {
     const file = path.resolve(process.env.EVIDENCE_CONFIG);
-    if (!fs.existsSync(file)) throw new Error(`Không tìm thấy cấu hình: ${file}`);
+    if (!fs.existsSync(file)) throw new Error(`Config not found: ${file}`);
     return { file, config: require(file) };
   }
   for (const file of configCandidates(startDir)) {
@@ -98,35 +99,35 @@ function loadProjectConfig(startDir) {
   if (scanned.length === 1) return { file: scanned[0], config: require(scanned[0]) };
   if (scanned.length > 1) {
     throw new Error(
-      `Có nhiều evidence.config.js, chỉ rõ bằng EVIDENCE_CONFIG=<đường dẫn>:\n` +
+      `Several evidence.config.js found, pick one with EVIDENCE_CONFIG=<path>:\n` +
       scanned.map((f) => `  ${f}`).join('\n')
     );
   }
 
   throw new Error(
-    'Không tìm thấy evidence.config.js.\n' +
-    `Tạo file này từ ${path.join(__dirname, '../templates/evidence.config.example.js')},\n` +
-    'đặt cạnh kịch bản (cấu hình riêng của issue) hoặc ở thư mục evidence chung của dự án.'
+    'No evidence.config.js found.\n' +
+    `Create one from ${path.join(__dirname, '../assets/evidence.config.example.js')},\n` +
+    'and put it next to the step script (per-issue config) or in the shared evidence directory of the project.'
   );
 }
 
-// Adapter đăng nhập của dự án tự quyết định lấy tài khoản ở đâu; skill chỉ lo phần đọc/ghi
-// để lần quay sau không phải hỏi lại người dùng.
-// File tài khoản chứa mật khẩu và nằm lại lâu dài, nên yêu cầu ignore ở đây là bắt buộc —
-// không có cửa thoát như với thư mục kết quả.
+// The login adapter of the project decides where the account comes from; the skill only handles reading and
+// writing it so the next recording does not have to ask the user again.
+// The account file holds a password and stays around for a long time, so requiring it to be ignored is
+// mandatory here — there is no escape hatch like there is for the output directory.
 function assertAccountStoreIgnored(file) {
   try {
     execFileSync('git', ['rev-parse', '--show-toplevel'], { stdio: 'ignore' });
   } catch {
-    return; // không phải git repo
+    return; // not a git repo
   }
   try {
     execFileSync('git', ['check-ignore', '-q', file], { stdio: 'ignore' });
   } catch (e) {
     if (e.status !== 1) return;
     throw new Error(
-      `File tài khoản sẽ chứa mật khẩu nhưng chỗ lưu chưa được ignore:\n  ${file}\n\n` +
-      'Đặt accountStore vào vùng đã ignore của dự án, hoặc nhờ người dùng thêm dòng ignore cho nó.'
+      `The account file will contain a password but its location is not ignored yet:\n  ${file}\n\n` +
+      'Move accountStore into an already ignored area of the project, or ask the user to add an ignore rule for it.'
     );
   }
 }
@@ -154,7 +155,7 @@ function makeAccountStore(storePath) {
   };
 }
 
-// Mật khẩu phải qua được các validator về độ mạnh nên trộn hoa/thường/số/ký hiệu
+// The password has to pass strength validators, so mix upper case, lower case, digits and symbols
 function generatePassword() {
   const body = crypto.randomBytes(9).toString('base64url').replace(/[^A-Za-z0-9]/g, '');
   return `Ev${body}#7rq`;
@@ -163,7 +164,7 @@ function generatePassword() {
 function resolveApp(config, app) {
   const name = app || config.defaultApp;
   const appConfig = config.apps?.[name];
-  if (!appConfig) throw new Error(`App "${name}" chưa được khai báo trong cấu hình dự án`);
+  if (!appConfig) throw new Error(`App "${name}" is not declared in the project config`);
   return { name, appConfig, baseUrl: process.env.BASE_URL || appConfig.baseUrl };
 }
 
@@ -176,8 +177,8 @@ async function launchBrowser(settings) {
   });
 }
 
-// Dự án tự dựng môi trường trước khi mở trình duyệt: màn hình lỗi của môi trường lọt vào
-// evidence sẽ làm nó vô dụng. Trả về danh sách những gì đã sửa để in cho người dùng.
+// The project prepares its own environment before the browser opens: an environment error screen that ends up
+// in the evidence makes it useless. Returns the list of what was fixed so it can be printed for the user.
 async function prepareApp({ appConfig, name, baseUrl }) {
   if (typeof appConfig.prepare !== 'function') return [];
   const result = await appConfig.prepare({ app: name, baseUrl, exec: execFileSync, root: ROOT });
@@ -193,8 +194,9 @@ async function signIn({ browser, appConfig, name, baseUrl, settings }) {
   });
 }
 
-// Lỗi JS và request hỏng là thứ hay làm kịch bản gãy mà thông báo timeout của Playwright
-// không nói ra. Gom lại để khi có sự cố thì biết ngay là do selector hay do app đang lỗi.
+// JS errors and failed requests are what usually breaks a step script, and Playwright's timeout message does
+// not say so. Collect them so that when something goes wrong you know right away whether it is the selector or
+// the app being broken.
 function watchProblems(page) {
   const problems = [];
   page.on('console', (msg) => {
@@ -209,7 +211,7 @@ function watchProblems(page) {
   return problems;
 }
 
-// Phiên dùng cho việc dò selector: không quay, chỉ cần một trang đã đăng nhập.
+// Session used for probing selectors: no recording, just a signed-in page.
 async function openSession({ config, app }) {
   const settings = resolveSettings(config);
   const { name, appConfig, baseUrl } = resolveApp(config, app);

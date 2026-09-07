@@ -1,0 +1,18 @@
+{
+  "name": "get-evidence",
+  "description": "Record evidence (video + screenshots + runbook) for a merge request",
+  "homepage": "https://github.com/TOMOSIA-VIETNAM/webapp-evidence",
+  "repository": "https://github.com/TOMOSIA-VIETNAM/webapp-evidence",
+  "license": "MIT",
+  "author": {
+    "name": "TOMOSIA-VIETNAM"
+  },
+  "skills": "./src/skills/",
+  "interface": {
+    "displayName": "get-evidence",
+    "shortDescription": "Record evidence (video + screenshots + runbook) for a merge request",
+    "developerName": "TOMOSIA-VIETNAM",
+    "category": "Developer Tools",
+    "websiteURL": "https://github.com/TOMOSIA-VIETNAM/webapp-evidence"
+  }
+}

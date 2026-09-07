@@ -1,5 +1,5 @@
-// Con trỏ giả cho video. Bản quay của Playwright không chứa con trỏ chuột thật,
-// nên vẽ con trỏ và vòng ripple mỗi lần bấm để người xem thấy click rơi vào đâu.
+// A fake cursor for the video. Playwright's recording does not contain the real mouse cursor,
+// so draw a cursor and a ripple ring on each click, so the viewer sees where the click lands.
 (() => {
   const install = () => {
     if (document.getElementById('__ev_cursor')) return;
@@ -31,16 +31,19 @@
     cursor.id = '__ev_cursor';
     cursor.innerHTML =
       '<svg width="30" height="30" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">' +
-      // Phần đuôi là hình bình hành chuẩn: hai cạnh dài cùng vector (3.0, 6.2), hai cạnh ngắn
-      // cùng vector (3.0, -1.4). Lệch vài phần mười là mắt thấy ngay đuôi bị vẹo.
+      // The tail is a proper parallelogram: the two long edges share the vector (3.0, 6.2), the
+      // two short edges the vector (3.0, -1.4). A few tenths off and the eye immediately sees a
+      // crooked tail.
       '<path d="M5 2.5 L5 19.4 L9.4 15.4 L12.4 21.6 L15.4 20.2 L12.4 14 L18.5 14 Z" ' +
       'fill="#ffffff" stroke="#c66a42" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/></svg>';
     document.body.appendChild(cursor);
 
-    // Vị trí giữ ở window: khi framework thay cả body (Turbo, htmx, SPA) thì phần tử con trỏ
-    // bị gỡ, gắn lại phải đúng chỗ chuột đang đứng chứ không nhảy về giữa màn hình.
-    // Trang có iframe thì init script chạy trong từng frame. Frame nào chưa nhận chuột thì ẩn,
-    // nếu không video sẽ có một con trỏ đứng im bên cạnh con trỏ đang thao tác.
+    // The position is kept on window: when a framework swaps the whole body (Turbo, htmx, an SPA)
+    // the cursor element is removed, and reattaching it has to land exactly where the mouse is
+    // standing instead of jumping back to the middle of the screen.
+    // On a page with iframes the init script runs inside every frame. A frame that has not
+    // received the mouse yet keeps its cursor hidden, otherwise the video would show a motionless
+    // cursor next to the one actually operating.
     const isTopFrame = window.top === window.self;
     if (!isTopFrame && !window.__evCursorSeen) cursor.style.display = 'none';
 
@@ -67,8 +70,9 @@
     }, true);
   };
 
-  // Điều hướng bằng Turbo/SPA không tải lại trang nên init script không chạy lần nữa, trong khi
-  // body bị thay mới và con trỏ biến mất giữa video. Theo dõi và gắn lại ngay khi mất.
+  // Navigating with Turbo/an SPA does not reload the page, so the init script does not run again,
+  // while the body is replaced and the cursor disappears in the middle of the video. Watch for
+  // that and reattach as soon as it is gone.
   const keepAlive = () => {
     if (!document.getElementById('__ev_cursor')) install();
   };
@@ -83,8 +87,8 @@
     document.addEventListener(evt, keepAlive, true);
   });
 
-  // SPA render liên tục sẽ bắn rất nhiều mutation; gom lại theo khung hình để không đua với
-  // vòng render của app.
+  // An SPA rendering continuously fires a great many mutations; batch them per frame so this does
+  // not race the app's own render loop.
   let pending = false;
   const observer = new MutationObserver(() => {
     if (pending) return;
@@ -95,8 +99,9 @@
     });
   });
 
-  // Init script chạy trước khi trang dựng cây DOM, nên documentElement có thể chưa tồn tại:
-  // observe(null) ném lỗi, và lỗi đó lọt vào log lỗi trang của evidence như thể app đang hỏng.
+  // The init script runs before the page builds its DOM tree, so documentElement may not exist
+  // yet: observe(null) throws, and that error lands in the evidence page error log as if the app
+  // were broken.
   const observe = () => observer.observe(document.documentElement, { childList: true, subtree: true });
   if (document.documentElement) {
     observe();

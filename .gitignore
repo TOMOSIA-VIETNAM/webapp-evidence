@@ -1,4 +1,4 @@
-# Dependency của runner, cài bằng: npm install --prefix lib
-lib/node_modules/
+# Runner dependency, installed with: npm install --prefix src/skills/get-evidence/scripts
+src/skills/get-evidence/scripts/node_modules/
 
 .DS_Store

@@ -1,0 +1,12 @@
+{
+  "name": "get-evidence-runner",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Playwright runner that records evidence (video + screenshots) for a merge request",
+  "dependencies": {
+    "playwright-core": "1.62.1"
+  },
+  "scripts": {
+    "test": "node --test '../../../../tests/*.test.js'"
+  }
+}
