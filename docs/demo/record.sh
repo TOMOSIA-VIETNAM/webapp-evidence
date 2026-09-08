@@ -17,9 +17,9 @@ GIF="$REPO/docs/demo/demo.gif"
 # footage rather than the default 216-colour web palette, which bands the flat UI greys badly.
 WIDTH=900
 FPS=12
-# The demo app is short, so the lower third of a 1280x800 viewport is empty background. Cropping it
-# away before scaling keeps the interesting part large on a README page without shrinking the text.
-CROP=1280:660:0:0
+# The full viewport, not a crop of it: captions sit along the bottom edge the way subtitles do, and
+# cropping the empty-looking lower band cuts them off.
+CROP=1280:800:0:0
 
 command -v ffmpeg >/dev/null || { printf 'record.sh: ffmpeg is required\n' >&2; exit 1; }
 [ -d "$SKILL/scripts/node_modules" ] \

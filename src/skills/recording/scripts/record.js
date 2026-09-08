@@ -184,7 +184,7 @@ function buildContext(page, outDir, marks, hotkeys, notes, startedAt, pace, view
 
     // The viewer sees the value in the field change but sees no menu open, because that menu is drawn
     // by the operating system. The caption says so instead of leaving them to work it out.
-    const shown = await showNote(captions.text('selectOption', { value: label }), locator);
+    const shown = await showNote(captions.text('selectOption', { value: label }));
     await sleep(Math.max(human.wait(pace.afterSelectMs), shown ? pace.noteHoldMs : 0));
     if (shown) await hideCaption();
   }
@@ -194,7 +194,7 @@ function buildContext(page, outDir, marks, hotkeys, notes, startedAt, pace, view
   async function upload(locator, filePath) {
     await click(locator, { pause: 'quick' });
     await locator.setInputFiles(filePath);
-    const shown = await showNote(captions.text('uploadFile', { file: path.basename(filePath) }), locator);
+    const shown = await showNote(captions.text('uploadFile', { file: path.basename(filePath) }));
     await sleep(Math.max(human.wait(pace.afterUploadMs), shown ? pace.noteHoldMs : 0));
     if (shown) await hideCaption();
   }
@@ -212,12 +212,12 @@ function buildContext(page, outDir, marks, hotkeys, notes, startedAt, pace, view
     };
   }
 
-  // A caption in the video. Returns false when captions are off, so the caller knows there is nothing
-  // to wait around for anyone to read.
-  async function showNote(text, target) {
+  // A caption in the video. It is narration, so it lands along the bottom of the frame like a
+  // subtitle rather than beside any element — there is nothing to anchor to and nothing to cover.
+  // Returns false when captions are off, so the caller knows there is nothing to wait around for.
+  async function showNote(text) {
     if (!text) return false;
-    const rect = target ? await edgesOf(target) : null;
-    await page.evaluate((payload) => window.__evCaption?.note(payload), { text, rect });
+    await page.evaluate((payload) => window.__evCaption?.note(payload), { text });
     notes.push({ at: since(), text });
     return true;
   }
@@ -231,9 +231,9 @@ function buildContext(page, outDir, marks, hotkeys, notes, startedAt, pace, view
   // Also governed by the same switch: once the operator has said "this take has no captions", not one
   // gets through, including the ones the step script calls for directly. One switch, one predictable
   // result.
-  async function note(text, { target, hold = pace.noteHoldMs } = {}) {
+  async function note(text, { hold = pace.noteHoldMs } = {}) {
     if (!captions.enabled) return;
-    if (!(await showNote(text, target))) return;
+    if (!(await showNote(text))) return;
     await sleep(human.wait(hold));
     await hideCaption();
   }

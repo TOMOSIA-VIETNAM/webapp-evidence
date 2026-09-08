@@ -21,7 +21,7 @@
 </p>
 
 <p align="center">
-  <img src="./docs/demo/demo.gif" width="820" alt="The cursor travels to the name field, types a search term, picks a status from a dropdown the recording cannot show — a caption says which one — runs the search, then opens and closes a detail modal.">
+  <img src="./docs/demo/demo.gif" width="820" alt="The cursor travels to the name field, types a search term, picks a status from a dropdown the recording cannot show — a subtitle along the bottom says which one — runs the search, then opens and closes a detail modal.">
 </p>
 
 Reviewers ask for proof. Customers ask for proof. And the honest answer is usually a screenshot
@@ -52,9 +52,10 @@ for the person watching it:
 - **The pace follows what is on screen.** Clicks that only navigate go briskly; the moment a result
   appears, it is held long enough to read. Waits vary instead of ticking identically.
 - **What the frame cannot hold is said out loud.** A `<select>` menu and a file picker are drawn by
-  the operating system and never enter a page recording — so a caption says what was chosen, and why
-  the widget is not visible. Keyboard shortcuts raise a key hint overlay (`⌘ + C`) beside the
-  element they act on.
+  the operating system and never enter a page recording — so a subtitle along the bottom says what
+  was chosen, and why the widget is not visible. It sits where a film puts its subtitles, so it
+  never covers the thing being proven. Keyboard shortcuts are different: they raise a key hint
+  overlay (`⌘ + C`) beside the element they act on, because which element matters.
 - **The page-load wait is trimmed** off the front, so the video starts where the work starts.
 
 The explanation lives in the runbook, not burned into the video — fixing the wording never means

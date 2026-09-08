@@ -39,9 +39,7 @@ module.exports = {
 
     // note() is for what only the author of the step script knows has to be said out loud. It is
     // turned off by the same CAPTIONS=off switch, and is not for narrating what the frame shows.
-    await note('この行はシードデータで、この操作で作られたものではありません。', {
-      target: page.locator('#user_row_1'),
-    });
+    await note('この行はシードデータで、この操作で作られたものではありません。');
 
     mark('コードをコピーして検索欄に貼り付け');
     // The keyboard leaves no trace on screen, so hotkey() shows a key hint overlay next to the

@@ -1,10 +1,14 @@
-// The caption layer overlaid on the page while recording. Two kinds, positioned the same way:
+// The caption layer overlaid on the page while recording. Two kinds, and they sit in different
+// places because they do different jobs:
 //
-//   keys()  the key hint overlay — keyboard actions leave no trace at all on screen
+//   keys()  the key hint overlay — keyboard actions leave no trace at all on screen, and which
+//           element the shortcut applies to is half of what it has to say, so it is anchored
+//           beside that element.
 //   note()  a caption sentence — for the moments the page cannot speak for itself, most clearly
 //           widgets drawn by the operating system (the <select> dropdown, the file picker): the
 //           viewer sees the value change without seeing why, and the caption fills exactly that
-//           gap.
+//           gap. This is narration, not annotation, so it goes where a film puts its subtitles:
+//           along the bottom of the frame, out of the way of whatever is being proven.
 //
 // Only built in the top frame: node calls through the main frame, and if every frame drew its own
 // overlay the video would have two overlapping ones.
@@ -12,8 +16,9 @@
   if (window.top !== window.self) return;
   if (window.__evCaption) return;
 
-  const GAP = 14;      // the distance from the overlay to the element being operated on
+  const GAP = 14;      // the distance from the key hint overlay to the element being operated on
   const EDGE = 16;     // the minimum margin from the edge of the frame
+  const SUBTITLE_BOTTOM = 44;  // how far a caption sentence sits above the bottom edge
 
   const ensureStyle = () => {
     if (document.getElementById('__ev_caption_style')) return;
@@ -44,11 +49,13 @@
         border-left: 1px solid rgba(255, 255, 255, .22);
         font-weight: 500; font-size: 14px;
       }
-      /* A caption sentence is prose, so it has to wrap; the key hint overlay is always one line. */
+      /* A caption sentence is prose and reads as a subtitle: it wraps, it is centred, and it is
+         wide enough that a sentence does not break into a narrow column. The key hint overlay
+         stays one line beside its element. */
       #__ev_caption[data-kind="note"] {
-        max-width: 420px; white-space: normal; line-height: 1.45;
-        border-left: 3px solid #c66a42; padding-left: 13px;
-        font-weight: 500; font-size: 14px;
+        max-width: min(78vw, 900px); white-space: normal; line-height: 1.5;
+        display: block; text-align: center;
+        padding: 11px 18px; font-weight: 500; font-size: 15px;
       }
     `;
     document.head.appendChild(style);
@@ -66,11 +73,11 @@
     return box;
   };
 
-  // Anchor to whatever is being operated on, in order of how much it says:
+  // Anchor the key hint overlay to whatever is being operated on, in order of how much it says:
   //   1. the rect passed in by the step script (the element that was just clicked)
   //   2. the selected text range — exactly what Cmd+C/Cmd+X is acting on
   //   3. the element holding focus (the input being typed into)
-  // With no anchor it returns null: the overlay falls back to the bottom centre of the frame.
+  // With no anchor it returns null, and the overlay falls to the bottom of the frame.
   const anchorRect = (explicit) => {
     if (explicit && explicit.width > 1 && explicit.height > 1) return explicit;
 
@@ -88,8 +95,15 @@
     return null;
   };
 
-  // The overlay must not cover the element being operated on — covering it loses the very thing
-  // being proven. So place it below, above if there is no room, and beside it if neither fits.
+  // Along the bottom, centred — where a viewer already looks for words over a moving picture, and
+  // where nothing in the middle of the page gets covered.
+  const subtitle = (box) => ({
+    left: Math.round((window.innerWidth - box.offsetWidth) / 2),
+    top: Math.round(window.innerHeight - box.offsetHeight - SUBTITLE_BOTTOM),
+  });
+
+  // The key hint overlay must not cover the element it is describing — covering it loses the very
+  // thing being proven. So place it below, above if there is no room, and beside it if neither fits.
   const place = (box, rect) => {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
@@ -97,9 +111,7 @@
     const h = box.offsetHeight;
     const clamp = (v, max) => Math.max(EDGE, Math.min(v, max - EDGE));
 
-    if (!rect) {
-      return { left: Math.round((vw - w) / 2), top: Math.round(vh - h - 2 * EDGE) };
-    }
+    if (!rect) return subtitle(box);
 
     const centered = clamp(rect.left + rect.width / 2 - w / 2, vw - w);
 
@@ -113,7 +125,7 @@
     const top = Math.round(clamp(rect.top + rect.height / 2 - h / 2, vh - h));
     if (rect.right + GAP + w <= vw - EDGE) return { left: Math.round(rect.right + GAP), top };
     if (rect.left - GAP - w >= EDGE) return { left: Math.round(rect.left - GAP - w), top };
-    return { left: Math.round((vw - w) / 2), top: Math.round(vh - h - 2 * EDGE) };
+    return subtitle(box);
   };
 
   // The content is written by the step script and may contain < & " — dropping it raw into
@@ -132,7 +144,9 @@
     // showing it first and then moving it makes the viewer see the overlay jump a beat.
     box.style.visibility = 'hidden';
     box.removeAttribute('data-shown');
-    const { left, top } = place(box, anchorRect(rect));
+    // A sentence is narration and belongs at the bottom whatever it happens to be about; only the
+    // key hint overlay is placed against an element.
+    const { left, top } = kind === 'note' ? subtitle(box) : place(box, anchorRect(rect));
     box.style.left = `${left}px`;
     box.style.top = `${top}px`;
     box.style.visibility = '';
@@ -145,8 +159,8 @@
       show('keys', parts.join('<span class="__ev_plus">+</span>')
         + (label ? `<span class="__ev_label">${escape(label)}</span>` : ''), rect);
     },
-    note({ text, rect }) {
-      show('note', escape(text), rect);
+    note({ text }) {
+      show('note', escape(text));
     },
     hide() {
       const box = document.getElementById('__ev_caption');
