@@ -7,9 +7,15 @@
 # over to that clone's scripts/install-local.sh, which is the code that runs. Read it there
 # afterwards. Add --uninstall to remove.
 #
-# Env: WEBAPP_EVIDENCE_HOME · WEBAPP_EVIDENCE_REF (default: latest release tag) · WEBAPP_EVIDENCE_REPO
+# Args: --ref <branch-or-tag> installs that ref instead of the newest release, and every later run
+# stays on it; `--ref latest` returns to the release channel. Everything else is passed through to
+# install-local.sh.
 #
-# This file is fetched from the default branch; the tag pins the clone it leaves behind.
+# Env: WEBAPP_EVIDENCE_HOME (default ~/.webapp-evidence) · WEBAPP_EVIDENCE_REF (same as --ref) ·
+# WEBAPP_EVIDENCE_REPO
+#
+# This file itself is fetched from the default branch; the ref below pins the clone it leaves
+# behind, which is what actually runs.
 set -euo pipefail
 # Exactly what a run needs. Everything else — tests, docs, tooling, agent instructions aimed at
 # people editing THIS project — has no business on the disk of someone using it. An include list, so
@@ -34,19 +40,44 @@ is_our_clone() {
 main() {
   local repo="${WEBAPP_EVIDENCE_REPO:-https://github.com/TOMOSIA-VIETNAM/webapp-evidence}"
   local home="${WEBAPP_EVIDENCE_HOME:-$HOME/.webapp-evidence}"
-  local ref="${WEBAPP_EVIDENCE_REF:-}"
-  local uninstalling=no targeted=no arg tmp=
+  # `ref` is what to check out now; `pinned` is what the clone should follow from here on, where an
+  # empty value means the release channel. `named=no` says this run mentioned no ref at all, and
+  # then an existing clone keeps following whatever it already followed.
+  local ref="${WEBAPP_EVIDENCE_REF:-}" pinned="${WEBAPP_EVIDENCE_REF:-}" named=no
+  [ -z "$ref" ] || named=yes
+  local uninstalling=no targeted=no tmp=
+  # What install-local.sh receives: its own flags, none of ours.
+  local -a pass=()
 
-  for arg in "$@"; do
-    case "$arg" in
-      --uninstall) uninstalling=yes ;;
-      --platform|--all|--target) targeted=yes ;;
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --ref) [ $# -ge 2 ] && [ -n "$2" ] || {
+               printf 'install.sh: --ref needs a branch or tag name, or `latest`\n' >&2; exit 2; }
+             ref="$2"; pinned="$2"; named=yes; shift 2 ;;
+      --ref=?*) ref="${1#--ref=}"; pinned="$ref"; named=yes; shift ;;
+      --ref=) printf 'install.sh: --ref needs a branch or tag name, or `latest`\n' >&2; exit 2 ;;
+      --uninstall) uninstalling=yes; pass+=("$1"); shift ;;
+      --platform|--all|--target) targeted=yes; pass+=("$1"); shift ;;
+      *) pass+=("$1"); shift ;;
     esac
   done
 
   command -v git >/dev/null || { printf 'install.sh: git is required\n' >&2; exit 1; }
 
+  # `latest` is the way back from a branch to the release channel: ask for a release, and follow
+  # nothing afterwards.
+  if [ "$ref" = latest ]; then ref=; pinned=; fi
+
+  # A clone already following a ref stays on it, so re-running the one-liner to update does not drop
+  # someone off the branch they installed on purpose.
+  if [ "$named" = no ] && [ -d "$home/.git" ] && is_our_clone "$home" "$repo"; then
+    ref="$(git -C "$home" config --get webapp-evidence.ref 2>/dev/null || true)"
+    pinned="$ref"
+  fi
+
   if [ -z "$ref" ]; then
+    # Highest release tag, so the one-liner never lands on an unreleased commit. With no tags yet,
+    # the default branch is the only thing there is to install.
     ref="$(git ls-remote --tags --refs "$repo" 'v[0-9]*' 2>/dev/null \
            | awk -F/ '{print $NF}' | sort -t. -k1.2,1n -k2,2n -k3,3n | tail -1)"
     [ -n "$ref" ] || ref=main
@@ -71,7 +102,7 @@ main() {
     [ -x "$runner" ] || { printf 'install.sh: no uninstaller at %s\n' "$ref" >&2
                           [ -z "$tmp" ] || rm -rf "$tmp"; exit 1; }
     local rc=0
-    "$runner" "$@" || rc=$?
+    "$runner" ${pass+"${pass[@]}"} || rc=$?
     [ -z "$tmp" ] || rm -rf "$tmp"
     if [ "$rc" -eq 0 ] && [ "$targeted" = no ] && [ -d "$home/.git" ]; then
       rm -rf "$home"; say 'removed %s\n' "$home"
@@ -100,8 +131,19 @@ main() {
 
   [ -x "$home/scripts/install-local.sh" ] || {
     printf 'install.sh: %s/scripts/install-local.sh is missing\n' "$home" >&2; exit 1; }
+
+  # What this clone follows from now on, kept in its own git config so a checkout cannot lose it and
+  # nothing tracked has to carry it. Following the release channel is the absence of a value, which
+  # is what `--ref latest` restores.
+  if [ -n "$pinned" ]; then
+    git -C "$home" config webapp-evidence.ref "$pinned"
+    say 'following %s — `--ref latest` returns to releases\n' "$pinned"
+  else
+    git -C "$home" config --unset webapp-evidence.ref 2>/dev/null || true
+  fi
+
   say '\nRead what does the rest: %s/scripts/install-local.sh\n\n' "$home"
-  exec "$home/scripts/install-local.sh" "$@"
+  exec "$home/scripts/install-local.sh" ${pass+"${pass[@]}"}
 }
 
 main "$@"

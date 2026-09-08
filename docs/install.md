@@ -28,6 +28,24 @@ curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/mai
 Later on: `~/.webapp-evidence/scripts/install-local.sh --update` pulls and reinstalls,
 `--uninstall --all` removes every install it made.
 
+### Choosing what it follows
+
+Without `--ref` the clone lands on the newest release tag, or on `main` while the repository has no
+releases. `--ref` picks something else and is remembered:
+
+```bash
+curl -fsSL .../install.sh | bash -s -- --ref main       # a branch, to try a change before it ships
+curl -fsSL .../install.sh | bash -s -- --ref v1.2.0     # a release, to pin a team to one version
+curl -fsSL .../install.sh | bash -s -- --ref latest     # back to following releases
+```
+
+The choice is stored in the clone's own git config (`webapp-evidence.ref`), so re-running the
+one-liner to update keeps you where you asked to be rather than moving you to the default branch.
+`install-local.sh --update` reads the same value: on a branch it fetches that branch, on a tag it
+re-checks-out that tag, and only a clone that follows nothing falls back to a plain pull.
+
+`WEBAPP_EVIDENCE_REF` does the same as `--ref` for anyone who prefers an environment variable.
+
 ## Per platform
 
 ### Claude Code

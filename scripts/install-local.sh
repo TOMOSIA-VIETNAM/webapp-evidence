@@ -152,7 +152,19 @@ resolve_members() {
 
 if [ "$ACTION" = update ]; then
   say 'updating %s\n' "$REPO"
-  git -C "$REPO" pull --ff-only
+  # install.sh records the ref this clone follows, and a clone made with --branch has a fetch
+  # refspec narrowed to that one ref — so a bare `pull` on a tag checkout has nothing to track.
+  # Ask for the ref by name, and fall back to a plain pull for a clone made some other way.
+  REF="$(git -C "$REPO" config --get webapp-evidence.ref 2>/dev/null || true)"
+  if [ -n "$REF" ]; then
+    say 'following %s\n' "$REF"
+    git -C "$REPO" fetch --quiet --depth 1 origin "$REF" 2>/dev/null \
+      || git -C "$REPO" fetch --quiet --tags origin "$REF" \
+      || { printf 'install-local.sh: %s no longer has a ref named %s\n' "$REPO" "$REF" >&2; exit 1; }
+    git -C "$REPO" checkout --quiet --detach FETCH_HEAD
+  else
+    git -C "$REPO" pull --ff-only
+  fi
   ACTION=install
 fi
 

@@ -70,8 +70,30 @@ claude plugin install webapp-evidence@webapp-evidence
 curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash
 ```
 
-It asks which platform you want and sets up the runner's dependency itself. Full guide, including
-where each platform puts it and how to remove it: **[Install](./docs/install.md)**.
+It asks which platform you want and sets up the runner's dependency itself.
+
+### Picking a version
+
+The one-liner installs the newest release tag, or `main` while there are no releases yet. To follow
+something else, pass `--ref`:
+
+```bash
+# a branch — to try a change before it ships
+curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash -s -- --ref main
+
+# a specific release — to pin a team to one version
+curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash -s -- --ref v1.2.0
+
+# back to following releases
+curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash -s -- --ref latest
+```
+
+The clone remembers what you chose, so re-running the one-liner to update keeps you on that branch
+or tag instead of dropping you back onto releases. `~/.webapp-evidence/scripts/install-local.sh
+--update` does the same from the clone itself.
+
+Full guide, including where each platform puts it and how to remove it:
+**[Install](./docs/install.md)**.
 
 ## Using it
 

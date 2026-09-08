@@ -132,6 +132,26 @@ test('the installer sets up the Node dependency the runner cannot start without'
   assert.ok(fs.existsSync(path.join(SKILLS, SKILL_DIR, 'scripts', 'package.json')));
 });
 
+test('install.sh can follow a branch or a tag, and remembers which', () => {
+  // Installing from a branch is how someone tries a change before it is released, and how a team
+  // pins itself to a tag. Re-running the one-liner must not silently drop them back onto releases.
+  const script = read('install.sh');
+  assert.match(script, /--ref\)/, 'no --ref flag');
+  assert.match(script, /--ref=\?\*\)/, 'no --ref=value form');
+  assert.match(script, /"\$ref" = latest/, '`--ref latest` has no way back to releases');
+  assert.match(script, /git -C "\$home" config webapp-evidence\.ref/, 'the chosen ref is not recorded');
+  assert.match(script, /config --get webapp-evidence\.ref/, 'a later run does not read the recorded ref');
+});
+
+test('--update follows the recorded ref rather than whatever branch is default', () => {
+  // A clone checked out at a tag has no upstream branch to pull, so a bare `git pull` there either
+  // fails or quietly moves the clone somewhere the user did not ask for.
+  const script = read('scripts/install-local.sh');
+  assert.match(script, /config --get webapp-evidence\.ref/);
+  assert.match(script, /fetch --quiet --depth 1 origin "\$REF"/);
+  assert.match(script, /checkout --quiet --detach FETCH_HEAD/);
+});
+
 test('install.sh ships everything a run needs', () => {
   const ship = read('install.sh').match(/^SHIP='([\s\S]*?)'/m);
   assert.ok(ship, 'install.sh no longer states what it ships');
