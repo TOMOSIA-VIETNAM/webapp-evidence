@@ -119,6 +119,15 @@ test('the skill refers to its bundled files by relative path', () => {
   assert.match(skill, /node scripts\/record\.js/, 'the runner is no longer referenced by relative path');
 });
 
+test('the skill offers to fix a missing dependency rather than reciting install steps', () => {
+  // Install commands differ per machine and go stale in a document. The agent can read what is
+  // there and act; a list of brew/apt lines in the skill only competes with what it already knows.
+  const skill = read(`src/skills/${SKILL_DIR}/SKILL.md`);
+  assert.match(skill, /offer to install it yourself/);
+  assert.ok(!skill.includes('brew install'), 'the skill recites an install command');
+  assert.ok(!skill.includes('apt-get install'), 'the skill recites an install command');
+});
+
 test('the description stays short enough to read in a command list', () => {
   // It is shown next to the command while someone types, wrapped into the terminal width. Past a
   // few lines it stops being a hint and becomes a wall.
