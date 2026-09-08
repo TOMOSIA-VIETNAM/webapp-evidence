@@ -6,8 +6,8 @@
 </p>
 
 <p align="center">
-  <strong>Mô tả luồng. Nhận bản quay.</strong><br>
-  <sub>Một câu lệnh quay lại web app của bạn rồi trả về video, screenshot và runbook — dùng cho UAT, bàn giao, báo lỗi và review.</sub><br>
+  <strong>Mô tả luồng, nhận bản quay.</strong><br>
+  <sub>Một lệnh để agent quay web app rồi trả về video, screenshot và runbook. Dùng cho UAT, bàn giao, báo lỗi, review.</sub><br>
   <code>/webapp-evidence:recording</code>
 </p>
 
@@ -24,15 +24,14 @@
   <a href="./README.md">English</a> · <strong>Tiếng Việt</strong> · <a href="./README.ja-JP.md">日本語</a> · <a href="./README.zh-Hans.md">简体中文</a>
 </p>
 
-Sớm hay muộn cũng có người cần thấy app chạy thật: một buổi UAT cần ký, một lần bàn giao cho nhóm
-khác hay cho nhà thầu, một cái bug report, một buổi demo, một lượt review code. Mà tự quay thì mất
-cả nửa tiếng, xem vẫn tệ. Screenshot chụp trễ mất một nhịp. Con chuột nhảy loạn khắp màn hình.
-Dropdown không mở ra trong video, nên không ai biết bạn vừa chọn gì.
+Có lúc bạn cần chứng minh app chạy đúng: UAT, bàn giao cho team khác, báo bug, demo,
+review. Tự quay mất khoảng nửa tiếng mà video vẫn khó xem — screenshot trễ, chuột nhảy lung tung,
+dropdown không mở nên người xem không biết bạn chọn gì.
 
-Thay vào đó, hãy mô tả luồng cho coding agent của bạn. Nó điều khiển Chrome rồi trả về một video gọn
-gàng, screenshot chụp đúng những khoảnh khắc đáng chú ý, và một runbook quay lại được y hệt lần đó.
+Mô tả luồng cho coding agent. Nó điều khiển Chrome, trả về video, screenshot các bước chính, và
+runbook để chạy lại đúng lần đó.
 
-## Bạn gõ thế này
+## Ví dụ
 
 ```
 /webapp-evidence:recording Page: https://www.saucedemo.com
@@ -44,14 +43,13 @@ Flow:
 5. Continue, then Finish, and stop at the "Thank you for your order!" screen
 ```
 
-## Bạn nhận về thế này
+## Kết quả
 
 <p align="center">
-  <img src="./docs/demo/saucedemo.gif" width="820" alt="Bản quay luồng checkout của Swag Labs: con trỏ đăng nhập, sắp xếp danh sách sản phẩm theo giá — phụ đề chạy dưới đáy cho biết đã chọn tuỳ chọn nào, vì dropdown do hệ điều hành vẽ ra nên không quay được — thêm một chiếc balo vào giỏ, điền form checkout rồi hoàn tất đơn hàng.">
+  <img src="./docs/demo/saucedemo.gif" width="820" alt="Bản quay checkout Swag Labs: đăng nhập, sort sản phẩm theo giá (phụ đề ghi option đã chọn vì dropdown do OS vẽ nên không quay được), thêm balo vào giỏ, điền form checkout rồi hoàn tất đơn.">
 </p>
 
-Tám screenshot chụp đúng những khoảnh khắc đáng chú ý. Và một runbook, để người nhận chỉ cần đọc là
-hiểu, không phải xem:
+Tám screenshot các bước chính, kèm runbook. Người nhận đọc là hiểu, không bắt buộc phải xem video:
 
 ```markdown
 ## Steps in the video
@@ -77,23 +75,26 @@ hiểu, không phải xem:
 - [http 401] https://events.backtrace.io/api/unique-events/submit…
 ```
 
-Phần cuối là món quà thêm. Vừa quay, nó vừa theo dõi console và network — nên ở đây người đọc biết
-được trang đang trả về lỗi 401. Không screenshot nào cho thấy điều đó, và cũng chẳng ai đi tìm.
+Trong lúc quay, agent cũng theo dõi console và network. Ví dụ này cho thấy trang đang trả 401 —
+screenshot không hiện, và thường chẳng ai nghĩ tới.
 
-Runbook còn giữ đúng câu lệnh đã tạo ra bản quay đó. Dữ liệu đã đổi, video hỏng, người xem muốn chậm
-hơn? Cứ yêu cầu lại. Các bản quay cũ được giữ thành `v1`, `v2`, … và không bao giờ bị ghi đè, vì bản
-quay đã gửi đi rồi là thứ duy nhất bạn không tạo lại được.
+Nếu quay ngay trong phiên đang implement, agent nhìn screenshot và log lỗi giống một lượt e2e.
+401, layout trượt hay tràn khi hẹp màn — nó chỉ ra và đề xuất cách sửa, không chỉ đưa file.
 
-## Vì sao video này xem được
+Runbook còn lưu đúng lệnh đã tạo ra bản quay. Data đổi, video hỏng, hoặc muốn quay chậm hơn thì gọi
+lại. Bản cũ giữ thành `v1`, `v2`, … không bị ghi đè. Bản đã gửi đi rồi thì không tạo lại được đúng
+file đó.
 
-- **Con trỏ hiện rõ và di chuyển như tay người.** Đường đi cong, tăng tốc nhanh, hãm chậm, lỡ đà một
-  chút khi đích ở xa rồi chỉnh lại. Mỗi cú click để lại một gợn sóng.
-- **Nhịp quay bám theo màn hình.** Những cú click chỉ để chuyển trang thì đi nhanh. Đến lúc kết quả
-  hiện ra thì giữ đủ lâu để đọc.
-- **Thứ gì khung hình không quay được thì nói bằng phụ đề.** Menu `<select>` hay hộp thoại chọn file
-  do hệ điều hành vẽ, không bao giờ lọt vào bản quay trang, nên phụ đề dưới đáy sẽ nói đã chọn gì.
-  Phím tắt thì hiện gợi ý phím (`⌘ + C`) ngay cạnh phần tử nó tác động.
-- **Đoạn chờ tải trang bị cắt bỏ**, để video bắt đầu ngay chỗ công việc bắt đầu.
+## Video khác gì so với tự quay
+
+- **Con trỏ hiện rõ, di chuyển tự nhiên.** Đi theo đường cong, tăng tốc rồi phanh, hơi vượt khi
+  click xa rồi chỉnh lại. Mỗi click có hiệu ứng sóng nhỏ.
+- **Nhịp video theo nội dung trên màn hình.** Click chuyển trang thì đi nhanh. Khi có kết quả thì
+  dừng đủ lâu để đọc.
+- **Cái gì không quay được thì ghi phụ đề.** Menu `<select>` hay hộp thoại chọn file do OS vẽ,
+  không nằm trong bản quay trang, nên phụ đề dưới đáy nói đã chọn gì. Phím tắt hiện gợi ý
+  (`⌘ + C`) cạnh phần tử nó tác động.
+- **Đoạn chờ load bị cắt**, video bắt đầu ngay chỗ công việc bắt đầu.
 
 ## Cài đặt
 
@@ -110,11 +111,11 @@ claude plugin install webapp-evidence@webapp-evidence
 curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash
 ```
 
-Nó hỏi bạn dùng nền tảng nào, rồi báo lại đã đặt mọi thứ ở đâu. Việc quay cần Chrome, ffmpeg và Node
-— thiếu cái nào thì agent nói rõ và đề nghị cài giúp.
+Nó hỏi bạn đang dùng nền tảng nào, rồi cho biết đã cài ở đâu. Quay cần Chrome, ffmpeg và Node —
+thiếu cái nào thì agent nói rõ và đề nghị cài giúp.
 
-Câu lệnh một dòng này cài release mới nhất, hoặc `main` khi chưa có release nào. Dùng `--ref` để chọn
-thứ khác; lựa chọn đó được ghi nhớ, nên lần cập nhật sau bạn vẫn ở đúng chỗ mình đã chọn:
+Lệnh một dòng cài release mới nhất, hoặc `main` nếu chưa có release. Dùng `--ref` để chọn bản khác;
+lựa chọn được nhớ nên lần update sau vẫn giữ nguyên:
 
 ```bash
 curl -fsSL … /install.sh | bash -s -- --ref main       # a branch, to try a change before it ships
@@ -122,11 +123,11 @@ curl -fsSL … /install.sh | bash -s -- --ref v1.2.0     # a release, to pin a t
 curl -fsSL … /install.sh | bash -s -- --ref latest     # back to following releases
 ```
 
-Cập nhật bằng `~/.webapp-evidence/scripts/install-local.sh --update`, gỡ bằng `--uninstall --all`.
-Một lưu ý: `install.sh` luôn được tải từ nhánh mặc định, nên bản sửa cho chính bộ cài chỉ đến tay bạn
-sau khi nó được merge vào đó.
+Update bằng `~/.webapp-evidence/scripts/install-local.sh --update`, gỡ bằng `--uninstall --all`.
+Lưu ý: `install.sh` luôn được tải từ nhánh mặc định, nên bản sửa cho chính bộ cài chỉ tới tay bạn
+sau khi merge vào đó.
 
-## Ba cách để yêu cầu
+## Ba cách gọi
 
 | platform | how you call it |
 |---|---|
@@ -134,52 +135,46 @@ sau khi nó được merge vào đó.
 | Cursor, Gemini CLI, Antigravity | `/webapp-evidence-recording` |
 | Codex | `$webapp-evidence-recording` |
 
-**Bạn vừa xong một task hoặc một bug fix.** Agent đã biết màn hình nào vừa đổi, nên không cần gõ gì
-thêm phía sau:
+**Vừa xong một task hoặc bug fix.** Agent đã biết màn nào vừa đổi, không cần gõ thêm:
 
 ```
 /webapp-evidence:recording
 ```
 
-**Bạn chỉ có mỗi cái link.** Nó đọc MR/PR — cả mô tả lẫn diff — rồi tự suy ra cần quay những gì:
+**Chỉ có link MR/PR.** Agent đọc mô tả và diff rồi tự suy ra cần quay gì:
 
 ```
 /webapp-evidence:recording https://gitlab.example.com/group/admin/-/merge_requests/1783
 ```
 
-**Bạn không viết code.** Đưa trang cần quay và nói muốn thấy gì, đúng như ví dụ ở trên. Không cần
-repository, không cần config, không phải dựng gì cả. Viết các bước bằng ngôn ngữ nào bạn đang nghĩ
-cũng được; agent trả lời bằng đúng ngôn ngữ đó.
+**Không viết code.** Đưa URL và nói muốn thấy gì, giống ví dụ trên. Không cần repo, không cần
+config, không phải setup. Viết các bước bằng ngôn ngữ nào cũng được; agent trả lời đúng ngôn ngữ đó.
 
-Cũng chẳng có cú pháp nào phải nhớ — nói "lấy evidence cho màn hình tôi vừa sửa" là ra đúng thứ đó.
+Không cần nhớ cú pháp. Nói "lấy evidence cho màn mình vừa sửa" cũng ra.
 
-## Trỏ nó vào project của bạn một lần
+## Cấu hình cho project (một lần)
 
 ```
 /webapp-evidence:recording set up the evidence config for this project
 ```
 
-Nó tìm màn hình đăng nhập và một tài khoản dev, rồi ghi ra `evidence.config.js`. Từ đó về sau, mọi
-bản quay đều bắt đầu ở trạng thái đã đăng nhập, trên một môi trường chạy được, không phải hỏi lại.
+Nó tìm màn login và tài khoản dev, rồi ghi ra `evidence.config.js`. Sau đó mọi bản quay đều bắt đầu
+đã login, trên môi trường chạy được, không hỏi lại.
 
-Muốn đổi gì thì cứ nói — "quay chậm lại", "phụ đề tiếng Nhật", "chỉ giữ bản quay mới nhất" — nó sửa
-file đó giúp bạn.
+Muốn đổi thì nói — "quay chậm hơn", "phụ đề tiếng Nhật", "chỉ giữ bản mới nhất" — nó sửa file đó.
 
-## Vài giới hạn nên biết
+## Giới hạn
 
-Nó quay trang web, không quay màn hình của bạn. Nên mọi thứ do hệ điều hành vẽ đều nằm ngoài khung
-hình: dropdown `<select>`, hộp thoại chọn file, hộp thoại `confirm`/`alert`. Những khoảnh khắc đó
-được thay bằng phụ đề nói rõ đã chọn gì, kèm một screenshot chụp trạng thái ngay sau đó. Modal, date
-picker và dropdown viết bằng JS thì vẫn quay bình thường.
+Nó quay trang web, không quay màn hình máy bạn. Thứ do OS vẽ sẽ không vào video: dropdown `<select>`,
+hộp thoại chọn file, `confirm`/`alert`. Những chỗ đó được thay bằng phụ đề nói đã chọn gì, kèm
+screenshot ngay sau đó. Modal, date picker và dropdown viết bằng JS thì quay bình thường.
 
-Việc quay chỉ chạy trên môi trường dev local hoặc một site bạn chỉ định — không bao giờ đụng vào
-staging hay production.
+Chỉ chạy trên local dev hoặc site bạn chỉ định — không đụng staging hay production.
 
-Video và screenshot không nằm trong Git. Đính chúng vào đâu — ticket, MR/PR, báo cáo — là việc của
-bạn.
+Video và screenshot không commit vào Git. Đính vào ticket, MR/PR, báo cáo là việc của bạn.
 
 ---
 
-Bản quay ở trên là output thật từ runner của repository này: `docs/demo/record.sh` tạo ra nó từ
-`docs/demo/saucedemo-steps.js`. Muốn góp tay vào chính skill này? Xem
+Bản quay ở trên là output thật từ runner của repo này: `docs/demo/record.sh` tạo ra từ
+`docs/demo/saucedemo-steps.js`. Muốn contribute skill này thì xem
 **[CONTRIBUTING.md](./CONTRIBUTING.md)**.
