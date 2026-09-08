@@ -12,7 +12,7 @@ The module returns `{ app, name, start, run(ctx) }`. Inside `run`, use the helpe
 | `select(locator, 'label')` | Opens a `<select>` inside the page and picks the option |
 | `upload(locator, path)` | Loads a file into a file input, then pauses so the filename becomes visible |
 | `hotkey('ControlOrMeta+C', { label, target })` | Presses a shortcut and shows a key hint overlay in the video |
-| `note('a sentence')` | Shows one caption in the video, anchored next to the element it is about |
+| `note('a sentence')` | Shows one caption along the bottom of the video, the way a film shows a subtitle |
 | `shot('name')` | Takes a screenshot, numbered in capture order |
 | `page`, `sleep(ms)` | The locator and wait primitives, for anything the helpers do not cover |
 
@@ -68,9 +68,7 @@ system and cannot be recorded — so the step script does nothing for those. The
 `note()` is the one you write yourself, for the things only the script's author knows need saying:
 
 ```js
-await note('この行はシードデータで、この操作で作られたものではありません。', {
-  target: page.locator('#row_12'),
-});
+await note('この行はシードデータで、この操作で作られたものではありません。');
 ```
 
 | Use `note()` for | Example |
@@ -82,8 +80,13 @@ await note('この行はシードデータで、この操作で作られたも�
 Captions are governed by one switch: running with `CAPTIONS=off` hides both the automatic captions
 and `note()`, with no exceptions. One switch, one predictable outcome.
 
-Do not use `note()` to narrate what is already plainly visible. Every caption covers part of the
-app's screen — it earns that only by saying something the recording cannot say for itself.
+A caption sits along the bottom of the frame, centred, where a viewer already looks for words over a
+moving picture. It is narration, so it is not anchored to anything: nothing in the middle of the
+page gets covered by it, including the result you are trying to prove.
+
+Do not use `note()` to narrate what is already plainly visible. Every caption is a line the viewer
+has to read instead of watching — it earns that only by saying something the recording cannot say
+for itself.
 
 ## Keyboard actions
 

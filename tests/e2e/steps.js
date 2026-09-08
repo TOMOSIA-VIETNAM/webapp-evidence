@@ -28,9 +28,7 @@ module.exports = {
     await hotkey('ControlOrMeta+C', { label: 'Copy' });
 
     mark('Open a row, then close it');
-    await note('This list comes from the demo fixture, not from data created by these steps.', {
-      target: page.locator('#row_1001'),
-    });
+    await note('This list comes from the demo fixture, not from data created by these steps.');
     await click(page.getByRole('button', { name: 'Detail' }).first(), { pause: 2600 });
     await shot('detail');
     await click(page.getByRole('button', { name: 'Close' }), { pause: 1200 });
