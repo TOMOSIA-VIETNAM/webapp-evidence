@@ -85,17 +85,6 @@ Runbook còn lưu đúng lệnh đã tạo ra bản quay. Data đổi, video h�
 lại. Bản cũ giữ thành `v1`, `v2`, … không bị ghi đè. Bản đã gửi đi rồi thì không tạo lại được đúng
 file đó.
 
-## Video khác gì so với tự quay
-
-- **Con trỏ hiện rõ, di chuyển tự nhiên.** Đi theo đường cong, tăng tốc rồi phanh, hơi vượt khi
-  click xa rồi chỉnh lại. Mỗi click có hiệu ứng sóng nhỏ.
-- **Nhịp video theo nội dung trên màn hình.** Click chuyển trang thì đi nhanh. Khi có kết quả thì
-  dừng đủ lâu để đọc.
-- **Cái gì không quay được thì ghi phụ đề.** Menu `<select>` hay hộp thoại chọn file do OS vẽ,
-  không nằm trong bản quay trang, nên phụ đề dưới đáy nói đã chọn gì. Phím tắt hiện gợi ý
-  (`⌘ + C`) cạnh phần tử nó tác động.
-- **Đoạn chờ load bị cắt**, video bắt đầu ngay chỗ công việc bắt đầu.
-
 ## Cài đặt
 
 **Claude Code**
@@ -114,76 +103,50 @@ curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/mai
 Nó hỏi bạn đang dùng nền tảng nào, rồi cho biết đã cài ở đâu. Quay cần Chrome, ffmpeg và Node —
 thiếu cái nào thì agent nói rõ và đề nghị cài giúp.
 
-Lệnh một dòng cài release mới nhất, hoặc `main` nếu chưa có release. Dùng `--ref` để chọn bản khác;
-lựa chọn được nhớ nên lần update sau vẫn giữ nguyên:
+Thêm `--ref main` hoặc `--ref v1.2.0` để bám một nhánh hoặc ghim một phiên bản, `--ref latest` để
+quay lại theo release; update bằng `~/.webapp-evidence/scripts/install-local.sh --update`, gỡ bằng
+`--uninstall --all`.
 
-```bash
-curl -fsSL … /install.sh | bash -s -- --ref main       # a branch, to try a change before it ships
-curl -fsSL … /install.sh | bash -s -- --ref v1.2.0     # a release, to pin a team to one version
-curl -fsSL … /install.sh | bash -s -- --ref latest     # back to following releases
-```
+## Cách dùng
 
-Update bằng `~/.webapp-evidence/scripts/install-local.sh --update`, gỡ bằng `--uninstall --all`.
-Lưu ý: `install.sh` luôn được tải từ nhánh mặc định, nên bản sửa cho chính bộ cài chỉ tới tay bạn
-sau khi merge vào đó.
+Gọi thế nào thì tuỳ nơi bạn đang ngồi làm:
 
-## Ba cách gọi
-
-| platform | how you call it |
+| platform | command |
 |---|---|
 | Claude Code | `/webapp-evidence:recording` |
 | Cursor, Gemini CLI, Antigravity | `/webapp-evidence-recording` |
 | Codex | `$webapp-evidence-recording` |
 
-**Vừa xong một task hoặc bug fix.** Agent đã biết màn nào vừa đổi, không cần gõ thêm:
+Những thứ bạn có thể yêu cầu:
 
-```
-/webapp-evidence:recording
-```
-
-**Chỉ có link MR/PR.** Agent đọc mô tả và diff rồi tự suy ra cần quay gì:
-
-```
-/webapp-evidence:recording https://gitlab.example.com/group/admin/-/merge_requests/1783
-```
-
-**Không viết code.** Đưa URL và nói muốn thấy gì, giống ví dụ trên. Không cần repo, không cần
-config, không phải setup. Viết các bước bằng ngôn ngữ nào cũng được; agent trả lời đúng ngôn ngữ đó.
-
-Không cần nhớ cú pháp. Nói "lấy evidence cho màn mình vừa sửa" cũng ra.
-
-## Cấu hình cho project (một lần)
-
-```
-/webapp-evidence:recording set up the evidence config for this project
-```
-
-Nó tìm màn login và tài khoản dev, rồi ghi ra `evidence.config.js`. Sau đó mọi bản quay đều bắt đầu
-đã login, trên môi trường chạy được, không hỏi lại.
-
-Muốn đổi thì nói — "quay chậm hơn", "phụ đề tiếng Nhật", "chỉ giữ bản mới nhất" — nó sửa file đó.
-
-## Nó làm được gì
-
-| Bạn cần | Câu lệnh |
+| Bạn cần | Nói gì |
 |---|---|
-| Bằng chứng cho màn hình bạn vừa sửa | `/webapp-evidence:recording` |
-| Bằng chứng cho MR/PR, tự suy ra từ diff | `/webapp-evidence:recording <link MR/PR>` |
-| Quay một trang theo mô tả, không cần repository | `/webapp-evidence:recording Page: <url>` kèm các bước |
-| Bản quay thành gif để nhúng README, hoặc webm cho web | `/webapp-evidence:recording -f gif` · `-f webm` |
-| Biết video thật sự cho thấy gì mà không cần ngồi xem | `/webapp-evidence:vision <file mp4>` |
-| Cấu hình dự án một lần để lần sau quay là đã đăng nhập sẵn | `/webapp-evidence:recording set up the evidence config for this project` |
-| Quay lại đúng bản cũ — dữ liệu đổi, video hỏng | Cứ nói; runbook giữ sẵn lệnh, bản cũ không bị ghi đè |
-| Quay chậm hơn, chú thích tiếng khác | Nói ra; nó sửa `evidence.config.js` giúp bạn |
+| Evidence cho màn hình bạn vừa sửa | khỏi gõ gì thêm sau lệnh — agent biết bạn vừa làm gì |
+| Evidence cho một MR hay PR | dán link vào; nó đọc mô tả và diff |
+| Quay một trang theo mô tả của bạn | `Page: <url>` kèm các bước, như ví dụ ở trên |
+| Quay lại đúng bản đó, hoặc quay chậm hơn | cứ nói — runbook giữ sẵn lệnh, bản cũ không bị ghi đè |
+| Phụ đề bằng ngôn ngữ khác | nói ngôn ngữ bạn muốn; nó nhớ theo từng project |
+| Cấu hình project một lần, để bản quay nào cũng bắt đầu là đã đăng nhập | `set up the evidence config for this project` |
 
-Mặc định là mp4 vì nó phát thẳng trong merge request, trong issue và mọi công cụ chat, lại nhẹ nhất
-trong ba định dạng. Gif của cùng bản quay lớn gấp mấy lần, nên việc đổi định dạng nó chỉ đề nghị chứ
+Viết các bước bằng ngôn ngữ nào cũng được, agent trả lời đúng ngôn ngữ đó. Cũng chẳng có cú pháp nào
+phải nhớ — nói "lấy evidence cho màn mình vừa sửa" là chạy.
+
+## Khi đã có bản quay
+
+| Bạn cần | Lệnh |
+|---|---|
+| Một file gif, để nhúng README hay chỗ chỉ hiện được ảnh | `/webapp-evidence:recording -f gif` |
+| Một file webm, cho trang web của bạn | `/webapp-evidence:recording -f webm` |
+| Biết video cho thấy gì mà không phải ngồi xem hết | `/webapp-evidence:vision <file mp4>` |
+
+mp4 vẫn là mặc định: nó phát thẳng trong merge request, trong issue và mọi công cụ chat, lại nhẹ nhất
+trong ba định dạng. Gif của cùng bản quay lớn gấp mấy lần, nên đổi định dạng là thứ agent đề nghị chứ
 không tự làm.
 
 `vision` có mặt vì agent không xem được video. Nó cắt video thành lưới ảnh — vài giây một khung, mỗi
-khung đóng dấu `mm:ss` — rồi đọc như đọc ảnh, nên phát hiện trả về dạng "header đè lên bảng ở
+khung đóng dấu `mm:ss` — rồi đọc như đọc ảnh. Nhờ vậy phát hiện trả về dạng "header đè lên bảng ở
 00:14": một mốc bạn tua lại được và đối chiếu được với runbook. Nó bắt được thứ không ai nghĩ tới
-việc chụp, ví dụ layout vỡ giữa lúc chuyển cảnh.
+việc chụp: layout vỡ giữa lúc chuyển cảnh, banner loé lên rồi biến mất.
 
 ## Giới hạn
 
