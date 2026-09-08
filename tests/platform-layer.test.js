@@ -109,6 +109,16 @@ test('the skill is named for how it reads after the plugin prefix', () => {
   assert.match(frontmatter, /^description: .+/m);
 });
 
+test('the skill refers to its bundled files by relative path', () => {
+  // The platform that loaded SKILL.md already resolved where it lives, so a path is all that is
+  // needed. Anything else — a variable to expand, a directory to search for — is work the skill
+  // pays for on every run to learn something its host already knew.
+  const skill = read(`src/skills/${SKILL_DIR}/SKILL.md`);
+  assert.ok(!skill.includes('$SKILL'), 'the skill expects a variable to be set before it can run');
+  assert.ok(!skill.includes('CLAUDE_PLUGIN_ROOT'), 'the skill resolves a path only one platform provides');
+  assert.match(skill, /node scripts\/record\.js/, 'the runner is no longer referenced by relative path');
+});
+
 test('the description stays short enough to read in a command list', () => {
   // It is shown next to the command while someone types, wrapped into the terminal width. Past a
   // few lines it stops being a hint and becomes a wall.
