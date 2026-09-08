@@ -6,8 +6,8 @@
 </p>
 
 <p align="center">
-  <strong>The proof records itself.</strong><br>
-  <sub>Ask once. Get a video, the screenshots, and a runbook you can hand to a reviewer.</sub><br>
+  <strong>Describe the flow. Get the recording.</strong><br>
+  <sub>One command records your web app and hands back a video, the screenshots and a runbook — for UAT, hand-offs, bug reports and reviews.</sub><br>
   <code>/webapp-evidence:recording</code>
 </p>
 
@@ -24,11 +24,15 @@
   <strong>English</strong> · <a href="./README.vi-VN.md">Tiếng Việt</a> · <a href="./README.ja-JP.md">日本語</a> · <a href="./README.zh-Hans.md">简体中文</a>
 </p>
 
-Attaching proof to a merge request usually means a screenshot taken at the wrong moment, or a screen
-recording where the mouse teleports, the dropdown never opens, and nobody can tell which button was
-pressed. So most changes ship with no evidence at all, and the review goes ahead on trust.
+Sooner or later somebody has to see the app actually work: a UAT sign-off, a hand-off to another
+team or a supplier, a bug report, a demo, a code review. Recording it yourself takes half an hour
+and still looks bad. The screenshot lands a second too late. The mouse jumps across the screen. The
+dropdown never opens on camera, so nobody can tell what you picked.
 
-## You ask for this
+So describe the flow to your coding agent instead. It drives Chrome and hands back a clean video,
+screenshots of the moments that matter, and a runbook that reproduces the take.
+
+## What you type
 
 ```
 /webapp-evidence:recording Page: https://www.saucedemo.com
@@ -40,14 +44,14 @@ Flow:
 5. Continue, then Finish, and stop at the "Thank you for your order!" screen
 ```
 
-## You get this back
+## What you get
 
 <p align="center">
   <img src="./docs/demo/saucedemo.gif" width="820" alt="A recording of the Swag Labs checkout: the cursor signs in, sorts the product list by price — a subtitle along the bottom says which option was chosen, because the dropdown is drawn by the operating system and cannot be filmed — adds a backpack to the cart, fills the checkout form, and finishes the order.">
 </p>
 
-Plus eight screenshots at the moments that matter, and a runbook a reviewer can read without
-watching anything:
+Eight screenshots of the moments that matter. And a runbook, so whoever receives it can read the
+take instead of watching it:
 
 ```markdown
 ## Steps in the video
@@ -73,24 +77,24 @@ watching anything:
 - [http 401] https://events.backtrace.io/api/unique-events/submit…
 ```
 
-That last section is the part nobody expects. The runner watches the console and the network while
-it records, so the reviewer learns the page was throwing 401s — something no screenshot would have
-shown, and nobody was looking for.
+That last section is the bonus. While it records, it also watches the console and the network — so
+here the reader learns the page was returning 401s. No screenshot would have shown that, and nobody
+was looking for it.
 
-The runbook also carries the exact command that reproduces the take. Data moved on, the video broke,
-the reviewer wants it slower: ask again. The previous take is kept in `v1`, `v2`… rather than
-overwritten, because evidence already sent with an MR is the one thing you cannot regenerate.
+The runbook also keeps the exact command that produced the take. Data moved on, video broken, the
+reader wants it slower? Ask again. Old takes are kept as `v1`, `v2`, … and never overwritten,
+because a take you have already sent out is the one thing you cannot regenerate.
 
-## Why it is worth a reviewer's time
+## Why the video is watchable
 
-- **The cursor is visible and moves like a hand** — a curved path, quick to accelerate, slow to
-  brake, overshooting a distant target before correcting. Every click leaves a ripple.
-- **The pace follows the screen.** Clicks that only navigate go briskly; the moment a result
-  appears, it is held long enough to read.
-- **What the frame cannot hold is said out loud.** A `<select>` menu and a file picker are drawn by
-  the operating system and never enter a page recording — so a subtitle along the bottom says what
-  was chosen. Keyboard shortcuts raise a key hint overlay (`⌘ + C`) beside the element they act on.
-- **The page-load wait is trimmed**, so the video starts where the work starts.
+- **The cursor is visible and moves like a hand.** It curves, starts fast, brakes slowly, and
+  overshoots a far target before correcting. Every click leaves a ripple.
+- **The pace follows the screen.** Clicks that only navigate go quickly. When a result appears, it
+  is held long enough to read.
+- **Anything the camera misses is said in a caption.** A `<select>` menu or a file picker is drawn
+  by the operating system and never reaches a page recording, so a subtitle along the bottom says
+  what was chosen. Keyboard shortcuts get a key hint (`⌘ + C`) next to the element they act on.
+- **Page-load waiting is cut out**, so the video starts where the work starts.
 
 ## Install
 
@@ -107,11 +111,11 @@ claude plugin install webapp-evidence@webapp-evidence
 curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash
 ```
 
-It asks which platform you want and tells you where it put things. Recording needs Chrome, ffmpeg
-and Node on the machine — if anything is missing, the agent says what and offers to install it.
+It asks which platform you use, then tells you where it put everything. Recording needs Chrome,
+ffmpeg and Node — if one is missing, the agent names it and offers to install it.
 
-The one-liner installs the newest release, or `main` while there are no releases yet. `--ref` picks
-something else and is remembered, so updating later keeps you where you asked to be:
+The one-liner installs the newest release, or `main` while there are no releases yet. Use `--ref` to
+pick something else; it is remembered, so later updates keep you where you asked to be:
 
 ```bash
 curl -fsSL … /install.sh | bash -s -- --ref main       # a branch, to try a change before it ships
@@ -120,10 +124,10 @@ curl -fsSL … /install.sh | bash -s -- --ref latest     # back to following rel
 ```
 
 Update with `~/.webapp-evidence/scripts/install-local.sh --update`, remove with `--uninstall --all`.
-Note that `install.sh` is always fetched from the default branch, so a change to the installer
-itself only reaches you once it is merged there.
+One catch: `install.sh` is always downloaded from the default branch, so a fix to the installer
+itself only reaches you after it is merged there.
 
-## Calling it
+## Three ways to ask
 
 | platform | how you call it |
 |---|---|
@@ -131,51 +135,50 @@ itself only reaches you once it is merged there.
 | Cursor, Gemini CLI, Antigravity | `/webapp-evidence-recording` |
 | Codex | `$webapp-evidence-recording` |
 
-**Just finished a task or a bug fix.** The agent already knows which screen changed, so there is
-nothing to type after it:
+**You just finished a task or a bug fix.** The agent already knows which screen changed, so type
+nothing after it:
 
 ```
 /webapp-evidence:recording
 ```
 
-**All you have is the link.** It reads the MR/PR — description and diff — and works out what to
+**You only have the link.** It reads the MR/PR — description and diff — and works out what to
 record:
 
 ```
 /webapp-evidence:recording https://gitlab.example.com/group/admin/-/merge_requests/1783
 ```
 
-**You don't write code.** Give the page and say what to show, the way the example above does. No
+**You don't write code.** Give it the page and say what to show, like the example above. No
 repository, no config, nothing to set up. Write the steps in whatever language you think in; the
-agent replies in the same one.
+agent answers in the same one.
 
-There is no syntax to remember either — "get evidence for the screen I just fixed" does the same
+There is no syntax to memorise either — "get evidence for the screen I just fixed" does the same
 thing.
 
-## In a project
-
-Point it at a project once and it learns how to get in:
+## Point it at your project once
 
 ```
 /webapp-evidence:recording set up the evidence config for this project
 ```
 
-It probes the login screen, finds a dev account, and writes an `evidence.config.js`. From then on
-every recording starts signed in on a working environment without being asked.
+It finds the login screen and a dev account, then writes an `evidence.config.js`. After that every
+recording starts already signed in, on an environment that works, without asking you again.
 
-Say what you want changed — "record it slower", "captions in Japanese", "keep only the newest take"
-— and it edits that file for you.
+To change something, say it — "record it slower", "captions in Japanese", "keep only the newest
+take" — and it edits that file for you.
 
 ## Limits worth knowing
 
-The video records the page, not your screen, so anything the operating system draws stays out of
-frame: `<select>` dropdowns, the file picker, `confirm`/`alert` dialogs. Those moments get a
-subtitle saying what was chosen, plus a screenshot of the state afterwards. Modals, date pickers and
-dropdowns built in JS record normally.
+It records the page, not your screen. So anything the operating system draws stays out of frame:
+`<select>` dropdowns, the file picker, `confirm`/`alert` dialogs. Those moments get a caption saying
+what was chosen, plus a screenshot of the state right after. Modals, date pickers and dropdowns
+built in JS record normally.
 
 Recording runs against local dev or a site you name — never staging, never production.
 
-Videos and screenshots stay out of Git. You attach them to the MR/PR yourself.
+Videos and screenshots stay out of Git. Attaching them — to the ticket, the MR/PR, the report — is
+yours to do.
 
 ---
 
