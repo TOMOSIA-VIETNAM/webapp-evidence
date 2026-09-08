@@ -96,3 +96,8 @@ If there is a `PROBLEMS:` line, read the console log file before drawing a concl
 three cases: the step script broke because a selector was wrong, the app is genuinely failing, or the
 script caused the error **on purpose** (recording an invalid-input screen means a 4xx from the server
 is the expected result). Say the third case plainly in the report so nobody reads it as a bug.
+
+When the recording was taken in the same session as the implementation, also look at the screenshots
+before you stop. Layout that overflows, overlaps or slips the viewport is a finding, same as a real
+page error. Report it and propose a fix; do not apply the fix unless they ask. If the user is outside
+the codebase, skip the proposal and just hand over the files.

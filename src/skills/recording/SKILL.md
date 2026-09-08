@@ -151,6 +151,21 @@ context.
 The login account is handled by the config and remembered in `accountStore`, so from the second run
 onward there is nothing to ask the user. The login step is not part of the video.
 
+### Looking at the take
+
+The screenshots and the page-error log are evidence for the reader. They are also for you.
+
+When this recording happened in the same session as the implementation — the user just built or
+changed the feature, then asked for evidence — read the screenshots and any `PROBLEMS:` log before
+you stop. Look for real failures (not the expected 4xx from an invalid-input screen) and for layout
+that is broken or slipping: overflow, overlap, a screen that clearly does not fit the viewport.
+
+If you see one, say so and propose a fix. Do not apply it unless they ask. If the screenshots look
+fine and the errors are expected, add nothing.
+
+When the user is outside the codebase — a URL and a description, a hand-off, a report — just hand
+over the files. A code fix they cannot apply is noise.
+
 ### Re-recording something that already exists
 
 Every take leaves a `<name>-runbook.md` precisely so this costs nothing:
