@@ -171,6 +171,30 @@ recording starts already signed in, on an environment that works, without asking
 To change something, just say so — "record it slower", "captions in Japanese", "keep only the newest
 take" — and it edits that file.
 
+## Two more things it does
+
+**Another format.** The take is an mp4 — it plays inline in a merge request, an issue and every chat
+tool, and it is the smallest of the three. Ask when you need something else:
+
+```
+/webapp-evidence:recording -f gif
+```
+
+A gif is what a README can render; a webm suits a page you control. Both cost size — a gif of the
+same take runs several times larger — so it offers rather than assumes.
+
+**Reading the video.** An agent cannot watch a video, so it tiles one into timestamped sheets and
+reads those as images:
+
+```
+/webapp-evidence:vision <the mp4>
+```
+
+One frame every couple of seconds, each stamped `mm:ss`, so a finding comes back as "the header
+overlaps the table at 00:14" — a time you can check in the video and match to the runbook. Useful
+for catching what nobody thought to screenshot: a layout that breaks mid-transition, a banner that
+appears and is gone.
+
 ## Limits
 
 It records the page, not your screen. OS-drawn UI stays out of the video: `<select>` dropdowns, the

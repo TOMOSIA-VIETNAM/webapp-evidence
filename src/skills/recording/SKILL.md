@@ -166,6 +166,22 @@ fine and the errors are expected, add nothing.
 When the user is outside the codebase — a URL and a description, a hand-off, a report — just hand
 over the files. A code fix they cannot apply is noise.
 
+### Another format
+
+The runner writes mp4, which plays inline in a merge request, an issue and every chat tool, and is
+the smallest of the formats. A README that only renders images needs a gif; a web page you control
+may prefer webm.
+
+If the user asked for one — `-f gif`, `--format webm`, "make it a gif" — convert after recording:
+
+```bash
+node scripts/convert.js <the mp4> --to gif
+```
+
+If they did not, close the report by offering it in one line rather than converting on a hunch: a gif
+of the same take is several times larger and looks worse. See `references/other-formats.md` for what
+each format costs and where each one plays.
+
 ### Re-recording something that already exists
 
 Every take leaves a `<name>-runbook.md` precisely so this costs nothing:
@@ -208,8 +224,13 @@ Read these when the step calls for them, not upfront:
 | `references/project-setup.md` | The project has no `evidence.config.js` yet, or the recording needs different pacing, captions or archiving behaviour |
 | `references/writing-step-scripts.md` | Writing or editing `steps.js`: the helpers, how long to pause after each click, captions, keyboard shortcuts, and what a recording physically cannot capture |
 | `references/output-locations.md` | Choosing `OUT_DIR`, dealing with the git-ignore check, and reading the runner's output to build the final report |
+| `references/other-formats.md` | The take has to be a gif or a webm, and you need to know what that costs |
 
 Templates to copy from: `assets/evidence.config.example.js` and `assets/steps.example.js`.
+
+To look at a take rather than describe it — checking your own recording, finding where a layout
+breaks, locating the moment an error appeared — the `vision` skill beside this one tiles a video into
+timestamped sheets you can read as images.
 
 ## Out of scope
 

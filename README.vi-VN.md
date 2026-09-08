@@ -163,6 +163,29 @@ Nó tìm màn login và tài khoản dev, rồi ghi ra `evidence.config.js`. Sau
 
 Muốn đổi thì nói — "quay chậm hơn", "phụ đề tiếng Nhật", "chỉ giữ bản mới nhất" — nó sửa file đó.
 
+## Hai việc nữa nó làm được
+
+**Đổi định dạng.** Bản quay là mp4 — phát thẳng trong merge request, trong issue và mọi công cụ
+chat, lại nhẹ nhất trong ba định dạng. Cần thứ khác thì cứ nói:
+
+```
+/webapp-evidence:recording -f gif
+```
+
+Gif là thứ README hiển thị được; webm hợp với trang web bạn tự quản. Cả hai đều đắt hơn về dung
+lượng — gif của cùng một bản quay lớn gấp mấy lần — nên nó hỏi chứ không tự đổi.
+
+**Đọc nội dung video.** Agent không xem được video, nên nó cắt video thành các tấm lưới có mốc thời
+gian rồi đọc như đọc ảnh:
+
+```
+/webapp-evidence:vision <file mp4>
+```
+
+Vài giây một khung hình, mỗi khung đóng dấu `mm:ss`, nên phát hiện trả về dạng "header đè lên bảng
+ở 00:14" — một mốc bạn tua lại được và đối chiếu được với runbook. Hữu ích để bắt những thứ không ai
+nghĩ tới việc chụp: layout vỡ giữa lúc chuyển cảnh, một banner hiện lên rồi biến mất.
+
 ## Giới hạn
 
 Nó quay trang web, không quay màn hình máy bạn. Thứ do OS vẽ sẽ không vào video: dropdown `<select>`,

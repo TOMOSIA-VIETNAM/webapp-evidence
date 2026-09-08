@@ -60,6 +60,22 @@ const PAUSE_LEVELS = {
   observe: 'afterClickObserveMs',  // the result on screen has to be read
 };
 
+// How long to leave a caption up. A fixed hold suits one sentence length and no other: short ones
+// sit there long after they have been read, long ones vanish before they have. So the hold follows
+// the reading rather than the clock — a floor for noticing that something appeared, plus time
+// proportional to the text, capped so one long caption cannot stall the take.
+//
+// CJK runs at a slower character rate because a character there carries far more than a letter
+// does: the same second of reading covers fewer of them.
+const CJK = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]/g;
+
+function readingTime(text, pace) {
+  const characters = String(text).length;
+  const dense = (String(text).match(CJK) ?? []).length > characters / 4;
+  const perSecond = dense ? pace.noteCjkCharsPerSec : pace.noteCharsPerSec;
+  return Math.round(Math.min(pace.noteHoldMs + (characters / perSecond) * 1000, pace.noteHoldMaxMs));
+}
+
 function resolvePause(pause, pace) {
   if (pause === undefined) return pace.afterClickMs;
   if (typeof pause === 'number') return pause;
@@ -184,8 +200,9 @@ function buildContext(page, outDir, marks, hotkeys, notes, startedAt, pace, view
 
     // The viewer sees the value in the field change but sees no menu open, because that menu is drawn
     // by the operating system. The caption says so instead of leaving them to work it out.
-    const shown = await showNote(captions.text('selectOption', { value: label }));
-    await sleep(Math.max(human.wait(pace.afterSelectMs), shown ? pace.noteHoldMs : 0));
+    const caption = captions.text('selectOption', { value: label });
+    const shown = await showNote(caption);
+    await sleep(Math.max(human.wait(pace.afterSelectMs), shown ? readingTime(caption, pace) : 0));
     if (shown) await hideCaption();
   }
 
@@ -194,8 +211,9 @@ function buildContext(page, outDir, marks, hotkeys, notes, startedAt, pace, view
   async function upload(locator, filePath) {
     await click(locator, { pause: 'quick' });
     await locator.setInputFiles(filePath);
-    const shown = await showNote(captions.text('uploadFile', { file: path.basename(filePath) }));
-    await sleep(Math.max(human.wait(pace.afterUploadMs), shown ? pace.noteHoldMs : 0));
+    const caption = captions.text('uploadFile', { file: path.basename(filePath) });
+    const shown = await showNote(caption);
+    await sleep(Math.max(human.wait(pace.afterUploadMs), shown ? readingTime(caption, pace) : 0));
     if (shown) await hideCaption();
   }
 
@@ -231,10 +249,10 @@ function buildContext(page, outDir, marks, hotkeys, notes, startedAt, pace, view
   // Also governed by the same switch: once the operator has said "this take has no captions", not one
   // gets through, including the ones the step script calls for directly. One switch, one predictable
   // result.
-  async function note(text, { hold = pace.noteHoldMs } = {}) {
+  async function note(text, { hold } = {}) {
     if (!captions.enabled) return;
     if (!(await showNote(text))) return;
-    await sleep(human.wait(hold));
+    await sleep(human.wait(hold ?? readingTime(text, pace)));
     await hideCaption();
   }
 
@@ -633,5 +651,5 @@ module.exports = {
   main, buildContext, archivePreviousRun, reportResult, runArtifacts,
   // Exported for the unit tests: pure helpers that decide timings, timeline rows and the
   // .gitignore hints, none of which need a browser to be checked.
-  fmt, keyCaps, resolvePause, buildTimeline, buildHotkeySection, buildNoteSection, ignoreHints,
+  fmt, keyCaps, resolvePause, readingTime, buildTimeline, buildHotkeySection, buildNoteSection, ignoreHints,
 };

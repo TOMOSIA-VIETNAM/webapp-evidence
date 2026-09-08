@@ -33,6 +33,7 @@ const MARKETPLACE = 'webapp-evidence';   // the repository, which is what a user
 const PLUGIN = 'webapp-evidence';        // the namespace Claude Code prefixes onto the skill
 const SKILL_DIR = 'recording';           // the directory and the SKILL.md name
 const SKILL_NAME = 'webapp-evidence-recording'; // derived for the platforms with no namespace
+const SKILL_DIRS = ['recording', 'vision'];     // every skill the plugin ships
 
 test('every manifest names the plugin, and a catalog names the marketplace around it', () => {
   for (const rel of MANIFESTS) {
@@ -78,26 +79,37 @@ test("Claude Code's marketplace ships the plugin directory, not the whole reposi
   assert.ok(fs.existsSync(path.join(source, '.claude-plugin', 'plugin.json')));
 });
 
-test('the shipped skill is whole: SKILL.md plus what it tells the agent to read', () => {
-  const dirs = skillDirs();
-  assert.deepEqual(dirs, [SKILL_DIR]);
+test('every shipped skill is whole: SKILL.md plus what it tells the agent to read', () => {
+  assert.deepEqual(skillDirs().sort(), [...SKILL_DIRS].sort());
 
-  const root = path.join(SKILLS, SKILL_DIR);
-  for (const entry of ['SKILL.md', 'references', 'assets', 'scripts']) {
-    assert.ok(fs.existsSync(path.join(root, entry)), `missing ${entry}`);
-  }
-
-  // Every path the skill and its references name has to resolve, or the agent reads the
-  // instruction and finds nothing there.
-  const docs = ['SKILL.md', ...fs.readdirSync(path.join(root, 'references')).map((f) => `references/${f}`)];
   const missing = [];
-  for (const doc of docs) {
-    const body = fs.readFileSync(path.join(root, doc), 'utf8');
-    for (const ref of body.match(/(?:references|assets|scripts)\/[A-Za-z0-9_.-]+/g) ?? []) {
-      if (!fs.existsSync(path.join(root, ref))) missing.push(`${doc} -> ${ref}`);
+  for (const dir of SKILL_DIRS) {
+    const root = path.join(SKILLS, dir);
+    assert.ok(fs.existsSync(path.join(root, 'SKILL.md')), `${dir} has no SKILL.md`);
+    assert.ok(fs.existsSync(path.join(root, 'scripts')), `${dir} has no scripts`);
+
+    // Every path a skill or its references name has to resolve, or the agent reads the instruction
+    // and finds nothing there.
+    const references = fs.existsSync(path.join(root, 'references'))
+      ? fs.readdirSync(path.join(root, 'references')).map((f) => `references/${f}`)
+      : [];
+    for (const doc of ['SKILL.md', ...references]) {
+      const body = fs.readFileSync(path.join(root, doc), 'utf8');
+      for (const ref of body.match(/(?:references|assets|scripts)\/[A-Za-z0-9_.-]+/g) ?? []) {
+        if (!fs.existsSync(path.join(root, ref))) missing.push(`${dir}/${doc} -> ${ref}`);
+      }
     }
   }
   assert.deepEqual(missing, []);
+});
+
+test('each skill is named for how it reads after the plugin prefix', () => {
+  // Claude Code shows `/<plugin>:<skill>`, so a skill repeating the plugin name says it twice.
+  for (const dir of SKILL_DIRS) {
+    const frontmatter = read(`src/skills/${dir}/SKILL.md`).split('---')[1];
+    assert.match(frontmatter, new RegExp(`^name: ${dir}$`, 'm'), `${dir} declares a different name`);
+    assert.ok(!dir.startsWith(PLUGIN), `${dir} repeats the plugin name`);
+  }
 });
 
 test('the skill is named for how it reads after the plugin prefix', () => {
