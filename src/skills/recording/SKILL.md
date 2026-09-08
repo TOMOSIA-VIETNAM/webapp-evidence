@@ -1,6 +1,6 @@
 ---
-name: webapp-evidence-recording
-description: Record evidence of a web app — an operation video, screenshots and a runbook — to attach to a pull or merge request, a report, or a hand-off. Use this whenever the user says "get evidence", "lấy evidence", "quay evidence", "chụp màn hình cho MR/PR", asks for proof or a recording of something working, hands over an MR/PR link and wants evidence for it, or describes a page and the steps they want captured on it — including right after finishing a task or bug fix in the same session, when the screen and the flow are already known from context.
+name: recording
+description: Record evidence of a web app — an operation video, screenshots and a runbook — for a pull or merge request, a report, or a hand-off. Use when someone asks for proof that a change works, hands over an MR/PR link, or describes a page and the steps to capture on it.
 ---
 
 # webapp-evidence-recording

@@ -177,25 +177,28 @@ fi
 # The skill ships whole — SKILL.md plus the references, templates and Node runner beside it — so a
 # platform gets the directory, not a shim pointing back at one.
 #
-# A directory here is named for how Claude Code reads it: that platform builds the command from the
-# plugin name and the DIRECTORY name, so `src/skills/recording` inside plugin `webapp-evidence`
-# reads as `/webapp-evidence:recording`. The other four platforms have no plugin to prefix anything,
-# and a bare `/recording` beside everyone else's skills says nothing about what it records. They get
-# the SKILL.md `name` — `webapp-evidence-recording` — which is why source and destination differ.
+# Claude Code prefixes the plugin name onto each skill it contains, so `recording` reads as
+# `/webapp-evidence:recording` there and the skill is named for how it looks after that prefix. The
+# other four platforms have no prefix to lean on, and a bare `recording` sitting beside everyone
+# else's skills says nothing about what it records — so they get the plugin name joined to it,
+# `webapp-evidence-recording`, built here rather than written down twice.
+PLUGIN="$(sed -n 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \
+          "$REPO/src/.claude-plugin/plugin.json" | head -1)"
+[ -n "$PLUGIN" ] || { printf 'install-local.sh: no plugin name in src/.claude-plugin/plugin.json\n' >&2; exit 1; }
+
 SKILL_DIRS=()
 SKILL_NAMES=()
 for dir in "$REPO"/src/skills/*/; do
   [ -f "$dir/SKILL.md" ] || continue
-  SKILL_DIRS+=("$(basename -- "$dir")")
-  SKILL_NAMES+=("$(sed -n 's/^name:[[:space:]]*//p' "$dir/SKILL.md" | head -1)")
+  name="$(basename -- "$dir")"
+  SKILL_DIRS+=("$name")
+  # A skill already carrying the plugin name keeps it rather than saying it twice.
+  case "$name" in
+    "$PLUGIN"|"$PLUGIN"-*) SKILL_NAMES+=("$name") ;;
+    *) SKILL_NAMES+=("$PLUGIN-$name") ;;
+  esac
 done
 [ ${#SKILL_DIRS[@]} -gt 0 ] || { printf 'install-local.sh: no skills under %s/src/skills\n' "$REPO" >&2; exit 1; }
-for i in $(seq 0 $(( ${#SKILL_DIRS[@]} - 1 ))); do
-  [ -n "${SKILL_NAMES[$i]}" ] || {
-    printf 'install-local.sh: src/skills/%s/SKILL.md has no `name:` in its frontmatter\n' "${SKILL_DIRS[$i]}" >&2
-    exit 1
-  }
-done
 
 # The skill drives a real browser, so it needs its Node dependency and the tools that record and
 # encode. Installing the dependency here means the first recording does not stop to do it; a missing

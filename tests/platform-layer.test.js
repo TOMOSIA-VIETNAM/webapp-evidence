@@ -26,13 +26,13 @@ const skillDirs = () => fs.readdirSync(SKILLS, { withFileTypes: true })
   .filter((e) => e.isDirectory())
   .map((e) => e.name);
 
-// Claude Code builds its command from the plugin name and the skill's DIRECTORY name, while the
-// other four platforms read the SKILL.md `name`. That is why the two differ: with the namespace in
-// front, `recording` is enough; standing alone it has to say `webapp-evidence-recording`.
+// Claude Code prefixes the plugin name onto the skill's own name, so `/webapp-evidence:recording`
+// comes from a skill called `recording`. The other four platforms have no prefix, so the installer
+// joins the plugin name to it there. One name is written down; the other is derived.
 const MARKETPLACE = 'webapp-evidence';   // the repository, which is what a user adds
 const PLUGIN = 'webapp-evidence';        // the namespace Claude Code prefixes onto the skill
-const SKILL_DIR = 'recording';           // the directory, which Claude Code turns into the command
-const SKILL_NAME = 'webapp-evidence-recording';  // the SKILL.md name, which the other four platforms invoke
+const SKILL_DIR = 'recording';           // the directory and the SKILL.md name
+const SKILL_NAME = 'webapp-evidence-recording'; // derived for the platforms with no namespace
 
 test('every manifest names the plugin, and a catalog names the marketplace around it', () => {
   for (const rel of MANIFESTS) {
@@ -49,8 +49,7 @@ test('every manifest names the plugin, and a catalog names the marketplace aroun
 test('the two invocation names agree with the manifests they come from', () => {
   const entry = readJson('.claude-plugin/marketplace.json').plugins[0];
   assert.equal(`${entry.name}:${SKILL_DIR}`, 'webapp-evidence:recording');
-  // Without a namespace in front, the name has to carry the subject on its own.
-  assert.ok(SKILL_NAME.startsWith(entry.name), `${SKILL_NAME} does not say what plugin it belongs to`);
+  assert.equal(`${entry.name}-${SKILL_DIR}`, SKILL_NAME);
 });
 
 test('the plugin pins no version, so every commit reaches a client that auto-updates', () => {
@@ -101,16 +100,28 @@ test('the shipped skill is whole: SKILL.md plus what it tells the agent to read'
   assert.deepEqual(missing, []);
 });
 
-test('the skill declares the name the other platforms install it under', () => {
+test('the skill is named for how it reads after the plugin prefix', () => {
+  // Claude Code shows `/<plugin>:<skill name>`, so a skill called webapp-evidence-recording inside
+  // plugin webapp-evidence produces `/webapp-evidence:webapp-evidence-recording`.
   const frontmatter = read(`src/skills/${SKILL_DIR}/SKILL.md`).split('---')[1];
-  assert.match(frontmatter, new RegExp(`^name: ${SKILL_NAME}$`, 'm'));
+  assert.match(frontmatter, new RegExp(`^name: ${SKILL_DIR}$`, 'm'));
+  assert.ok(!SKILL_DIR.startsWith(PLUGIN), 'the plugin name is said twice in the command');
   assert.match(frontmatter, /^description: .+/m);
 });
 
-test('the installer reads that name rather than reusing the directory name', () => {
-  // Installing the directory name would leave Codex and Cursor with a bare `/get`.
+test('the description stays short enough to read in a command list', () => {
+  // It is shown next to the command while someone types, wrapped into the terminal width. Past a
+  // few lines it stops being a hint and becomes a wall.
+  const description = read(`src/skills/${SKILL_DIR}/SKILL.md`)
+    .split('---')[1].match(/^description: (.+)$/m)[1];
+  assert.ok(description.length < 320, `description is ${description.length} chars`);
+});
+
+test('the installer derives the unprefixed platforms\' name from the plugin name', () => {
+  // Written down in SKILL.md it would be a second copy to keep in step with plugin.json.
   const script = read('scripts/install-local.sh');
-  assert.match(script, /SKILL_NAMES\+=\(.*SKILL\.md/s);
+  assert.match(script, /SKILL_NAMES\+=\("\$PLUGIN-\$name"\)/);
+  assert.match(script, /plugin\.json/);
   assert.match(script, /ln -s -- "\$REPO\/src\/skills\/\$\{SKILL_DIRS\[\$i\]\}"/);
 });
 

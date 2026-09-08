@@ -38,8 +38,8 @@ docs/install.md            the install page every README points at
 | name | declared in | who reads it |
 |---|---|---|
 | `webapp-evidence` | the repository, the marketplace catalog in `.claude-plugin/`, and every `plugin.json` | what a user adds and installs: `claude plugin install webapp-evidence@webapp-evidence` |
-| `recording` | the directory name under `src/skills/` | Claude Code builds the command from the plugin name plus this: `/webapp-evidence:recording` |
-| `webapp-evidence-recording` | the `name` in `SKILL.md` frontmatter | Codex, Cursor, Gemini CLI and Antigravity, which have no plugin layer and invoke the skill directly |
+| `recording` | the directory under `src/skills/`, and the `name` in its `SKILL.md` | Claude Code puts the plugin name in front of it: `/webapp-evidence:recording` |
+| `webapp-evidence-recording` | derived by the installer from the two above | Codex, Cursor, Gemini CLI and Antigravity, which have no plugin layer to prefix anything |
 
 Claude Code namespaces every skill inside a plugin and there is no way out — putting `SKILL.md` at
 the plugin root instead of under `skills/` was tried and changes nothing. It also builds the command
