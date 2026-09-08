@@ -23,32 +23,6 @@ Everything project-specific — the URL, how to bring the environment up, how to
 `evidence.config.js` when there is a project. If a project needs one and has none, build it first
 (see `references/project-setup.md`), then record.
 
-Throughout this document `$SKILL` is the directory holding this SKILL.md file — the runner and the
-templates sit beside it. **You already know where that is: it is the file you are reading.** Set
-`$SKILL` to its directory and move on. Do not search the disk for it, and do not list what is in it;
-everything you need from it is described below.
-
-On Claude Code the plugin root is in the environment, so:
-
-```bash
-SKILL="$CLAUDE_PLUGIN_ROOT/skills/recording"
-```
-
-Only if you genuinely cannot tell where this file lives — no path, no `CLAUDE_PLUGIN_ROOT` — look in
-the places an install puts it. Run this through `bash`, because a glob that matches nothing aborts
-the whole command line in zsh:
-
-```bash
-bash -c 'for d in ~/.agents/skills/webapp-evidence-recording \
-                  ~/.cursor/skills/webapp-evidence-recording \
-                  ~/.gemini/*/skills/webapp-evidence-recording \
-                  ~/.webapp-evidence/src/skills/recording; do
-           [ -f "$d/SKILL.md" ] && { printf "%s\n" "$d"; break; }
-         done'
-```
-
-Two hits means two installs: ask the user which one to run rather than picking silently.
-
 ## Talking to the user
 
 Write the recording — captions, `mark()` labels, hotkey labels — in the language the MR reviewer
@@ -119,9 +93,9 @@ source that tells the truth, especially for JS-rendered UI.
 
 ```bash
 # Install the runner's dependency (first time only)
-[ -d $SKILL/scripts/node_modules ] || npm install --prefix $SKILL/scripts --no-audit --no-fund
+[ -d scripts/node_modules ] || npm install --prefix scripts --no-audit --no-fund
 
-node $SKILL/scripts/inspect.js /path-of-the-screen
+node scripts/inspect.js /path-of-the-screen
 ```
 
 It prints buttons, inputs, selects (with their real option lists) and links, one usable selector per
@@ -153,7 +127,7 @@ decision the project already made.
 ```bash
 OUT_DIR=<the issue's evidence directory> \
   CAPTIONS=on CAPTION_LOCALE=ja \
-  node $SKILL/scripts/record.js <path to steps.js>
+  node scripts/record.js <path to steps.js>
 ```
 
 With no project config — a URL handed over by someone outside the codebase — name the site instead:
@@ -161,7 +135,7 @@ With no project config — a URL handed over by someone outside the codebase —
 ```bash
 BASE_URL=https://app.example.com \
   OUT_DIR=<where the results go> \
-  node $SKILL/scripts/record.js <path to steps.js>
+  node scripts/record.js <path to steps.js>
 ```
 
 The runner brings the environment up (via `prepare` in the config), logs in (via `login`), records,
@@ -190,16 +164,16 @@ mix last run's screenshots into this one when the step count changes.
 
 ## Never write anything into the skill directory
 
-`$SKILL` is shared by every project on the machine. Everything a recording produces — config,
+This directory is shared by every project on the machine. Everything a recording produces — config,
 accounts, step scripts, results, and throwaway experiment files — belongs to the project being
-worked on. Litter left in the skill directory follows every other project that shares the install.
+worked on. Litter left here follows every other project that shares the install.
 
-The trap: you need a scratch Playwright script, you notice `node_modules` already sits in
-`$SKILL/scripts`, so you drop the file there to make `require` work. Keep the file in the project and
-point `NODE_PATH` at the skill instead:
+The trap: you need a scratch Playwright script, you notice `node_modules` already sits in `scripts/`,
+so you drop the file there to make `require` work. Keep the file in the project and point
+`NODE_PATH` here instead:
 
 ```bash
-NODE_PATH=$SKILL/scripts/node_modules node <project directory>/scratch.js
+NODE_PATH=<this skill directory>/scripts/node_modules node <project directory>/scratch.js
 ```
 
 Before writing a scratch script at all, check whether `inspect.js` already answers the question —
