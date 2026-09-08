@@ -15,15 +15,16 @@ explained below.
 ## Layout
 
 ```
-src/skills/recording/            the skill itself — the one copy every platform reads
+src/skills/recording/      records a take — the one copy every platform reads
   SKILL.md                 what an agent reads when the skill triggers
   references/              detail it loads only when a step needs it
   assets/                  templates a project copies: evidence.config.js, steps.js
-  scripts/                 the runner — record.js, inspect.js and their modules
+  scripts/                 record.js, inspect.js, convert.js and their modules
+src/skills/vision/         reads a take back: contact-sheet.js tiles it into timestamped sheets
 src/.claude-plugin/        plugin manifest, inside what Claude Code's marketplace ships
 .claude-plugin/            the marketplace entry, pointing at ./src
 .codex-plugin/  .cursor-plugin/  .agents/plugins/  plugin.json  gemini-extension.json
-commands/webapp-evidence-recording.toml Gemini CLI's entry format
+commands/*.toml            Gemini CLI's entry format — one per skill, written by hand
 install.sh                 the one-liner: clone, then hand over
 scripts/install-local.sh   the installer that knows every platform's directory
 tests/                     unit tests and the platform-layer guards

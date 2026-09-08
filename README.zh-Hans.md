@@ -81,14 +81,6 @@ Flow:
 runbook 里还留着生成这次录制的命令。数据变了、视频坏了、或者想录慢一点，再说一次就行。旧的录制
 会保留为 `v1`、`v2`、……，不会被覆盖。已经发出去的录像，没法再生成同一份文件。
 
-## 和自己录有什么不一样
-
-- **光标可见，移动比较自然。** 走曲线，先快后慢，点得远时会稍微冲过再回来。每次点击有一圈小波纹。
-- **节奏跟着画面走。** 只是跳转的点击走得快；结果出现时会停到足够读完。
-- **录不到的用字幕补。** `<select>` 菜单和文件选择框由操作系统绘制，进不了页面录制，所以底部
-  字幕会说明选了什么。快捷键会在它作用的元素旁边显示按键提示（`⌘ + C`）。
-- **页面加载的等待被剪掉了**，视频从真正开始操作的地方开始。
-
 ## 安装
 
 **Claude Code**
@@ -107,53 +99,48 @@ curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/mai
 它会问你用哪个平台，然后告诉你装到了哪里。录制需要 Chrome、ffmpeg 和 Node——缺哪个，代理会说
 清楚，并提出帮你装上。
 
-这条一行命令装的是最新发布版本；还没有发布版本时装 `main`。想选别的就用 `--ref`，这个选择会被
-记住，以后更新仍然停在你指定的位置：
+加上 `--ref main` 或 `--ref v1.2.0` 就能跟着某个分支走或钉在某个版本，`--ref latest` 回到跟随
+发布版本；更新用 `~/.webapp-evidence/scripts/install-local.sh --update`，卸载用
+`--uninstall --all`。
 
-```bash
-curl -fsSL … /install.sh | bash -s -- --ref main       # a branch, to try a change before it ships
-curl -fsSL … /install.sh | bash -s -- --ref v1.2.0     # a release, to pin a team to one version
-curl -fsSL … /install.sh | bash -s -- --ref latest     # back to following releases
-```
+## 使用方式
 
-更新用 `~/.webapp-evidence/scripts/install-local.sh --update`，卸载用 `--uninstall --all`。
-注意：`install.sh` 始终从默认分支下载，所以安装脚本自身的修改，要合并进去之后才会到你手上。
+怎么调用，取决于你在哪个工具里：
 
-## 三种调用方式
-
-| platform | how you call it |
+| 平台 | 命令 |
 |---|---|
 | Claude Code | `/webapp-evidence:recording` |
 | Cursor, Gemini CLI, Antigravity | `/webapp-evidence-recording` |
 | Codex | `$webapp-evidence-recording` |
 
-**刚做完一个任务或修完一个缺陷。** 哪个界面变了，代理已经知道，后面什么都不用写：
+能跟它要的东西：
 
-```
-/webapp-evidence:recording
-```
+| 你想要 | 怎么说 |
+|---|---|
+| 刚改完的那个界面的证据 | 命令后面什么都不用写——你在弄哪个界面，它知道 |
+| MR/PR 的证据 | 把链接贴上；它会读描述和 diff |
+| 按你的描述录一个页面 | 写 `Page: <url>` 加上步骤，像上面的例子那样 |
+| 同样的录制再来一遍，或者录慢一点 | 说一声即可——命令留在 runbook 里，旧的录制也不会被覆盖 |
+| 字幕换一种语言 | 说要哪种；它会按项目记住 |
+| 给项目配一次，以后每次录制都从已登录状态开始 | `set up the evidence config for this project` |
 
-**手上只有一个 MR/PR 链接。** 它会读描述和 diff，自己判断该录什么：
+步骤用你平时用的那种语言写就行，代理也用同一种语言回你。也没有语法要记——说“给我刚修好的那个
+界面的证据”，一样能跑。
 
-```
-/webapp-evidence:recording https://gitlab.example.com/group/admin/-/merge_requests/1783
-```
+## 拿到录制之后
 
-**不写代码。** 像上面的例子那样，给出页面、说清要看到什么。不需要仓库，不需要配置，什么都不用
-搭。步骤用你正在用的那种语言写就行；代理用同一种语言回你。
+| 你想要 | 命令 |
+|---|---|
+| 一个 gif，放进 README 或任何只渲染图片的地方 | `/webapp-evidence:recording -f gif` |
+| 一个 webm，放到你自己的页面上 | `/webapp-evidence:recording -f webm` |
+| 不看视频也知道里面发生了什么 | `/webapp-evidence:vision <the mp4>` |
 
-也没有语法要记。说“给我刚修好的那个界面的证据”，结果是一样的。
+默认仍然是 mp4：它在 merge request、issue 和各种聊天工具里都能直接播放，也是三种格式里最小的。
+同一段录制转成 gif 会大好几倍，所以这一步是先问你一句，而不是给你一个意外。
 
-## 给项目做一次配置
-
-```
-/webapp-evidence:recording set up the evidence config for this project
-```
-
-它会找到登录界面和一个开发账号，然后写出一个 `evidence.config.js`。从此每次录制都从已登录、
-环境可用的状态开始，不会再来问你。
-
-想改什么，说一声就行——“录慢一点”“字幕用日文”“只留最新的一次”——它会替你改那个文件。
+`vision` 存在的原因是代理看不了视频。它把视频拼成图片网格——每隔几秒一帧，每帧标着
+`mm:ss`——然后当图片来读。所以结论会是“00:14 处标题压住了表格”：一个你能自己回看核对、也能和
+runbook 对上的时刻。它还能发现没人想到要截图的东西：过渡途中错位的布局，闪一下就没了的横幅。
 
 ## 限制
 

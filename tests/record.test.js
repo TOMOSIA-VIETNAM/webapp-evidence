@@ -14,7 +14,7 @@ const PROJECT = fs.mkdtempSync(path.join(os.tmpdir(), 'evidence-record-'));
 process.env.PROJECT_ROOT = PROJECT;
 
 const {
-  fmt, keyCaps, resolvePause, buildTimeline, buildHotkeySection, buildNoteSection,
+  fmt, keyCaps, resolvePause, readingTime, buildTimeline, buildHotkeySection, buildNoteSection,
   ignoreHints, runArtifacts, archivePreviousRun,
 } = require('../src/skills/recording/scripts/record');
 const { DEFAULTS } = require('../src/skills/recording/scripts/settings');
@@ -64,6 +64,35 @@ test('an explicit number of milliseconds is passed through untouched', () => {
 
 test('an unknown pause level fails loudly instead of falling back to the default', () => {
   assert.throws(() => resolvePause('slow', PACE), /slow/);
+});
+
+test('a caption stays up in proportion to how much there is to read', () => {
+  // A fixed hold fits one sentence length and no other. The complaint that produced this was a
+  // caption of 124 characters shown for 2.2 seconds.
+  const short = readingTime('Chosen.', PACE);
+  const long = readingTime(
+    'Selected "Price (low to high)". The dropdown menu is drawn by the operating system, '
+    + 'so it does not appear in this recording.', PACE,
+  );
+  assert.ok(long > short, `${long} is not longer than ${short}`);
+  assert.ok(long >= 5000, `124 characters get only ${long}ms`);
+});
+
+test('even the shortest caption is shown long enough to notice', () => {
+  assert.ok(readingTime('', PACE) >= PACE.noteHoldMs);
+  assert.ok(readingTime('OK', PACE) >= PACE.noteHoldMs);
+});
+
+test('no caption can stall the take, however long the sentence', () => {
+  const essay = readingTime('x'.repeat(2000), PACE);
+  assert.equal(essay, PACE.noteHoldMaxMs);
+});
+
+test('a Japanese caption gets more time per character than an English one', () => {
+  // 31 Japanese characters say about as much as a long English sentence, and take as long to read.
+  const japanese = readingTime('この行はシードデータで、この操作で作られたものではありません。', PACE);
+  const english = readingTime('x'.repeat(31), PACE);
+  assert.ok(japanese > english, `${japanese} is not longer than ${english} for the same length`);
 });
 
 test('timeline rows are rebased on the trim point and run to the next mark', () => {

@@ -89,17 +89,6 @@ The runbook also stores the exact command that produced the recording. If the da
 video broke, or someone wants it slower, ask again. Old recordings are kept as `v1`, `v2`, … and
 never overwritten — once you've sent a recording out, you can't recreate that exact file.
 
-## Why the video is usable
-
-- **The cursor is visible and moves naturally.** It follows a curve, speeds up then slows down, and
-  overshoots a bit on long moves before correcting. Each click shows a small ripple.
-- **Pacing follows what's on screen.** Navigation clicks go quickly. When a result appears, it holds
-  long enough to read.
-- **If it can't be captured, it's captioned.** A native `<select>` menu or file picker is drawn by
-  the OS and never shows up in a page recording, so a subtitle at the bottom says what was chosen.
-  Keyboard shortcuts get a key hint (`⌘ + C`) next to the element they act on.
-- **Page-load waits are cut**, so the video starts where the work starts.
-
 ## Install
 
 **Claude Code**
@@ -115,61 +104,54 @@ claude plugin install webapp-evidence@webapp-evidence
 curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash
 ```
 
-It asks which platform you use, then tells you where everything was installed. Recording needs
-Chrome, ffmpeg, and Node — if one is missing, the agent names it and offers to install it.
+It asks which platform you use and tells you where things landed. Recording needs Chrome, ffmpeg and
+Node — if one is missing, the agent names it and offers to install it.
 
-The one-liner installs the latest release, or `main` if there isn't one yet. Pass `--ref` to pin a
-branch or version; that's remembered, so later updates stay on what you chose:
+Add `--ref main` or `--ref v1.2.0` to follow a branch or pin a version; `--ref latest` goes back to
+releases. Update with `~/.webapp-evidence/scripts/install-local.sh --update`, remove it with
+`--uninstall --all`.
 
-```bash
-curl -fsSL … /install.sh | bash -s -- --ref main       # a branch, to try a change before it ships
-curl -fsSL … /install.sh | bash -s -- --ref v1.2.0     # a release, to pin a team to one version
-curl -fsSL … /install.sh | bash -s -- --ref latest     # back to following releases
-```
+## Using it
 
-Update with `~/.webapp-evidence/scripts/install-local.sh --update`, remove with `--uninstall --all`.
-One catch: `install.sh` is always downloaded from the default branch, so a fix to the installer
-itself only reaches you after it is merged there.
+How you call it depends on where you are:
 
-## Three ways to call it
-
-| platform | how you call it |
+| platform | command |
 |---|---|
 | Claude Code | `/webapp-evidence:recording` |
 | Cursor, Gemini CLI, Antigravity | `/webapp-evidence-recording` |
 | Codex | `$webapp-evidence-recording` |
 
-**After a task or bug fix.** The agent already knows which screen changed, so you don't need to add
-anything:
+What you can ask for:
 
-```
-/webapp-evidence:recording
-```
+| You want | Say |
+|---|---|
+| Evidence of the screen you just changed | nothing after the command — it knows what you were working on |
+| Evidence for an MR or PR | paste the link; it reads the description and diff |
+| A page recorded from your description | `Page: <url>` and the steps, like the example above |
+| The same recording again, or a slower one | just ask — the runbook keeps the command, and old takes are never overwritten |
+| Captions in another language | say which; it remembers per project |
+| A project set up once, so recordings start signed in | `set up the evidence config for this project` |
 
-**You only have an MR/PR link.** It reads the description and diff and figures out what to record:
+Write the steps in whatever language you use, and the agent replies in that language. There's no
+syntax to memorise either — "get evidence for the screen I just fixed" works fine.
 
-```
-/webapp-evidence:recording https://gitlab.example.com/group/admin/-/merge_requests/1783
-```
+## Once you have a recording
 
-**You're not writing code.** Give it the page and say what to show, like the example above. No
-repository, no config, nothing to set up. Write the steps in whatever language you use; the agent
-replies in the same one.
+| You want | Command |
+|---|---|
+| A gif, for a README or anywhere that only renders images | `/webapp-evidence:recording -f gif` |
+| A webm, for a page you control | `/webapp-evidence:recording -f webm` |
+| To know what the video shows, without watching it | `/webapp-evidence:vision <the mp4>` |
 
-There's no syntax to memorize either — "get evidence for the screen I just fixed" does the same
-thing.
+mp4 stays the default: it plays inline in a merge request, an issue and every chat tool, and it's the
+smallest of the three. A gif of the same recording is several times larger, so you get an offer
+rather than a surprise.
 
-## Set it up for your project (once)
-
-```
-/webapp-evidence:recording set up the evidence config for this project
-```
-
-It finds the login screen and a dev account, then writes an `evidence.config.js`. After that every
-recording starts already signed in, on an environment that works, without asking again.
-
-To change something, just say so — "record it slower", "captions in Japanese", "keep only the newest
-take" — and it edits that file.
+`vision` is there because an agent can't watch a video. It tiles one into sheets — a frame every
+couple of seconds, each stamped `mm:ss` — and reads those as images. So a finding comes back as "the
+header overlaps the table at 00:14", a time you can check yourself and match to the runbook. It picks
+up what nobody thought to screenshot: a layout that breaks mid-transition, a banner that flashes and
+is gone.
 
 ## Limits
 

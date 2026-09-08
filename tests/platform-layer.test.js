@@ -33,6 +33,7 @@ const MARKETPLACE = 'webapp-evidence';   // the repository, which is what a user
 const PLUGIN = 'webapp-evidence';        // the namespace Claude Code prefixes onto the skill
 const SKILL_DIR = 'recording';           // the directory and the SKILL.md name
 const SKILL_NAME = 'webapp-evidence-recording'; // derived for the platforms with no namespace
+const SKILL_DIRS = ['recording', 'vision'];     // every skill the plugin ships
 
 test('every manifest names the plugin, and a catalog names the marketplace around it', () => {
   for (const rel of MANIFESTS) {
@@ -78,26 +79,37 @@ test("Claude Code's marketplace ships the plugin directory, not the whole reposi
   assert.ok(fs.existsSync(path.join(source, '.claude-plugin', 'plugin.json')));
 });
 
-test('the shipped skill is whole: SKILL.md plus what it tells the agent to read', () => {
-  const dirs = skillDirs();
-  assert.deepEqual(dirs, [SKILL_DIR]);
+test('every shipped skill is whole: SKILL.md plus what it tells the agent to read', () => {
+  assert.deepEqual(skillDirs().sort(), [...SKILL_DIRS].sort());
 
-  const root = path.join(SKILLS, SKILL_DIR);
-  for (const entry of ['SKILL.md', 'references', 'assets', 'scripts']) {
-    assert.ok(fs.existsSync(path.join(root, entry)), `missing ${entry}`);
-  }
-
-  // Every path the skill and its references name has to resolve, or the agent reads the
-  // instruction and finds nothing there.
-  const docs = ['SKILL.md', ...fs.readdirSync(path.join(root, 'references')).map((f) => `references/${f}`)];
   const missing = [];
-  for (const doc of docs) {
-    const body = fs.readFileSync(path.join(root, doc), 'utf8');
-    for (const ref of body.match(/(?:references|assets|scripts)\/[A-Za-z0-9_.-]+/g) ?? []) {
-      if (!fs.existsSync(path.join(root, ref))) missing.push(`${doc} -> ${ref}`);
+  for (const dir of SKILL_DIRS) {
+    const root = path.join(SKILLS, dir);
+    assert.ok(fs.existsSync(path.join(root, 'SKILL.md')), `${dir} has no SKILL.md`);
+    assert.ok(fs.existsSync(path.join(root, 'scripts')), `${dir} has no scripts`);
+
+    // Every path a skill or its references name has to resolve, or the agent reads the instruction
+    // and finds nothing there.
+    const references = fs.existsSync(path.join(root, 'references'))
+      ? fs.readdirSync(path.join(root, 'references')).map((f) => `references/${f}`)
+      : [];
+    for (const doc of ['SKILL.md', ...references]) {
+      const body = fs.readFileSync(path.join(root, doc), 'utf8');
+      for (const ref of body.match(/(?:references|assets|scripts)\/[A-Za-z0-9_.-]+/g) ?? []) {
+        if (!fs.existsSync(path.join(root, ref))) missing.push(`${dir}/${doc} -> ${ref}`);
+      }
     }
   }
   assert.deepEqual(missing, []);
+});
+
+test('each skill is named for how it reads after the plugin prefix', () => {
+  // Claude Code shows `/<plugin>:<skill>`, so a skill repeating the plugin name says it twice.
+  for (const dir of SKILL_DIRS) {
+    const frontmatter = read(`src/skills/${dir}/SKILL.md`).split('---')[1];
+    assert.match(frontmatter, new RegExp(`^name: ${dir}$`, 'm'), `${dir} declares a different name`);
+    assert.ok(!dir.startsWith(PLUGIN), `${dir} repeats the plugin name`);
+  }
 });
 
 test('the skill is named for how it reads after the plugin prefix', () => {
@@ -126,6 +138,15 @@ test('the skill offers to fix a missing dependency rather than reciting install 
   assert.match(skill, /offer to install it yourself/);
   assert.ok(!skill.includes('brew install'), 'the skill recites an install command');
   assert.ok(!skill.includes('apt-get install'), 'the skill recites an install command');
+});
+
+test('vision says which video to read, rather than leaving the agent to guess', () => {
+  // Called bare — `/webapp-evidence:vision` with nothing after it — the agent has to resolve a
+  // video from somewhere. Unwritten, that resolution differs every run, and reading back the wrong
+  // recording produces findings that sound authoritative and describe something else.
+  const skill = read('src/skills/vision/SKILL.md');
+  assert.match(skill, /## Which video/, 'no rule for choosing the video');
+  assert.match(skill, /Otherwise ask/, 'no instruction to ask when it cannot tell');
 });
 
 test('the description stays short enough to read in a command list', () => {
@@ -244,17 +265,34 @@ test('install.sh ships everything a run needs', () => {
 
 test('install.sh ships nothing that only matters to someone editing this project', () => {
   const ship = read('install.sh').match(/^SHIP='([\s\S]*?)'/m)[1];
-  for (const dev of ['/tests/', '/evals/', '/CONTRIBUTING.md']) {
+  for (const dev of ['/tests/', '/evals/', '/CONTRIBUTING.md', '/CLAUDE.md', '/docs/']) {
     assert.ok(!ship.includes(dev), `${dev} has no business on a user's disk`);
   }
 });
 
-test("Gemini CLI's command finds the skill in the directories the installer writes to", () => {
-  const toml = read(`commands/${SKILL_NAME}.toml`);
+test('every skill has a Gemini CLI command, so adding one cannot leave that platform behind', () => {
+  // The installer discovers skills by scanning src/skills, but these TOML files are written by
+  // hand. A new skill therefore reaches four platforms on its own and stops short of the fifth,
+  // silently — which is exactly what happened when `vision` was added.
+  const commands = fs.readdirSync(path.join(REPO, 'commands'))
+    .filter((f) => f.endsWith('.toml'))
+    .map((f) => f.replace(/\.toml$/, ''))
+    .sort();
+  const expected = SKILL_DIRS.map((dir) => `${PLUGIN}-${dir}`).sort();
+  assert.deepEqual(commands, expected, 'commands/ and src/skills/ have drifted apart');
+});
+
+test("each Gemini CLI command finds its own skill where the installer puts it", () => {
   const script = read('scripts/install-local.sh');
-  // The installer names $HOME-relative directories; the command has to look in the shared one.
+  // The installer names $HOME-relative directories; each command has to look in the shared one.
   const targets = [...script.matchAll(/printf '%s\\n' "\$HOME\/([^"]+)"/g)].map((m) => m[1]);
   assert.ok(targets.length > 0, 'install-local.sh no longer states its target directories');
   assert.ok(targets.includes('.agents/skills'), 'the interoperable directory is no longer a target');
-  assert.match(toml, new RegExp(`~/\\.agents/skills/${SKILL_NAME}/SKILL\\.md`));
+
+  for (const dir of SKILL_DIRS) {
+    const name = `${PLUGIN}-${dir}`;
+    const toml = read(`commands/${name}.toml`);
+    assert.match(toml, new RegExp(`~/\\.agents/skills/${name}/SKILL\\.md`), `${name}.toml looks elsewhere`);
+    assert.match(toml, new RegExp(`skills/${dir}/SKILL\\.md`), `${name}.toml does not name its own skill`);
+  }
 });
