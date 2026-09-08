@@ -48,7 +48,9 @@ One frame every 2s, four across and five down, 480px a tile — 20 tiles a sheet
 | Detail is too small to judge | `--tile 640 --columns 3` |
 | You only need the shape of it | `--columns 6 --rows 4 --tile 320` |
 
-`--help` lists them all. Sampling more often makes more sheets, not bigger ones.
+`--help` lists them all, and is the way to find out what the script takes — reading
+`contact-sheet.js` costs context and says nothing more. Sampling more often makes more sheets, not
+bigger ones.
 
 ## What it needs
 

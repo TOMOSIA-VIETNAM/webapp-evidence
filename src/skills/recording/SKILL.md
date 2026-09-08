@@ -144,9 +144,10 @@ The runner brings the environment up (via `prepare` in the config), logs in (via
 trims the page-load wait from the front, and writes the mp4 plus the runbook. Everything it fixed is
 printed as a `FIXED: …` line — pass those lines into the report.
 
-Both scripts have `--help` listing their arguments and environment variables. Call `--help` instead
-of reading the source; they are written to be used as black boxes, and reading them only costs
-context.
+Every script here — `record.js`, `inspect.js`, `convert.js` — answers `--help` with its arguments and
+environment variables. Call that instead of reading the source. They are written to be used as black
+boxes: the source is long, it is loaded into context in full when you open it, and it tells you
+nothing `--help` does not.
 
 The login account is handled by the config and remembered in `accountStore`, so from the second run
 onward there is nothing to ask the user. The login step is not part of the video.

@@ -155,27 +155,25 @@ curl -fsSL … /install.sh | bash -s -- --ref latest     # back to following rel
 
 想改什么，说一声就行——“录慢一点”“字幕用日文”“只留最新的一次”——它会替你改那个文件。
 
-## 另外两件事
+## 它能做什么
 
-**换个格式。** 录制产物是 mp4——在 merge request、issue 和各种聊天工具里都能直接播放，而且是三
-种格式里最小的。需要别的格式就说一声：
+| 你想要 | 命令 |
+|---|---|
+| 刚改完的页面的证据 | `/webapp-evidence:recording` |
+| MR/PR 的证据，自己从 diff 判断录什么 | `/webapp-evidence:recording <MR/PR 链接>` |
+| 按描述录一个页面，不需要仓库 | `/webapp-evidence:recording Page: <url>` 加上步骤 |
+| 录制转成 gif 放进 README，或转 webm 放到网页 | `/webapp-evidence:recording -f gif` · `-f webm` |
+| 不看视频也知道里面发生了什么 | `/webapp-evidence:vision <mp4 文件>` |
+| 给项目配一次，以后录制都已登录 | `/webapp-evidence:recording set up the evidence config for this project` |
+| 再录一遍——数据变了，视频坏了 | 说一声即可；命令在 runbook 里，旧的录制也会保留 |
+| 录慢一点，字幕换种语言 | 说出来，它会去改 `evidence.config.js` |
 
-```
-/webapp-evidence:recording -f gif
-```
+默认是 mp4，因为它在 merge request、issue 和各种聊天工具里都能直接播放，而且是三种格式里最小
+的。同一段录制的 gif 会大好几倍，所以转换只是建议，不会自作主张。
 
-README 只能渲染图片，那就用 gif；自己控制的网页更适合 webm。两者体积都更大——同一段录制的 gif
-会大好几倍——所以它只会建议，不会替你决定。
-
-**读懂视频内容。** 智能体没法看视频，所以它把视频拼成带时间戳的图片网格，当成图片来读：
-
-```
-/webapp-evidence:vision <mp4 文件>
-```
-
-每隔几秒取一帧，每帧标上 `mm:ss`，所以结论会是"00:14 处标题压住了表格"——一个你能回看核对、也能
-和 runbook 对上的时刻。特别适合发现没人想到要截图的东西：过渡途中错位的布局，闪一下就消失的
-提示条。
+`vision` 存在的原因是智能体看不了视频。它把视频拼成图片网格——每隔几秒一帧，每帧标着
+`mm:ss`——然后当图片来读，所以结论是"00:14 处标题压住了表格"：一个你能回看核对、也能和 runbook
+对上的时刻。它能发现没人想到要截图的东西，比如过渡途中错位的布局。
 
 ## 限制
 

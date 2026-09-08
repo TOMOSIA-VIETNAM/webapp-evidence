@@ -171,29 +171,27 @@ recording starts already signed in, on an environment that works, without asking
 To change something, just say so — "record it slower", "captions in Japanese", "keep only the newest
 take" — and it edits that file.
 
-## Two more things it does
+## What it can do
 
-**Another format.** The take is an mp4 — it plays inline in a merge request, an issue and every chat
-tool, and it is the smallest of the three. Ask when you need something else:
+| Ask for | Command |
+|---|---|
+| Evidence of the screen you just changed | `/webapp-evidence:recording` |
+| Evidence for an MR/PR, worked out from the diff | `/webapp-evidence:recording <MR/PR url>` |
+| A page recorded from a description, no repository needed | `/webapp-evidence:recording Page: <url>` + the steps |
+| The take as a gif for a README, or a webm for a page | `/webapp-evidence:recording -f gif` · `-f webm` |
+| To know what a video actually shows, without watching it | `/webapp-evidence:vision <the mp4>` |
+| A project set up once, so recordings start signed in | `/webapp-evidence:recording set up the evidence config for this project` |
+| The same take again — data moved on, video broke | Ask; the runbook holds the command, and old takes are kept |
+| A slower take, captions in another language | Say so; it edits `evidence.config.js` |
 
-```
-/webapp-evidence:recording -f gif
-```
+mp4 is the default because it plays inline in a merge request, an issue and every chat tool while
+staying the smallest of the three. A gif of the same take runs several times larger, so the
+conversion is offered rather than assumed.
 
-A gif is what a README can render; a webm suits a page you control. Both cost size — a gif of the
-same take runs several times larger — so it offers rather than assumes.
-
-**Reading the video.** An agent cannot watch a video, so it tiles one into timestamped sheets and
-reads those as images:
-
-```
-/webapp-evidence:vision <the mp4>
-```
-
-One frame every couple of seconds, each stamped `mm:ss`, so a finding comes back as "the header
-overlaps the table at 00:14" — a time you can check in the video and match to the runbook. Useful
-for catching what nobody thought to screenshot: a layout that breaks mid-transition, a banner that
-appears and is gone.
+`vision` exists because an agent cannot watch a video. It tiles one into sheets — a frame every
+couple of seconds, each stamped `mm:ss` — and reads those as images, so a finding comes back as "the
+header overlaps the table at 00:14": a time you can check, and match to the runbook. It catches what
+nobody thought to screenshot, like a layout that breaks mid-transition.
 
 ## Limits
 

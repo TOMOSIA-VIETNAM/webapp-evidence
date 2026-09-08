@@ -163,28 +163,27 @@ Nó tìm màn login và tài khoản dev, rồi ghi ra `evidence.config.js`. Sau
 
 Muốn đổi thì nói — "quay chậm hơn", "phụ đề tiếng Nhật", "chỉ giữ bản mới nhất" — nó sửa file đó.
 
-## Hai việc nữa nó làm được
+## Nó làm được gì
 
-**Đổi định dạng.** Bản quay là mp4 — phát thẳng trong merge request, trong issue và mọi công cụ
-chat, lại nhẹ nhất trong ba định dạng. Cần thứ khác thì cứ nói:
+| Bạn cần | Câu lệnh |
+|---|---|
+| Bằng chứng cho màn hình bạn vừa sửa | `/webapp-evidence:recording` |
+| Bằng chứng cho MR/PR, tự suy ra từ diff | `/webapp-evidence:recording <link MR/PR>` |
+| Quay một trang theo mô tả, không cần repository | `/webapp-evidence:recording Page: <url>` kèm các bước |
+| Bản quay thành gif để nhúng README, hoặc webm cho web | `/webapp-evidence:recording -f gif` · `-f webm` |
+| Biết video thật sự cho thấy gì mà không cần ngồi xem | `/webapp-evidence:vision <file mp4>` |
+| Cấu hình dự án một lần để lần sau quay là đã đăng nhập sẵn | `/webapp-evidence:recording set up the evidence config for this project` |
+| Quay lại đúng bản cũ — dữ liệu đổi, video hỏng | Cứ nói; runbook giữ sẵn lệnh, bản cũ không bị ghi đè |
+| Quay chậm hơn, chú thích tiếng khác | Nói ra; nó sửa `evidence.config.js` giúp bạn |
 
-```
-/webapp-evidence:recording -f gif
-```
+Mặc định là mp4 vì nó phát thẳng trong merge request, trong issue và mọi công cụ chat, lại nhẹ nhất
+trong ba định dạng. Gif của cùng bản quay lớn gấp mấy lần, nên việc đổi định dạng nó chỉ đề nghị chứ
+không tự làm.
 
-Gif là thứ README hiển thị được; webm hợp với trang web bạn tự quản. Cả hai đều đắt hơn về dung
-lượng — gif của cùng một bản quay lớn gấp mấy lần — nên nó hỏi chứ không tự đổi.
-
-**Đọc nội dung video.** Agent không xem được video, nên nó cắt video thành các tấm lưới có mốc thời
-gian rồi đọc như đọc ảnh:
-
-```
-/webapp-evidence:vision <file mp4>
-```
-
-Vài giây một khung hình, mỗi khung đóng dấu `mm:ss`, nên phát hiện trả về dạng "header đè lên bảng
-ở 00:14" — một mốc bạn tua lại được và đối chiếu được với runbook. Hữu ích để bắt những thứ không ai
-nghĩ tới việc chụp: layout vỡ giữa lúc chuyển cảnh, một banner hiện lên rồi biến mất.
+`vision` có mặt vì agent không xem được video. Nó cắt video thành lưới ảnh — vài giây một khung, mỗi
+khung đóng dấu `mm:ss` — rồi đọc như đọc ảnh, nên phát hiện trả về dạng "header đè lên bảng ở
+00:14": một mốc bạn tua lại được và đối chiếu được với runbook. Nó bắt được thứ không ai nghĩ tới
+việc chụp, ví dụ layout vỡ giữa lúc chuyển cảnh.
 
 ## Giới hạn
 
