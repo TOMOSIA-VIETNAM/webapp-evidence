@@ -159,6 +159,16 @@ node $SKILL/scripts/inspect.js /path-of-the-screen
 OUT_DIR=<output directory> node $SKILL/scripts/record.js <path>/steps.js
 ```
 
+## Releasing
+
+`/release-now` in this repository — a command under `.claude/commands/`, not part of the plugin. It
+works out the version from the tags, drafts the note from the merged PR, shows both, and tags only
+after you agree.
+
+`gemini-extension.json` carries the version Gemini CLI reads, and a tag cannot be moved once someone
+has installed from it. So the bump lands as its own PR before the tag, never after. A test compares
+the manifest against the newest release tag.
+
 ## Checking that the description triggers
 
 `evals/trigger-eval.json` holds twenty queries — ten that should trigger the skill, ten near-misses
