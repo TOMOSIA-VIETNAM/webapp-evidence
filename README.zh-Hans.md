@@ -115,14 +115,15 @@ curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/mai
 
 能跟它要的东西：
 
-| 你想要 | 怎么说 |
+| 你想要 | 在命令后面输入 |
 |---|---|
-| 刚改完的那个界面的证据 | 命令后面什么都不用写——你在弄哪个界面，它知道 |
-| MR/PR 的证据 | 把链接贴上；它会读描述和 diff |
-| 按你的描述录一个页面 | 写 `Page: <url>` 加上步骤，像上面的例子那样 |
-| 同样的录制再来一遍，或者录慢一点 | 说一声即可——命令留在 runbook 里，旧的录制也不会被覆盖 |
-| 字幕换一种语言 | 说要哪种；它会按项目记住 |
-| 给项目配一次，以后每次录制都从已登录状态开始 | `set up the evidence config for this project` |
+| 刚改完的页面的证据 | *什么都不用输* —— 它知道你刚在做什么 |
+| 某个 MR 或 PR 的证据 | `https://gitlab.example.com/group/admin/-/merge_requests/1783` |
+| 按你的描述录一个页面 | `Page: https://app.example.com/search` 然后写步骤，就像上面的例子 |
+| 再录一遍同样的内容 | `再录一遍` —— 命令在 runbook 里，旧的录制不会被覆盖 |
+| 录慢一点 | `录慢一点` |
+| 换一种语言的字幕 | `字幕用日文` —— 按项目记住 |
+| 给项目配一次，以后录制都已登录 | `set up the evidence config for this project` |
 
 步骤用你平时用的那种语言写就行，代理也用同一种语言回你。也没有语法要记——说“给我刚修好的那个
 界面的证据”，一样能跑。

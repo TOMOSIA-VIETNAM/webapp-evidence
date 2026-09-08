@@ -119,14 +119,15 @@ Gọi thế nào thì tuỳ nơi bạn đang ngồi làm:
 
 Những thứ bạn có thể yêu cầu:
 
-| Bạn cần | Nói gì |
+| Bạn cần | Gõ sau lệnh |
 |---|---|
-| Evidence cho màn hình bạn vừa sửa | khỏi gõ gì thêm sau lệnh — agent biết bạn vừa làm gì |
-| Evidence cho một MR hay PR | dán link vào; nó đọc mô tả và diff |
-| Quay một trang theo mô tả của bạn | `Page: <url>` kèm các bước, như ví dụ ở trên |
-| Quay lại đúng bản đó, hoặc quay chậm hơn | cứ nói — runbook giữ sẵn lệnh, bản cũ không bị ghi đè |
-| Phụ đề bằng ngôn ngữ khác | nói ngôn ngữ bạn muốn; nó nhớ theo từng project |
-| Cấu hình project một lần, để bản quay nào cũng bắt đầu là đã đăng nhập | `set up the evidence config for this project` |
+| Bằng chứng cho màn hình bạn vừa sửa | *không gõ gì* — nó biết bạn vừa làm gì |
+| Bằng chứng cho một MR hoặc PR | `https://gitlab.example.com/group/admin/-/merge_requests/1783` |
+| Quay một trang theo mô tả của bạn | `Page: https://app.example.com/search` rồi liệt kê các bước, như ví dụ ở trên |
+| Quay lại đúng bản cũ | `quay lại bản đó` — runbook giữ sẵn lệnh, bản cũ không bị ghi đè |
+| Quay chậm hơn | `quay chậm lại` |
+| Chú thích bằng tiếng khác | `chú thích tiếng Nhật` — nhớ theo từng dự án |
+| Cấu hình dự án một lần, để lần sau quay là đã đăng nhập sẵn | `set up the evidence config for this project` |
 
 Viết các bước bằng ngôn ngữ nào cũng được, agent trả lời đúng ngôn ngữ đó. Cũng chẳng có cú pháp nào
 phải nhớ — nói "lấy evidence cho màn mình vừa sửa" là chạy.

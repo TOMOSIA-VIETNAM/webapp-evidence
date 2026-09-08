@@ -123,13 +123,14 @@ How you call it depends on where you are:
 
 What you can ask for:
 
-| You want | Say |
+| You want | Type after the command |
 |---|---|
-| Evidence of the screen you just changed | nothing after the command — it knows what you were working on |
-| Evidence for an MR or PR | paste the link; it reads the description and diff |
-| A page recorded from your description | `Page: <url>` and the steps, like the example above |
-| The same recording again, or a slower one | just ask — the runbook keeps the command, and old takes are never overwritten |
-| Captions in another language | say which; it remembers per project |
+| Evidence of the screen you just changed | *nothing* — it knows what you were working on |
+| Evidence for an MR or PR | `https://gitlab.example.com/group/admin/-/merge_requests/1783` |
+| A page recorded from your description | `Page: https://app.example.com/search` then the steps, like the example above |
+| The same recording again | `record that again` — the runbook keeps the command, old takes are never overwritten |
+| A slower recording | `record it slower` |
+| Captions in another language | `captions in Japanese` — remembered per project |
 | A project set up once, so recordings start signed in | `set up the evidence config for this project` |
 
 Write the steps in whatever language you use, and the agent replies in that language. There's no
