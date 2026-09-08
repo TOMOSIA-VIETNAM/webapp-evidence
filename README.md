@@ -142,6 +142,7 @@ syntax to memorise either — "get evidence for the screen I just fixed" works f
 | A gif, for a README or anywhere that only renders images | `/webapp-evidence:recording -f gif` |
 | A webm, for a page you control | `/webapp-evidence:recording -f webm` |
 | To know what the video shows, without watching it | `/webapp-evidence:vision <the mp4>` |
+| To tell us something is wrong, or missing | `/webapp-evidence:feedback` |
 
 mp4 stays the default: it plays inline in a merge request, an issue and every chat tool, and it's the
 smallest of the three. A gif of the same recording is several times larger, so you get an offer

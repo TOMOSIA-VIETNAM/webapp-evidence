@@ -1,0 +1,30 @@
+name: 💡 Idea
+description: Something the skill cannot do yet, or could do better
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What you were trying to do
+      description: The situation you hit, not the solution yet.
+      placeholder: |
+        E.g.: Needed to hand a recording to someone who only opens the ticket in a browser,
+        and neither format we produce embeds there.
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: What would help
+      description: What you wish it did.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you did instead
+      description: The workaround you used, if any — it says a lot about what is missing.
+    validations:
+      required: false

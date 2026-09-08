@@ -19,7 +19,7 @@ cannot be invoked by name.
 | name | written in | read by |
 |---|---|---|
 | `webapp-evidence` | marketplace and every `plugin.json` | what a user installs |
-| `recording`, `vision` | the directory, and `name:` in its SKILL.md | Claude Code: `/webapp-evidence:recording` |
+| `recording`, `vision`, `feedback` | the directory, and `name:` in its SKILL.md | Claude Code: `/webapp-evidence:recording` |
 | `webapp-evidence-recording` | nowhere — the installer derives it | the four platforms without a namespace |
 
 Never write the derived name into a SKILL.md; `plugin.json` already holds that half of it.
@@ -44,6 +44,17 @@ without touching the suite.
 
 `session.js` refuses to run from inside the skill directory, and this repository is that directory:
 a test loading it sets `PROJECT_ROOT` to a scratch dir before the `require`.
+
+## The feedback skill posts in public
+
+`src/skills/feedback/SKILL.md` opens an issue on this repository's own tracker. Two constraints live
+in that file rather than in anyone's head: nothing is posted before the user approves the exact text,
+and the report carries the problem without the recording — a take is made of somebody's real
+application, so URLs, customer names, selectors and frames all get stripped before anything is
+drafted.
+
+Its field ids match `.github/ISSUE_TEMPLATE/*.yml`. Rename one there and the submitted content is
+dropped silently; a test compares the two.
 
 ## Two things that break invisibly
 

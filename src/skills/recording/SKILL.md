@@ -216,6 +216,14 @@ Before writing a scratch script at all, check whether `inspect.js` already answe
 The runner refuses to start if the working directory, `OUT_DIR` or the step script sits inside the
 skill directory, so this surfaces immediately instead of accumulating quietly.
 
+## Closing the report
+
+Once you have handed over the files, add one line — only when something in the run was worth
+mentioning: a caption that read awkwardly, a step that needed a workaround, a limit that got in the
+way. Say it can be reported with `/webapp-evidence:feedback`, and leave it there. Do not run it, do
+not ask them to, and do not add the line to a run that went fine — a suggestion that appears every
+single time is one nobody reads.
+
 ## Reference material
 
 Read these when the step calls for them, not upfront:

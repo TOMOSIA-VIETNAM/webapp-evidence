@@ -134,6 +134,7 @@ curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/mai
 | 一个 gif，放进 README 或任何只渲染图片的地方 | `/webapp-evidence:recording -f gif` |
 | 一个 webm，放到你自己的页面上 | `/webapp-evidence:recording -f webm` |
 | 不看视频也知道里面发生了什么 | `/webapp-evidence:vision <the mp4>` |
+| 反馈一个问题，或者提一个缺的功能 | `/webapp-evidence:feedback` |
 
 默认仍然是 mp4：它在 merge request、issue 和各种聊天工具里都能直接播放，也是三种格式里最小的。
 同一段录制转成 gif 会大好几倍，所以这一步是先问你一句，而不是给你一个意外。

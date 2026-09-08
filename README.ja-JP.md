@@ -141,6 +141,7 @@ ffmpeg、Node が必要です。足りないものがあれば、エージェン
 | README など画像しか表示できない場所に貼る gif がほしい | `/webapp-evidence:recording -f gif` |
 | 自分で管理しているページに置く webm がほしい | `/webapp-evidence:recording -f webm` |
 | 動画を見ずに、何が映っているか知りたい | `/webapp-evidence:vision <mp4 ファイル>` |
+| 不具合を伝える、足りないものを頼む | `/webapp-evidence:feedback` |
 
 既定が mp4 なのは、マージリクエストでも issue でもチャットでもそのまま再生でき、3 つの形式で
 いちばん軽いからです。同じ録画の gif は数倍のサイズになるので、変換は提案するだけで勝手には

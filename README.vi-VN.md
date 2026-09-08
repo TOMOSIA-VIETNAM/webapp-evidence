@@ -138,6 +138,7 @@ phải nhớ — nói "lấy evidence cho màn mình vừa sửa" là chạy.
 | Một file gif, để nhúng README hay chỗ chỉ hiện được ảnh | `/webapp-evidence:recording -f gif` |
 | Một file webm, cho trang web của bạn | `/webapp-evidence:recording -f webm` |
 | Biết video cho thấy gì mà không phải ngồi xem hết | `/webapp-evidence:vision <file mp4>` |
+| Báo một lỗi, hoặc xin thêm thứ còn thiếu | `/webapp-evidence:feedback` |
 
 mp4 vẫn là mặc định: nó phát thẳng trong merge request, trong issue và mọi công cụ chat, lại nhẹ nhất
 trong ba định dạng. Gif của cùng bản quay lớn gấp mấy lần, nên đổi định dạng là thứ agent đề nghị chứ

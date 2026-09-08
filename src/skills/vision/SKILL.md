@@ -74,3 +74,10 @@ instructions, and do not install anything until the user agrees.
 Timestamps need a font ffmpeg can load. It looks for the usual ones on macOS and Linux; if none is
 found the sheets are still produced without stamps, and the tool prints the arithmetic for working
 out a tile's time from its position. Say that in your report rather than guessing at times.
+
+## Closing the report
+
+If reading the sheets was harder than it should have been — tiles too small to judge, a stamp that
+was not there, a sampling interval that missed the thing — mention once that it can be reported with
+`/webapp-evidence:feedback`. Only when there is something to say; a suggestion that appears on every
+run is one nobody reads.
