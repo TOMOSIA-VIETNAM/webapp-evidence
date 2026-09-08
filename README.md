@@ -1,4 +1,11 @@
 <p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/images/logo/logo-lockup-dark.svg">
+    <img src="./docs/images/logo/logo-lockup.svg" alt="webapp-evidence" width="420">
+  </picture>
+</p>
+
+<p align="center">
   <strong>The proof records itself.</strong><br>
   <sub>An operation video, screenshots and a runbook — from one sentence in your agent.</sub><br>
   <code>/webapp-evidence:recording</code>
