@@ -36,6 +36,24 @@ is_our_clone() {
   [ "$url" = "$repo" ] || [ "$(slug "$url")" = "$(slug "$repo")" ]
 }
 
+# A ref this clone follows can stop existing — a branch merged and deleted is the ordinary case, and
+# then every later run of the one-liner fails on a name the user never typed. Say which ref, say
+# where it came from, and give the way out; exiting with only "no ref named X" leaves someone stuck
+# with no idea that `--ref latest` is the answer.
+missing_ref() {
+  local repo="$1" ref="$2" named="$3" home="$4"
+  printf 'install.sh: %s has no ref named %s\n' "$repo" "$ref" >&2
+  if [ "$named" = no ]; then
+    printf '  This clone follows %s because an earlier install asked for it. A branch that has since\n' "$ref" >&2
+    printf '  been merged and deleted looks exactly like this.\n' >&2
+  fi
+  printf '\n  Go back to released versions:  curl -fsSL %s/raw/HEAD/install.sh | bash -s -- --ref latest\n' \
+    "${repo%.git}" >&2
+  printf '  Or follow something else:      ... | bash -s -- --ref <branch-or-tag>\n' >&2
+  printf '  Or start over:                 rm -rf %s\n' "$home" >&2
+  exit 1
+}
+
 # Everything lives in main so a download cut short cannot execute half a script.
 main() {
   local repo="${WEBAPP_EVIDENCE_REPO:-https://github.com/TOMOSIA-VIETNAM/webapp-evidence}"
@@ -114,8 +132,8 @@ main() {
     say 'updating %s to %s\n' "$home" "$ref"
     # A clone made with --branch narrows its fetch refspec to that ref, so ask for this one by name.
     git -C "$home" fetch --quiet --depth 1 origin "$ref" 2>/dev/null \
-      || git -C "$home" fetch --quiet --tags origin "$ref" \
-      || { printf 'install.sh: %s has no ref named %s\n' "$repo" "$ref" >&2; exit 1; }
+      || git -C "$home" fetch --quiet --tags origin "$ref" 2>/dev/null \
+      || missing_ref "$repo" "$ref" "$named" "$home"
     git -C "$home" checkout --quiet --detach FETCH_HEAD
   elif [ -e "$home" ]; then
     printf 'install.sh: %s exists and is not a clone of webapp-evidence — move it, nothing written\n' "$home" >&2

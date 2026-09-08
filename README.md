@@ -99,6 +99,14 @@ The clone remembers what you chose, so re-running the one-liner to update keeps 
 or tag instead of dropping you back onto releases. `~/.webapp-evidence/scripts/install-local.sh
 --update` does the same from the clone itself.
 
+Install from a branch and that branch later gets merged and deleted, and the next plain run stops
+with `has no ref named …` — the ref is gone, and nothing is guessed on your behalf. `--ref latest`
+puts you back on releases.
+
+One thing the one-liner cannot do is upgrade itself ahead of time: `install.sh` is always fetched
+from the default branch, so a new flag only reaches you once it is merged there, even when you ask
+for a branch that already has it.
+
 Full guide, including where each platform puts it and how to remove it:
 **[Install](./docs/install.md)**.
 
