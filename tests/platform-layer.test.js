@@ -109,6 +109,26 @@ test('the skill is named for how it reads after the plugin prefix', () => {
   assert.match(frontmatter, /^description: .+/m);
 });
 
+test('the skill does not send the agent hunting for its own directory', () => {
+  // It is reading the file; the directory is already known. A search costs a tool call before any
+  // work starts, and on Claude Code the plugin root is sitting in the environment.
+  const skill = read(`src/skills/${SKILL_DIR}/SKILL.md`);
+  assert.match(skill, /CLAUDE_PLUGIN_ROOT/, 'never mentions the variable that already holds the answer');
+  assert.match(skill, /Do not search the disk for it/, 'does not tell the agent to skip the search');
+});
+
+test('the fallback lookup survives a shell where an unmatched glob is fatal', () => {
+  // zsh aborts the whole command line on `no matches found`, so a bare glob in the fallback breaks
+  // it on the default macOS shell — which is exactly where this gets run.
+  const skill = read(`src/skills/${SKILL_DIR}/SKILL.md`);
+  const globbed = skill.split('\n').filter((l) => l.includes('~/.gemini/*/skills/'));
+  assert.ok(globbed.length > 0, 'the fallback no longer looks in the Gemini directories');
+  assert.match(skill, /bash -c 'for d in/, 'the glob is not run through bash');
+  for (const line of globbed) {
+    assert.ok(!line.trimStart().startsWith('ls '), `a bare glob runs in the user's shell: ${line}`);
+  }
+});
+
 test('the description stays short enough to read in a command list', () => {
   // It is shown next to the command while someone types, wrapped into the terminal width. Past a
   // few lines it stops being a hint and becomes a wall.

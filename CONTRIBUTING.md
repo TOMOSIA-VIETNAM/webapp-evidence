@@ -80,6 +80,12 @@ Nothing in `SKILL.md` may name a tool only one platform has. Where a capability 
 needed and give the fallback in the same sentence — the way the question about captions names
 Claude Code's structured question tool and then says what to do without one.
 
+`SKILL.md` also must not send the agent looking for its own directory. It is reading the file, so it
+knows where the file is, and on Claude Code `$CLAUDE_PLUGIN_ROOT` holds the answer outright — a
+search there is a tool call spent before any work begins. The fallback that does exist, for a
+platform that offers neither, runs its globs through `bash`: an unmatched glob aborts the entire
+command line in zsh, which is the default shell on macOS.
+
 ## Tests
 
 ```bash

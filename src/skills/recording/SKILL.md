@@ -24,19 +24,30 @@ Everything project-specific — the URL, how to bring the environment up, how to
 (see `references/project-setup.md`), then record.
 
 Throughout this document `$SKILL` is the directory holding this SKILL.md file — the runner and the
-templates sit beside it. Where that is depends on how the skill was installed, so resolve it once
-and reuse it:
+templates sit beside it. **You already know where that is: it is the file you are reading.** Set
+`$SKILL` to its directory and move on. Do not search the disk for it, and do not list what is in it;
+everything you need from it is described below.
+
+On Claude Code the plugin root is in the environment, so:
 
 ```bash
-SKILL="$(ls -d "${CLAUDE_PLUGIN_ROOT:-/nonexistent}"/skills/recording \
-              ~/.agents/skills/webapp-evidence-recording \
-              ~/.cursor/skills/webapp-evidence-recording \
-              ~/.gemini/*/skills/webapp-evidence-recording \
-              ~/.webapp-evidence/src/skills/recording 2>/dev/null | head -1)"
+SKILL="$CLAUDE_PLUGIN_ROOT/skills/recording"
 ```
 
-If that finds nothing, you already know the absolute path of this file — use its directory. Two hits
-means two installs: ask the user which one to run rather than picking silently.
+Only if you genuinely cannot tell where this file lives — no path, no `CLAUDE_PLUGIN_ROOT` — look in
+the places an install puts it. Run this through `bash`, because a glob that matches nothing aborts
+the whole command line in zsh:
+
+```bash
+bash -c 'for d in ~/.agents/skills/webapp-evidence-recording \
+                  ~/.cursor/skills/webapp-evidence-recording \
+                  ~/.gemini/*/skills/webapp-evidence-recording \
+                  ~/.webapp-evidence/src/skills/recording; do
+           [ -f "$d/SKILL.md" ] && { printf "%s\n" "$d"; break; }
+         done'
+```
+
+Two hits means two installs: ask the user which one to run rather than picking silently.
 
 ## Talking to the user
 
