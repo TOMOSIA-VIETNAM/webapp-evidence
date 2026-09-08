@@ -6,6 +6,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { execSync } = require('node:child_process');
 
 const REPO = path.resolve(__dirname, '..');
 const SKILLS = path.join(REPO, 'src', 'skills');
@@ -280,6 +281,21 @@ test('a translation keeps the commands and the demo the English one shows', () =
     assert.ok(body.includes('./docs/demo/saucedemo.gif'), `${file} lost the demo recording`);
     assert.ok(body.includes('/webapp-evidence:recording'), `${file} lost the invocation`);
   }
+});
+
+test('the version in gemini-extension.json keeps up with the published releases', () => {
+  // Gemini CLI reads this manifest, and a git tag cannot be moved once someone has installed from
+  // it — so a tag placed over a stale version ships that number permanently. Release notes come
+  // from .claude/commands/release-now.md, which checks this before tagging; this catches the case
+  // where the tag went out anyway.
+  const declared = readJson('gemini-extension.json').version;
+  assert.match(declared, /^\d+\.\d+\.\d+$/, `version is "${declared}"`);
+
+  const tags = execSync('git tag --list "v*" --sort=-v:refname', { cwd: REPO, encoding: 'utf8' })
+    .split('\n').map((t) => t.trim()).filter((t) => t && !/-rc\d+$/.test(t));
+  if (!tags.length) return;   // nothing released yet; the manifest has nothing to keep up with
+
+  assert.equal(`v${declared}`, tags[0], 'the manifest is behind the newest release');
 });
 
 test('every demo file the READMEs link to exists', () => {
