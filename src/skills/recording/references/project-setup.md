@@ -26,7 +26,7 @@ is nothing left to guess:
    `package.json` scripts, `Procfile`. Note the start command and the port.
 2. **Write a minimal config** from `assets/evidence.config.example.js`: `baseUrl` only, no `login`
    and no `prepare` yet. Put it in the project's shared evidence directory.
-3. **Probe the login screen**: `node $SKILL/scripts/inspect.js /path-to-login` — take the real
+3. **Probe the login screen**: `node scripts/inspect.js /path-to-login` — take the real
    selectors of the email field, the password field and the submit button instead of guessing field
    names.
 4. **Find where dev accounts come from**: seeds, fixtures, or a record already in the database.
@@ -38,7 +38,7 @@ is nothing left to guess:
    database is usually faster and steadier than reading a mailbox.
 6. **Write `prepare()`** if the environment drifts often (a container is down, a dependency is
    missing, a migration is pending). Return the list of what it fixed so the runner can print it.
-7. **Check the result**: `node $SKILL/scripts/inspect.js /some-screen-behind-login` — getting an
+7. **Check the result**: `node scripts/inspect.js /some-screen-behind-login` — getting an
    element list back means the config and the login both work. Only now write the step script and
    record.
 

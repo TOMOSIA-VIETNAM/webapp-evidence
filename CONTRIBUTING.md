@@ -80,6 +80,9 @@ Nothing in `SKILL.md` may name a tool only one platform has. Where a capability 
 needed and give the fallback in the same sentence — the way the question about captions names
 Claude Code's structured question tool and then says what to do without one.
 
+`SKILL.md` refers to the files beside it by relative path — `scripts/record.js`, not a variable and
+not a search. Whichever platform loaded the file already resolved where it lives.
+
 ## Tests
 
 ```bash
