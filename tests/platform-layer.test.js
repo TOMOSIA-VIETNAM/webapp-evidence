@@ -140,6 +140,15 @@ test('the skill offers to fix a missing dependency rather than reciting install 
   assert.ok(!skill.includes('apt-get install'), 'the skill recites an install command');
 });
 
+test('vision says which video to read, rather than leaving the agent to guess', () => {
+  // Called bare — `/webapp-evidence:vision` with nothing after it — the agent has to resolve a
+  // video from somewhere. Unwritten, that resolution differs every run, and reading back the wrong
+  // recording produces findings that sound authoritative and describe something else.
+  const skill = read('src/skills/vision/SKILL.md');
+  assert.match(skill, /## Which video/, 'no rule for choosing the video');
+  assert.match(skill, /Otherwise ask/, 'no instruction to ask when it cannot tell');
+});
+
 test('the description stays short enough to read in a command list', () => {
   // It is shown next to the command while someone types, wrapped into the terminal width. Past a
   // few lines it stops being a hint and becomes a wall.

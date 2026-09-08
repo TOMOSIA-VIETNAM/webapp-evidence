@@ -8,13 +8,27 @@ description: Look at what a recording actually shows, by tiling its frames into 
 A video is not readable. You can read a picture, so this turns the video into pictures: one frame
 every couple of seconds, each stamped with the time it came from, tiled into sheets.
 
-Point it at any mp4 — a take from `webapp-evidence-recording`, or any other recording:
-
 ```bash
 node scripts/contact-sheet.js <video.mp4> --out <directory>
 ```
 
 It prints one line per sheet with the span that sheet covers, then you read the sheets as images.
+
+## Which video
+
+Work down this list and stop at the first one that answers it:
+
+1. **A path or a name in what the user just said.** Take it as given, even if another video is
+   closer to hand.
+2. **A recording made in this session.** You know where it went, so use it — this is the common
+   case, someone recording a take and then asking what it shows.
+3. **A directory the user named**, or the evidence directory this session has been working in: use
+   the mp4 in it. More than one, and you are back to asking.
+4. **Otherwise ask.** Name the candidates you can see if there are any.
+
+Do not go looking around the disk for the newest mp4. The one that was modified last is not
+reliably the one being asked about, and reading back the wrong recording produces findings that
+sound authoritative and describe something else entirely.
 
 ## Why sheets and not the screenshots
 
