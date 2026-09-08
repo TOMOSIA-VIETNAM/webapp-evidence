@@ -118,8 +118,12 @@ repository, never into the working tree.
 It also records with no `evidence.config.js` at all, driven by `BASE_URL`, which is the path someone
 takes when all they have is a URL. That path has no other coverage.
 
-CI runs it on every push, but as `continue-on-error`: a missing browser in a runner image should not
-block a documentation change. The unit job is the one that gates.
+`.github/workflows/tests.yml` describes both jobs, but **GitHub Actions is currently disabled on this
+repository** — enabling it is an organisation-admin action — so nothing runs automatically yet. Until
+it is on, run both checks yourself before opening a pull request and say in the description which
+ones you ran. When Actions is enabled the workflow needs no changes: the unit job gates, and the
+end-to-end job is `continue-on-error`, because a runner image without a browser should not block a
+documentation change.
 
 ## Trying an install without touching your own machine
 

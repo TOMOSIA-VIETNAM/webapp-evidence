@@ -1,3 +1,6 @@
+# GitHub Actions is disabled on this repository at the time of writing — turning it on is an
+# organisation-admin action — so this file sits here ready rather than running. Nothing in it needs
+# to change when someone enables it.
 name: tests
 
 on:
