@@ -13,7 +13,7 @@ process.env.PROJECT_ROOT = PROJECT;
 const {
   ROOT, SKILL_DIR, assertOutsideSkill, loadProjectConfig,
   makeAccountStore, generatePassword, resolveApp,
-} = require('../src/skills/get-evidence/scripts/session');
+} = require('../src/skills/get/scripts/session');
 
 // The lookup walks up from the script directory, so each case needs its own tree to walk.
 function tree(files) {
@@ -30,6 +30,7 @@ const configFile = (marker) => `module.exports = { marker: '${marker}', defaultA
 
 function withEnv(vars, fn) {
   const saved = { EVIDENCE_CONFIG: process.env.EVIDENCE_CONFIG, BASE_URL: process.env.BASE_URL };
+  delete process.env.BASE_URL;
   Object.entries(vars).forEach(([k, v]) => { if (v === undefined) delete process.env[k]; else process.env[k] = v; });
   try {
     return fn();
@@ -94,6 +95,13 @@ test('an EVIDENCE_CONFIG path that does not exist is reported, not ignored', () 
 test('with no config anywhere, the error points at the example to copy', () => {
   const base = tree({ 'notes.md': 'no config here' });
   assert.throws(() => load(base), /evidence\.config\.js/);
+});
+
+test('a real config still wins over BASE_URL, which only fills the gap when there is none', () => {
+  const base = tree({ 'evidence/evidence.config.js': configFile('real') });
+  const { file, config } = load(base, { BASE_URL: 'http://localhost:4321' });
+  assert.equal(config.marker, 'real');
+  assert.ok(file.endsWith('evidence.config.js'));
 });
 
 test('an account is remembered between runs, and an unknown app reads back as null', () => {

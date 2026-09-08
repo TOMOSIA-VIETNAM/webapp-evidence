@@ -1,0 +1,40 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  unit:
+    # The unit tests need nothing but Node: they cover the decisions the runner makes before a
+    # browser exists, so they are the gate every change has to pass.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --prefix src/skills/get/scripts --no-audit --no-fund
+      - run: node --test 'tests/*.test.js'
+
+  e2e:
+    # The end-to-end check records the demo app in a real Chrome and asserts on the mp4, the
+    # screenshots and the runbook. It needs a browser and ffmpeg, so it is kept separate: a failure
+    # here is worth reading, but it should not be the thing that blocks a docs change.
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: npm install --prefix src/skills/get/scripts --no-audit --no-fund
+      # Playwright drives the Chrome the runner asks for by channel, so install that channel rather
+      # than relying on whatever browser the image happens to ship.
+      - run: npx --yes playwright@1.62.1 install --with-deps chrome
+      - run: ./tests/e2e/run.sh
+      - name: Keep the recording when the check fails
+        if: failure()
+        run: echo "Re-run locally with ./tests/e2e/run.sh --keep to watch what was recorded."

@@ -5,7 +5,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { DEFAULTS, resolveSettings } = require('../src/skills/get-evidence/scripts/settings');
+const { DEFAULTS, resolveSettings } = require('../src/skills/get/scripts/settings');
 
 const RECORDING_ENV = ['HEADED', 'BROWSER_CHANNEL', 'EVIDENCE_OVERWRITE', 'CAPTIONS', 'CAPTION_LOCALE'];
 

@@ -6,7 +6,7 @@
   },
   "plugins": [
     {
-      "name": "webapp",
+      "name": "webapp-evidence",
       "source": "./",
       "description": "Record evidence (video + screenshots + runbook) for a merge request"
     }

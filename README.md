@@ -18,7 +18,7 @@ Claude Code:
 
 ```bash
 claude plugin marketplace add TOMOSIA-VIETNAM/webapp-evidence
-claude plugin install webapp@webapp-evidence
+claude plugin install webapp-evidence@webapp-evidence
 ```
 
 Cursor, Codex, Gemini CLI, Antigravity:
@@ -32,9 +32,9 @@ where each platform puts it and how to remove it: [Install](./docs/install.md).
 
 ## Using it
 
-Type this in a chat session — `/webapp:get-evidence` on Claude Code, `/get-evidence` on Cursor,
+Type this in a chat session — `/webapp-evidence:get` on Claude Code, `/get-evidence` on Cursor,
 Gemini CLI and Antigravity, `$get-evidence` on Codex. The examples below use the short form; on
-Claude Code put `/webapp:` in front:
+Claude Code put `/webapp-evidence:` in front:
 
 **You just finished a task or a bug fix — the agent already knows which screen changed:**
 
@@ -55,6 +55,17 @@ Claude Code put `/webapp:` in front:
 ```
 
 There is no syntax to remember — "get evidence for the screen I just fixed" works just as well.
+
+**You don't write code?** Give the page and say what to show, in your own words:
+
+```
+/webapp-evidence:get record the search page at https://app.example.com/search:
+type "abc", press Search, capture the results
+```
+
+No repository, no setup, nothing to install into a project — the agent opens the page, follows the
+steps you described, and hands back the video and the screenshots with the folder they are in. Write
+the steps in whatever language you think in; the agent replies in the same one.
 
 ## What you get
 

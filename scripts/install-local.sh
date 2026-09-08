@@ -12,8 +12,8 @@ trap '' PIPE
 say() { printf "$@" 2>/dev/null || true; }
 
 REPO="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-MARKER='<!-- installed by get-evidence scripts/install-local.sh — safe to delete -->'
-STAMP=".get-evidence-local-install"
+MARKER='<!-- installed by webapp-evidence scripts/install-local.sh — safe to delete -->'
+STAMP=".webapp-evidence-local-install"
 MARKETPLACE='TOMOSIA-VIETNAM/webapp-evidence'
 
 usage() {
@@ -24,7 +24,7 @@ Usage: scripts/install-local.sh [--platform NAME] [--target DIR] [--copy]
   --platform NAME  repeatable, or comma-separated. `all` means every platform below.
                    claude           marketplace  ~/.claude/plugins
                    shared           skills       ~/.agents/skills
-                   cursor-ide       plugin       ~/.cursor/plugins/local/get-evidence
+                   cursor-ide       plugin       ~/.cursor/plugins/local/webapp-evidence
                    cursor-cli       skills       ~/.cursor/skills
                    antigravity-cli  skills       ~/.gemini/antigravity-cli/skills
                    antigravity-ide  skills       ~/.gemini/config/skills
@@ -65,7 +65,7 @@ platform_dir() {
   case "$1" in
     claude) printf '%s\n' "$HOME/.claude/plugins" ;;
     shared) printf '%s\n' "$HOME/.agents/skills" ;;
-    cursor-ide) printf '%s\n' "$HOME/.cursor/plugins/local/get-evidence" ;;
+    cursor-ide) printf '%s\n' "$HOME/.cursor/plugins/local/webapp-evidence" ;;
     cursor-cli) printf '%s\n' "$HOME/.cursor/skills" ;;
     antigravity-cli) printf '%s\n' "$HOME/.gemini/antigravity-cli/skills" ;;
     antigravity-ide) printf '%s\n' "$HOME/.gemini/config/skills" ;;
@@ -158,12 +158,26 @@ fi
 
 # The skill ships whole — SKILL.md plus the references, templates and Node runner beside it — so a
 # platform gets the directory, not a shim pointing back at one.
-SKILLS=()
+#
+# A directory here is named for how Claude Code reads it: that platform builds the command from the
+# plugin name and the DIRECTORY name, so `src/skills/get` inside plugin `webapp-evidence` reads as
+# `/webapp-evidence:get`. The other four platforms have no plugin to prefix anything, so a directory
+# called `get` would leave them with a bare `/get` — too vague to live beside anyone else's skills.
+# They get the SKILL.md `name` instead, which is why source and destination names differ.
+SKILL_DIRS=()
+SKILL_NAMES=()
 for dir in "$REPO"/src/skills/*/; do
   [ -f "$dir/SKILL.md" ] || continue
-  SKILLS+=("$(basename -- "$dir")")
+  SKILL_DIRS+=("$(basename -- "$dir")")
+  SKILL_NAMES+=("$(sed -n 's/^name:[[:space:]]*//p' "$dir/SKILL.md" | head -1)")
 done
-[ ${#SKILLS[@]} -gt 0 ] || { printf 'install-local.sh: no skills under %s/src/skills\n' "$REPO" >&2; exit 1; }
+[ ${#SKILL_DIRS[@]} -gt 0 ] || { printf 'install-local.sh: no skills under %s/src/skills\n' "$REPO" >&2; exit 1; }
+for i in $(seq 0 $(( ${#SKILL_DIRS[@]} - 1 ))); do
+  [ -n "${SKILL_NAMES[$i]}" ] || {
+    printf 'install-local.sh: src/skills/%s/SKILL.md has no `name:` in its frontmatter\n' "${SKILL_DIRS[$i]}" >&2
+    exit 1
+  }
+done
 
 # The skill drives a real browser, so it needs its Node dependency and the tools that record and
 # encode. Installing the dependency here means the first recording does not stop to do it; a missing
@@ -195,7 +209,7 @@ report_missing_tools() {
 paths_for() {
   local kind="$1" target="$2" name
   if [ "$kind" = skills ]; then
-    for name in "${SKILLS[@]}"; do printf '%s\n' "$target/$name"; done
+    for name in "${SKILL_NAMES[@]}"; do printf '%s\n' "$target/$name"; done
   else
     printf '%s\n' "$target"
   fi
@@ -209,9 +223,9 @@ installed_by_us() {
   if [ -L "$path" ]; then
     target="$(readlink -- "$path")"
     case "$target" in "$REPO"|"$REPO"/*) return 0 ;; esac
-    case "$target" in */src/skills/"$name") return 0 ;; esac
+    case "$target" in */src/skills/*) return 0 ;; esac
     case "$path" in
-      */plugins/local/get-evidence) case "$target" in *get-evidence) return 0 ;; esac ;;
+      */plugins/local/webapp-evidence) case "$target" in *webapp-evidence|*open-webapp-evidence) return 0 ;; esac ;;
     esac
     return 1
   fi
@@ -225,7 +239,7 @@ is_installed() {
   dir="$(platform_dir "$leaf")"
   if [ "$kind" = marketplace ]; then
     command -v claude >/dev/null || return 1
-    claude plugin list </dev/null 2>/dev/null | grep -q 'webapp@webapp-evidence' || return 1
+    claude plugin list </dev/null 2>/dev/null | grep -q 'webapp-evidence@webapp-evidence' || return 1
     return 0
   fi
   while IFS= read -r path; do
@@ -262,7 +276,7 @@ uninstall_one() {
   local kind="$2" dir="$3" path
   if [ "$kind" = marketplace ]; then
     claude_or_skip || return 0
-    claude plugin uninstall "webapp@webapp-evidence" || claude_failed uninstall
+    claude plugin uninstall "webapp-evidence@webapp-evidence" || claude_failed uninstall
     return 0
   fi
   while IFS= read -r path; do
@@ -282,7 +296,7 @@ install_one() {
   if [ "$kind" = marketplace ]; then
     claude_or_skip || return 0
     claude plugin marketplace add "$MARKETPLACE" || { claude_failed "marketplace add"; return 0; }
-    claude plugin install "webapp@webapp-evidence" || { claude_failed install; return 0; }
+    claude plugin install "webapp-evidence@webapp-evidence" || { claude_failed install; return 0; }
     say '\nInstalled into Claude Code.\n'
     return 0
   fi
@@ -296,14 +310,16 @@ $(paths_for "$kind" "$dir")
 EOF
   if [ "$kind" = skills ]; then
     mkdir -p -- "$dir"
-    for name in "${SKILLS[@]}"; do
+    local i
+    for i in $(seq 0 $(( ${#SKILL_DIRS[@]} - 1 ))); do
+      name="${SKILL_NAMES[$i]}"
       path="$dir/$name"
       rm -rf -- "$path"
       if [ "$MODE" = link ]; then
-        ln -s -- "$REPO/src/skills/$name" "$path"
+        ln -s -- "$REPO/src/skills/${SKILL_DIRS[$i]}" "$path"
         say 'linked  %s\n' "$path"
       else
-        cp -R -- "$REPO/src/skills/$name" "$path"
+        cp -R -- "$REPO/src/skills/${SKILL_DIRS[$i]}" "$path"
         # A copy carries no link back to the clone, so it needs the marker that tells a later
         # uninstall this directory is ours to remove.
         say '\n%s\n' "$MARKER" >>"$path/SKILL.md"
@@ -321,7 +337,7 @@ EOF
       git -C "$REPO" ls-files -z \
         | while IFS= read -r -d '' f; do [ -e "$REPO/$f" ] && printf '%s\0' "$f"; done \
         | tar -C "$REPO" --null -T - -cf - | tar -x -C "$dir"
-      say 'installed by get-evidence from %s — safe to delete\n' "$REPO" >"$dir/$STAMP"
+      say 'installed by webapp-evidence from %s — safe to delete\n' "$REPO" >"$dir/$STAMP"
       say 'copied  %s\n' "$dir"
     fi
   fi
@@ -376,11 +392,11 @@ fi
 # In link mode every platform points at the same clone, so its dependency is installed once; a copy
 # carries its own.
 if [ "$MODE" = link ]; then
-  runner_deps "$REPO/src/skills/get-evidence/scripts"
+  runner_deps "$REPO/src/skills/get/scripts"
 else
   for member in $MEMBERS; do
     [ "$(platform_kind "$member")" = skills ] || continue
-    runner_deps "${TARGET:-$(platform_dir "$member")}/get-evidence/scripts"
+    runner_deps "${TARGET:-$(platform_dir "$member")}/${SKILL_NAMES[0]}/scripts"
   done
 fi
 report_missing_tools

@@ -1,5 +1,5 @@
 {
-  "name": "webapp",
+  "name": "webapp-evidence",
   "version": "0.1.0",
   "description": "Record evidence (video + screenshots + runbook) for a merge request"
 }

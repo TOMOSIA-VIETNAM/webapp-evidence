@@ -16,8 +16,8 @@ process.env.PROJECT_ROOT = PROJECT;
 const {
   fmt, keyCaps, resolvePause, buildTimeline, buildHotkeySection, buildNoteSection,
   ignoreHints, runArtifacts, archivePreviousRun,
-} = require('../src/skills/get-evidence/scripts/record');
-const { DEFAULTS } = require('../src/skills/get-evidence/scripts/settings');
+} = require('../src/skills/get/scripts/record');
+const { DEFAULTS } = require('../src/skills/get/scripts/settings');
 
 const PACE = DEFAULTS.recording.pace;
 

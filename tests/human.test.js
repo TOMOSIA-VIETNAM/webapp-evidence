@@ -5,8 +5,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { createHuman, createRng, hashSeed, ballistic } = require('../src/skills/get-evidence/scripts/human');
-const { DEFAULTS } = require('../src/skills/get-evidence/scripts/settings');
+const { createHuman, createRng, hashSeed, ballistic } = require('../src/skills/get/scripts/human');
+const { DEFAULTS } = require('../src/skills/get/scripts/settings');
 
 const PACE = DEFAULTS.recording.pace;
 const VIEWPORT = DEFAULTS.recording.viewport;

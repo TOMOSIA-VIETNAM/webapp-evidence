@@ -26,12 +26,13 @@ const skillDirs = () => fs.readdirSync(SKILLS, { withFileTypes: true })
   .filter((e) => e.isDirectory())
   .map((e) => e.name);
 
-// Three names, deliberately different. A plugin namespaces the skills inside it, so a plugin
-// called get-evidence would make the command read /get-evidence:get-evidence, and one called
-// evidence would still say the word twice.
+// Claude Code builds its command from the plugin name and the skill's DIRECTORY name, while the
+// other four platforms read the SKILL.md `name`. That is why the directory and the installed name
+// differ: `/webapp-evidence:get` reads well with the namespace in front, `/get` alone does not.
 const MARKETPLACE = 'webapp-evidence';   // the repository, which is what a user adds
-const PLUGIN = 'webapp';                 // the namespace Claude Code prefixes onto the skill
-const SKILL = 'get-evidence';            // what the other four platforms invoke directly
+const PLUGIN = 'webapp-evidence';        // the namespace Claude Code prefixes onto the skill
+const SKILL_DIR = 'get';                 // the directory, which Claude Code turns into the command
+const SKILL_NAME = 'get-evidence';       // the SKILL.md name, which the other four platforms invoke
 
 test('every manifest names the plugin, and a catalog names the marketplace around it', () => {
   for (const rel of MANIFESTS) {
@@ -43,6 +44,11 @@ test('every manifest names the plugin, and a catalog names the marketplace aroun
       assert.equal(manifest.name, PLUGIN, rel);
     }
   }
+});
+
+test('the command reads /webapp-evidence:get, with no word said twice', () => {
+  const entry = readJson('.claude-plugin/marketplace.json').plugins[0];
+  assert.equal(`${entry.name}:${SKILL_DIR}`, 'webapp-evidence:get');
 });
 
 test('the plugin pins no version, so every commit reaches a client that auto-updates', () => {
@@ -73,9 +79,9 @@ test("Claude Code's marketplace ships the plugin directory, not the whole reposi
 
 test('the shipped skill is whole: SKILL.md plus what it tells the agent to read', () => {
   const dirs = skillDirs();
-  assert.deepEqual(dirs, [SKILL]);
+  assert.deepEqual(dirs, [SKILL_DIR]);
 
-  const root = path.join(SKILLS, 'get-evidence');
+  const root = path.join(SKILLS, SKILL_DIR);
   for (const entry of ['SKILL.md', 'references', 'assets', 'scripts']) {
     assert.ok(fs.existsSync(path.join(root, entry)), `missing ${entry}`);
   }
@@ -93,10 +99,17 @@ test('the shipped skill is whole: SKILL.md plus what it tells the agent to read'
   assert.deepEqual(missing, []);
 });
 
-test('the skill declares the name every manifest and the installer use', () => {
-  const frontmatter = read('src/skills/get-evidence/SKILL.md').split('---')[1];
-  assert.match(frontmatter, new RegExp(`^name: ${SKILL}$`, 'm'));
+test('the skill declares the name the other platforms install it under', () => {
+  const frontmatter = read(`src/skills/${SKILL_DIR}/SKILL.md`).split('---')[1];
+  assert.match(frontmatter, new RegExp(`^name: ${SKILL_NAME}$`, 'm'));
   assert.match(frontmatter, /^description: .+/m);
+});
+
+test('the installer reads that name rather than reusing the directory name', () => {
+  // Installing the directory name would leave Codex and Cursor with a bare `/get`.
+  const script = read('scripts/install-local.sh');
+  assert.match(script, /SKILL_NAMES\+=\(.*SKILL\.md/s);
+  assert.match(script, /ln -s -- "\$REPO\/src\/skills\/\$\{SKILL_DIRS\[\$i\]\}"/);
 });
 
 test('the installer installs the plugin under the identifier the manifests declare', () => {
@@ -108,14 +121,13 @@ test('the installer installs the plugin under the identifier the manifests decla
 test('the installer looks for the skill where the skill actually is', () => {
   const script = read('scripts/install-local.sh');
   assert.match(script, /\$REPO"\/src\/skills\//);
-  assert.match(script, /ln -s -- "\$REPO\/src\/skills\/\$name"/);
-  assert.match(script, /cp -R -- "\$REPO\/src\/skills\/\$name"/);
+  assert.match(script, /cp -R -- "\$REPO\/src\/skills\/\$\{SKILL_DIRS\[\$i\]\}"/);
 });
 
 test('the installer sets up the Node dependency the runner cannot start without', () => {
   const script = read('scripts/install-local.sh');
   assert.match(script, /npm install --prefix/);
-  assert.ok(fs.existsSync(path.join(SKILLS, 'get-evidence', 'scripts', 'package.json')));
+  assert.ok(fs.existsSync(path.join(SKILLS, SKILL_DIR, 'scripts', 'package.json')));
 });
 
 test('install.sh ships everything a run needs', () => {
@@ -142,5 +154,5 @@ test("Gemini CLI's command finds the skill in the directories the installer writ
   const targets = [...script.matchAll(/printf '%s\\n' "\$HOME\/([^"]+)"/g)].map((m) => m[1]);
   assert.ok(targets.length > 0, 'install-local.sh no longer states its target directories');
   assert.ok(targets.includes('.agents/skills'), 'the interoperable directory is no longer a target');
-  assert.match(toml, /~\/\.agents\/skills\/get-evidence\/SKILL\.md/);
+  assert.match(toml, new RegExp(`~/\\.agents/skills/${SKILL_NAME}/SKILL\\.md`));
 });

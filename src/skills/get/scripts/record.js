@@ -460,7 +460,7 @@ app: ${meta.app}
 base_url: ${meta.baseUrl}
 start_path: ${meta.start}
 captions: ${meta.captions}
-config: ${rel(meta.configFile)}
+config: ${meta.configFile ? rel(meta.configFile) : `(none — recorded with BASE_URL=${meta.baseUrl})`}
 steps: ${rel(meta.stepsFile)}
 video: ${rel(meta.video)}
 duration_seconds: ${meta.duration.toFixed(1)}

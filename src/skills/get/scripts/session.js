@@ -104,10 +104,19 @@ function loadProjectConfig(startDir) {
     );
   }
 
+  // Not every recording belongs to a project. Someone who was handed a URL and a description of what
+  // to show — no repository, no dev environment to bring up, nothing to log into — has nothing to put
+  // in a config file, and demanding one would stop a recording that needs no setup at all. BASE_URL
+  // says that much on its own, so stand in a config with exactly that and let the run proceed.
+  if (process.env.BASE_URL) {
+    return { file: null, config: { defaultApp: 'app', apps: { app: { baseUrl: process.env.BASE_URL } } } };
+  }
+
   throw new Error(
     'No evidence.config.js found.\n' +
     `Create one from ${path.join(__dirname, '../assets/evidence.config.example.js')},\n` +
-    'and put it next to the step script (per-issue config) or in the shared evidence directory of the project.'
+    'and put it next to the step script (per-issue config) or in the shared evidence directory of the project.\n' +
+    'For a one-off recording of a site that needs no setup or sign-in, pass BASE_URL=<url> instead of writing a config.'
   );
 }
 

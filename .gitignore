@@ -1,4 +1,4 @@
-# Runner dependency, installed with: npm install --prefix src/skills/get-evidence/scripts
-src/skills/get-evidence/scripts/node_modules/
+# Runner dependency, installed with: npm install --prefix src/skills/get/scripts
+src/skills/get/scripts/node_modules/
 
 .DS_Store

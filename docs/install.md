@@ -1,7 +1,7 @@
 # Install
 
 get-evidence is one skill plus a Node runner. Every platform below reads the same
-`src/skills/get-evidence/` — none of them gets a copy of its own — so an update reaches all of them
+`src/skills/get/` — none of them gets a copy of its own — so an update reaches all of them
 at once.
 
 ## Before anything
@@ -36,14 +36,14 @@ Its own marketplace, no clone needed:
 
 ```bash
 claude plugin marketplace add TOMOSIA-VIETNAM/webapp-evidence
-claude plugin install webapp@webapp-evidence
+claude plugin install webapp-evidence@webapp-evidence
 ```
 
 The same two lines work as `/plugin marketplace add …` and `/plugin install …` inside a session.
 
-Invoke it with `/webapp:get-evidence`. Claude Code namespaces every skill inside a plugin by the
-plugin's name, which is why the command is longer here than on the other platforms — the plugin is
-`webapp`, the skill inside it is `get-evidence`.
+Invoke it with `/webapp-evidence:get`. Claude Code puts the plugin's name in front of every skill it
+contains, so the skill itself is named for how it reads after that prefix. The other platforms have
+no prefix to work with and install it as `get-evidence`.
 
 Updates are the marketplace's job: turn on auto-update for it in `/plugin` → **Marketplaces**, and
 Claude Code picks up new commits shortly after a session starts. Nothing here pins a version, so
@@ -89,7 +89,7 @@ The CLI build additionally accepts `agy plugin install ~/.get-evidence`.
 |---|---|
 | Claude Code | `~/.claude/plugins` (managed by the `claude` CLI) |
 | Codex, Gemini CLI | `~/.agents/skills/get-evidence` |
-| Cursor IDE | `~/.cursor/plugins/local/get-evidence` |
+| Cursor IDE | `~/.cursor/plugins/local/webapp-evidence` |
 | Cursor CLI | `~/.cursor/skills/get-evidence` |
 | Antigravity CLI | `~/.gemini/antigravity-cli/skills/get-evidence` |
 | Antigravity IDE | `~/.gemini/config/skills/get-evidence` |

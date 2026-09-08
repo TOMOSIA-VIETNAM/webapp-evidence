@@ -1,7 +1,7 @@
 [
   {"query": "ok vừa fix xong cái bug validate ở màn /users/new (form submit không báo lỗi khi email trùng), giờ lấy evidence để đính lên MR 1783 nhé", "should_trigger": true},
   {"query": "quay evidence cho màn danh sách user sau khi tôi sửa filter theo status", "should_trigger": true},
-  {"query": "https://gitlab.example.com/beeb/admin/-/merge_requests/1783 — reviewer đang hỏi có bằng chứng chạy thật không, làm giúp tôi", "should_trigger": true},
+  {"query": "https://gitlab.example.com/acme/admin/-/merge_requests/1783 — reviewer đang hỏi có bằng chứng chạy thật không, làm giúp tôi", "should_trigger": true},
   {"query": "cần chụp màn hình chứng minh cái fix pagination hoạt động, khách Nhật review nên chú thích tiếng Nhật giùm", "should_trigger": true},
   {"query": "i need proof that the new bulk-import flow actually works end to end on my local dev, something i can attach to the PR", "should_trigger": true},
   {"query": "dự án này chưa có evidence.config.js, dựng giúp tôi config để lần sau quay cho nhanh, app chạy ở localhost:3000 rails", "should_trigger": true},

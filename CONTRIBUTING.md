@@ -3,10 +3,20 @@
 `README.md` covers installing and using it, `docs/install.md` covers every platform. This file is
 for changing it.
 
+Contributions are welcome. Before opening a pull request, run both checks — `node --test
+'tests/*.test.js'` and `./tests/e2e/run.sh` — and say in the description which of them you ran,
+since the end-to-end one needs a browser that not every machine has. A change to how a recording
+behaves belongs with a test that would have caught the old behaviour; a change to wording does not
+need one.
+
+Two things this project deliberately does not accept: a rule about how to record living anywhere
+other than `src/skills/get/`, and a test that asserts on the exact text of a message. Both are
+explained below.
+
 ## Layout
 
 ```
-src/skills/get-evidence/   the skill itself — the one copy every platform reads
+src/skills/get/            the skill itself — the one copy every platform reads
   SKILL.md                 what an agent reads when the skill triggers
   references/              detail it loads only when a step needs it
   assets/                  templates a project copies: evidence.config.js, steps.js
@@ -17,24 +27,30 @@ src/.claude-plugin/        plugin manifest, inside what Claude Code's marketplac
 commands/get-evidence.toml Gemini CLI's entry format
 install.sh                 the one-liner: clone, then hand over
 scripts/install-local.sh   the installer that knows every platform's directory
-tests/                     unit tests for the runner, plus guards for the platform layer
+tests/                     unit tests and the platform-layer guards
+tests/e2e/                 the demo app and the recording check that drives it
 evals/                     queries for checking that the skill description triggers correctly
 docs/install.md            the install page every README points at
 ```
 
-## Three names, on purpose
+## Where each name comes from
 
-| name | where it comes from | what it does |
+| name | declared in | who reads it |
 |---|---|---|
-| `webapp-evidence` | the repository, and the marketplace catalog in `.claude-plugin/` | what a Claude Code user adds |
-| `webapp` | every `plugin.json` | the namespace Claude Code puts in front of the skill: `/webapp:get-evidence` |
-| `get-evidence` | `SKILL.md` frontmatter, and the directory under `src/skills/` | what Codex, Cursor, Gemini CLI and Antigravity invoke directly |
+| `webapp-evidence` | the repository, the marketplace catalog in `.claude-plugin/`, and every `plugin.json` | what a user adds and installs: `claude plugin install webapp-evidence@webapp-evidence` |
+| `get` | the directory name under `src/skills/` | Claude Code builds the command from the plugin name plus this: `/webapp-evidence:get` |
+| `get-evidence` | the `name` in `SKILL.md` frontmatter | Codex, Cursor, Gemini CLI and Antigravity, which have no plugin layer and invoke the skill directly |
 
-Claude Code namespaces every skill inside a plugin, and there is no way to opt out — putting
-`SKILL.md` at the plugin root instead of under `skills/` does not change it. Naming the plugin after
-the domain rather than after its one skill is what keeps the command from reading
-`/get-evidence:get-evidence`, and `webapp` rather than `evidence` keeps it from saying the same word
-twice.
+Claude Code namespaces every skill inside a plugin and there is no way out — putting `SKILL.md` at
+the plugin root instead of under `skills/` was tried and changes nothing. It also builds the command
+from the **directory** name, not the frontmatter, which is what makes `/webapp-evidence:get`
+possible: the namespace already says what this is about, so the skill part can be one short word.
+
+The other four platforms read the frontmatter instead, and they have no namespace in front. A bare
+`/get` there would say nothing, so `scripts/install-local.sh` installs each skill under its
+frontmatter `name` rather than its directory name. That mapping is the reason the two differ; if you
+add a second skill, give it a directory that reads well after `webapp-evidence:` and a frontmatter
+name that stands on its own.
 
 No manifest declares a `version`. A git source falls back to the commit SHA, so every commit is a
 new version and a client with marketplace auto-update on picks it up. Adding a `version` back means
@@ -47,7 +63,7 @@ decision first.
 
 Two rules keep this from rotting:
 
-**The skill exists once.** `src/skills/get-evidence/` is what every platform installs — by symlink
+**The skill exists once.** `src/skills/get/` is what every platform installs — by symlink
 into the clone, or by copy with `--copy`. There is no per-platform copy of the instructions to drift
 out of sync, and nothing outside that directory contains a rule about how to record.
 
@@ -67,8 +83,8 @@ Claude Code's structured question tool and then says what to do without one.
 ## Tests
 
 ```bash
-npm install --prefix src/skills/get-evidence/scripts --no-audit --no-fund   # first time only
-npm test --prefix src/skills/get-evidence/scripts       # or: node --test 'tests/*.test.js'
+npm install --prefix src/skills/get/scripts --no-audit --no-fund   # first time only
+npm test --prefix src/skills/get/scripts       # or: node --test 'tests/*.test.js'
 ```
 
 Two groups. The runner tests cover the decisions it makes without a browser — pacing, timeline rows,
@@ -80,8 +96,30 @@ They assert behaviour rather than message wording, so rewording an error or tran
 does not turn them red. Keep it that way: a test that pins down an exact sentence gets deleted the
 first time someone edits that sentence, and stops protecting anything.
 
-`src/skills/get-evidence/scripts/session.js` refuses to run from inside the skill directory, so a
+`src/skills/get/scripts/session.js` refuses to run from inside the skill directory, so a
 test that loads it sets `PROJECT_ROOT` to a scratch directory before the `require`.
+
+## The end-to-end check
+
+The unit tests never open a browser, so they cannot tell you that a recording still happens. This
+one does: it serves a demo app from `tests/e2e/app`, records it with the real runner in a real
+Chrome, and asserts on what lands — an h264 mp4 long enough to hold the marked steps, at least four
+screenshots, a runbook carrying the timeline and the captions, and no page-error log.
+
+```bash
+./tests/e2e/run.sh          # record, check, then delete the output
+./tests/e2e/run.sh --keep   # keep it so you can watch the video
+```
+
+Needs Chrome, ffmpeg and Node, and takes about half a minute — most of which is the recording
+playing out at the pace a viewer reads at. Output goes to a temporary directory outside the
+repository, never into the working tree.
+
+It also records with no `evidence.config.js` at all, driven by `BASE_URL`, which is the path someone
+takes when all they have is a URL. That path has no other coverage.
+
+CI runs it on every push, but as `continue-on-error`: a missing browser in a runner image should not
+block a documentation change. The unit job is the one that gates.
 
 ## Trying an install without touching your own machine
 
@@ -103,7 +141,7 @@ Run **from a project directory**, never from inside the skill — the runner ref
 working directory is inside it, so that results never land in an asset shared by every project.
 
 ```bash
-SKILL=~/.get-evidence/src/skills/get-evidence     # or wherever it is installed
+SKILL=~/.get-evidence/src/skills/get     # or wherever it is installed
 
 node $SKILL/scripts/record.js --help
 node $SKILL/scripts/inspect.js --help
@@ -124,7 +162,7 @@ that should not. The skill-creator plugin can run them:
 cd ~/.claude/plugins/cache/claude-plugins-official/skill-creator/*/skills/skill-creator
 python3 -m scripts.run_eval \
   --eval-set <this repo>/evals/trigger-eval.json \
-  --skill-path <this repo>/src/skills/get-evidence \
+  --skill-path <this repo>/src/skills/get \
   --runs-per-query 1
 ```
 

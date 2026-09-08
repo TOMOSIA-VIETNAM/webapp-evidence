@@ -4,7 +4,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { LOCALES, LOCALE_KEYS, assertLocale, createCaptions } = require('../src/skills/get-evidence/scripts/captions');
+const { LOCALES, LOCALE_KEYS, assertLocale, createCaptions } = require('../src/skills/get/scripts/captions');
 
 const CAPTION_KEYS = ['selectOption', 'uploadFile'];
 

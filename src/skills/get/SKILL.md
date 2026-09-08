@@ -1,24 +1,42 @@
 ---
 name: get-evidence
-description: Record evidence — an operation video, screenshots and a runbook — to attach to a pull or merge request. Use this whenever the user says "get evidence", "lấy evidence", "quay evidence", "chụp màn hình cho MR/PR", asks for proof or a recording of a change, or hands over an MR/PR link and wants evidence for it — including right after finishing a task or bug fix in the same session, when the screen and the flow are already known from context.
+description: Record evidence of a web app — an operation video, screenshots and a runbook — to attach to a pull or merge request, a report, or a hand-off. Use this whenever the user says "get evidence", "lấy evidence", "quay evidence", "chụp màn hình cho MR/PR", asks for proof or a recording of something working, hands over an MR/PR link and wants evidence for it, or describes a page and the steps they want captured on it — including right after finishing a task or bug fix in the same session, when the screen and the flow are already known from context.
 ---
 
 # get-evidence
 
-Record what a change does on the project's local dev environment, as an mp4 of the operation plus
-screenshots plus a runbook that says what happens at each point in the video and how to record it
-again. The result is meant to be attached to a merge request by the user.
+Record what happens on a web page, as an mp4 of the operation plus screenshots plus a runbook that
+says what happens at each point in the video and how to record it again.
 
-This skill knows nothing about any particular app. Everything project-specific — the URL, how to
-bring the environment up, how to log in — lives in `evidence.config.js`. If the project has no such
-file yet, build it first (see `references/project-setup.md`), then record.
+Two kinds of people ask for this, and they arrive with different things in hand:
 
-Throughout this document `$SKILL` is the directory holding this SKILL.md file. Set it once and
-reuse it:
+- **Someone working in the code** wants evidence for a merge request, on the project's local dev
+  environment. They have a repository, an issue, and a change to prove.
+- **Someone who does not write code** wants a page recorded — a URL and a description of what to
+  click, to attach to a report, a hand-off, or a message to a supplier. There is no repository and
+  nothing to build.
+
+The second case needs less, not more: a URL is enough to start (`BASE_URL=<url>`), and there is no
+config file to write. Do not walk someone through project setup they have no use for.
+
+Everything project-specific — the URL, how to bring the environment up, how to log in — lives in
+`evidence.config.js` when there is a project. If a project needs one and has none, build it first
+(see `references/project-setup.md`), then record.
+
+Throughout this document `$SKILL` is the directory holding this SKILL.md file — the runner and the
+templates sit beside it. Where that is depends on how the skill was installed, so resolve it once
+and reuse it:
 
 ```bash
-SKILL=~/.claude/skills/get-evidence   # or .claude/skills/get-evidence inside a project
+SKILL="$(ls -d "${CLAUDE_PLUGIN_ROOT:-/nonexistent}"/skills/get \
+              ~/.agents/skills/get-evidence \
+              ~/.cursor/skills/get-evidence \
+              ~/.gemini/*/skills/get-evidence \
+              ~/.get-evidence/src/skills/get 2>/dev/null | head -1)"
 ```
+
+If that finds nothing, you already know the absolute path of this file — use its directory. Two hits
+means two installs: ask the user which one to run rather than picking silently.
 
 ## Talking to the user
 
@@ -46,10 +64,34 @@ and runner labels inside it stay verbatim, because those are what they will copy
 |---|---|
 | The user types "get evidence" in the session where the code was just written | The conversation itself: the task just finished, the screen or endpoint just changed. Do not ask again for what is already known |
 | A fresh session, the user hands over an MR/PR link | Read the MR/PR — description plus diff — and derive the screen and the flow from it |
+| The user gives a URL and describes what to show | Take the description as the flow. It is already the answer; do not translate it into a question about which code changed |
 | The app is unknown, or the screen and flow cannot be derived | Ask the user, each question carrying a recommended option. On an agent with a structured question tool (Claude Code's `AskUserQuestion`), use it; otherwise ask in one chat message listing every option, and wait for the answer |
 
-The flow has to follow what the MR actually changed. Wandering onto other screens makes the video
-longer without proving anything more.
+When the recording is for a merge request, the flow has to follow what that MR actually changed.
+Wandering onto other screens makes the video longer without proving anything more. When it is for a
+report or a hand-off, the same rule applies to what the user asked to show.
+
+### When the request is a URL and a description
+
+Someone outside the codebase says something like *"quay giúp tôi màn tìm kiếm ở
+https://app.example.com/search: gõ 'abc', bấm Tìm, chụp lại kết quả"*. Everything needed is already
+there. Work it as follows, and keep the questions to what you genuinely cannot see:
+
+1. **Skip the config.** Pass `BASE_URL=<the url's origin>` to the runner instead of writing an
+   `evidence.config.js`. That is what the fallback is for, and a config file would be a file they
+   have no way to maintain.
+2. **Probe the page** with `inspect.js` exactly as for any other recording — a description in words
+   ("bấm nút Tìm") is not a selector, and the page is the only place the real one exists.
+3. **Ask only about what is closed to you**: a sign-in the page requires and you have no account
+   for, a step whose wording could mean two different buttons, or data you would have to invent.
+   Never ask them to name a CSS selector, a file path, or a config key.
+4. **Choose the output directory yourself** — the current working directory unless they named one —
+   and tell them the full path at the end. See `references/output-locations.md`.
+5. **Report in their words**, not in the runner's: what the video shows, how long it is, where the
+   file is, and what they do next with it.
+
+If the page needs signing in and they can share an account for it, use it for that one run and do
+not write it to `accountStore` unless there is a project config that says where the store lives.
 
 ### Picking the evidence type
 
@@ -100,6 +142,14 @@ decision the project already made.
 ```bash
 OUT_DIR=<the issue's evidence directory> \
   CAPTIONS=on CAPTION_LOCALE=ja \
+  node $SKILL/scripts/record.js <path to steps.js>
+```
+
+With no project config — a URL handed over by someone outside the codebase — name the site instead:
+
+```bash
+BASE_URL=https://app.example.com \
+  OUT_DIR=<where the results go> \
   node $SKILL/scripts/record.js <path to steps.js>
 ```
 

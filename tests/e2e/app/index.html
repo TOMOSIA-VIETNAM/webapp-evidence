@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Evidence demo — user search</title>
+<style>
+  :root { color-scheme: light; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  body { margin: 0; background: #f6f7f9; color: #1c2024; }
+  header { background: #1f2937; color: #fff; padding: 14px 24px; font-weight: 600; }
+  nav { background: #374151; color: #d1d5db; padding: 8px 24px; font-size: 13px; }
+  nav a { color: #d1d5db; margin-right: 16px; text-decoration: none; }
+  main { padding: 24px; max-width: 900px; }
+  fieldset { border: 1px solid #d7dbe0; border-radius: 8px; background: #fff; padding: 16px; margin: 0 0 16px; }
+  legend { font-weight: 600; padding: 0 6px; }
+  label { display: block; font-size: 13px; margin: 10px 0 4px; color: #4b5563; }
+  input[type=text], select { width: 260px; padding: 7px 9px; border: 1px solid #c4c9d0; border-radius: 6px; font-size: 14px; }
+  button { padding: 8px 16px; border: 0; border-radius: 6px; background: #2563eb; color: #fff; font-size: 14px; cursor: pointer; }
+  button.secondary { background: #6b7280; }
+  table { border-collapse: collapse; width: 100%; background: #fff; border-radius: 8px; overflow: hidden; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-size: 14px; }
+  th { background: #eef1f5; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: #4b5563; }
+  #empty { padding: 16px; color: #6b7280; font-size: 14px; background: #fff; border-radius: 8px; }
+  dialog { border: 0; border-radius: 10px; padding: 0; width: 380px; box-shadow: 0 18px 50px rgba(0,0,0,.28); }
+  dialog header { border-radius: 10px 10px 0 0; }
+  dialog .body { padding: 18px; font-size: 14px; line-height: 1.5; }
+  dialog .actions { padding: 0 18px 18px; text-align: right; }
+  .file-row { margin-top: 12px; font-size: 13px; color: #4b5563; }
+</style>
+</head>
+<body>
+<header>Evidence demo</header>
+<nav><a href="#">Dashboard</a><a href="#">Users</a><a href="#">Settings</a></nav>
+<main>
+  <fieldset>
+    <legend>Search conditions</legend>
+    <label for="q_name_cont">Name contains</label>
+    <input type="text" id="q_name_cont" name="q_name_cont" autocomplete="off">
+    <label for="q_status_eq">Status</label>
+    <select id="q_status_eq" name="q_status_eq">
+      <option value="">Any</option>
+      <option value="active">Active</option>
+      <option value="suspended">Suspended</option>
+    </select>
+    <label for="import_file">Attach a list</label>
+    <input type="file" id="import_file" name="import_file">
+    <div class="file-row" id="file_name">No file chosen</div>
+    <p><button id="search" type="button">Search</button></p>
+  </fieldset>
+
+  <div id="empty">No search has run yet.</div>
+  <table id="results" hidden>
+    <thead><tr><th>Code</th><th>Name</th><th>Status</th><th></th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+</main>
+
+<dialog id="detail">
+  <header>User detail</header>
+  <div class="body" id="detail_body"></div>
+  <div class="actions"><button id="close_detail" class="secondary" type="button">Close</button></div>
+</dialog>
+
+<script>
+  const USERS = [
+    { code: 'U-1001', name: 'abc corporation', status: 'active' },
+    { code: 'U-1002', name: 'abc holdings', status: 'suspended' },
+    { code: 'U-1003', name: 'zeta industries', status: 'active' },
+  ];
+
+  const rows = document.getElementById('rows');
+  const table = document.getElementById('results');
+  const empty = document.getElementById('empty');
+
+  document.getElementById('import_file').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    document.getElementById('file_name').textContent = file ? `Chosen: ${file.name}` : 'No file chosen';
+  });
+
+  document.getElementById('search').addEventListener('click', () => {
+    const term = document.getElementById('q_name_cont').value.trim().toLowerCase();
+    const status = document.getElementById('q_status_eq').value;
+    const found = USERS.filter((u) =>
+      (!term || u.name.includes(term)) && (!status || u.status === status));
+
+    rows.replaceChildren();
+    for (const user of found) {
+      const tr = document.createElement('tr');
+      tr.id = `row_${user.code.replace('U-', '')}`;
+      tr.innerHTML = `<td>${user.code}</td><td>${user.name}</td><td>${user.status}</td>`;
+      const cell = document.createElement('td');
+      const button = document.createElement('button');
+      button.textContent = 'Detail';
+      button.className = 'secondary';
+      button.addEventListener('click', () => {
+        document.getElementById('detail_body').textContent =
+          `${user.name} (${user.code}) is currently ${user.status}.`;
+        document.getElementById('detail').showModal();
+      });
+      cell.appendChild(button);
+      tr.appendChild(cell);
+      rows.appendChild(tr);
+    }
+    empty.hidden = found.length > 0;
+    empty.textContent = found.length ? '' : 'No user matched those conditions.';
+    table.hidden = found.length === 0;
+  });
+
+  document.getElementById('close_detail').addEventListener('click', () => {
+    document.getElementById('detail').close();
+  });
+</script>
+</body>
+</html>
