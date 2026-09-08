@@ -17,11 +17,17 @@ SKILL="$REPO/src/skills/recording"
 GIF="$REPO/docs/demo/saucedemo.gif"
 BASE_URL=https://www.saucedemo.com
 
-# A README gif is downloaded by everyone who opens the page, so it is kept small deliberately: a
-# third of the video's frame rate, 760px wide, and a palette computed from the footage rather than
-# the default web palette, which bands the flat greys of a UI badly.
-FPS=9
-WIDTH=760
+# A README gif is downloaded by everyone who opens the page, so the frame rate is cut to a quarter
+# of the video's. The width is not cut the same way: the README displays it at 820px, and a gif
+# narrower than that gets scaled UP by the browser, which is what made the first one look soft. Wider
+# than the display size means the browser scales down instead, and the text stays sharp.
+#
+# No dithering either. Dither exists to fake missing colours in photographs; on flat UI greys and
+# small text it just sprays noise over the letters. A palette built from the footage covers this kind
+# of screen with far fewer colours than a photo would need.
+FPS=8
+WIDTH=1024
+COLORS=128
 
 command -v ffmpeg >/dev/null || { printf 'record.sh: ffmpeg is required\n' >&2; exit 1; }
 [ -d "$SKILL/scripts/node_modules" ] \
@@ -38,9 +44,9 @@ printf 'converting to %s\n' "$GIF"
 mkdir -p -- "$(dirname -- "$GIF")"
 PALETTE="$OUT_DIR/palette.png"
 ffmpeg -v error -y -i "$OUT_DIR/saucedemo-checkout.mp4" \
-  -vf "fps=$FPS,scale=$WIDTH:-1:flags=lanczos,palettegen=stats_mode=diff:max_colors=128" "$PALETTE"
+  -vf "fps=$FPS,scale=$WIDTH:-1:flags=lanczos,palettegen=stats_mode=diff:max_colors=$COLORS" "$PALETTE"
 ffmpeg -v error -y -i "$OUT_DIR/saucedemo-checkout.mp4" -i "$PALETTE" \
-  -lavfi "fps=$FPS,scale=$WIDTH:-1:flags=lanczos[v];[v][1:v]paletteuse=dither=bayer:bayer_scale=4" \
+  -lavfi "fps=$FPS,scale=$WIDTH:-1:flags=lanczos[v];[v][1:v]paletteuse=dither=none" \
   "$GIF"
 
 printf 'done — %s (%s)\n\n' "$GIF" "$(du -h "$GIF" | cut -f1)"

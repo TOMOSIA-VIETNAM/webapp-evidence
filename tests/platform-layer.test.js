@@ -223,6 +223,15 @@ test('a translation keeps the commands and the demo the English one shows', () =
   }
 });
 
+test('the demo gif is wider than the width the README displays it at', () => {
+  // A gif narrower than its display width gets scaled UP by the browser, and the text in it goes
+  // soft — which is exactly how the first one shipped. Wider means the browser scales down.
+  const gif = fs.readFileSync(path.join(REPO, 'docs/demo/saucedemo.gif'));
+  const width = gif.readUInt16LE(6);   // logical screen width, bytes 6-7 of the GIF header
+  const displayed = Number(read('README.md').match(/saucedemo\.gif" width="(\d+)"/)[1]);
+  assert.ok(width >= displayed, `gif is ${width}px but shown at ${displayed}px`);
+});
+
 test('install.sh ships everything a run needs', () => {
   const ship = read('install.sh').match(/^SHIP='([\s\S]*?)'/m);
   assert.ok(ship, 'install.sh no longer states what it ships');
