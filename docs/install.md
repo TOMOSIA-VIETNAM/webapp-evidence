@@ -68,9 +68,10 @@ claude plugin install webapp-evidence@webapp-evidence
 
 The same two lines work as `/plugin marketplace add …` and `/plugin install …` inside a session.
 
-Invoke it with `/webapp-evidence:recording`. Claude Code puts the plugin's name in front of every skill it
-contains, so the skill itself is named for how it reads after that prefix. The other platforms have
-no prefix to work with and install it as `webapp-evidence-recording`.
+Invoke it with `/webapp-evidence:recording`. Claude Code puts the plugin's name in front of every
+skill it contains, so the skill itself is named `recording` — for how it reads after that prefix.
+The other platforms have no prefix to work with, so the installer gives them
+`webapp-evidence-recording` instead.
 
 Updates are the marketplace's job: turn on auto-update for it in `/plugin` → **Marketplaces**, and
 Claude Code picks up new commits shortly after a session starts. Nothing here pins a version, so
