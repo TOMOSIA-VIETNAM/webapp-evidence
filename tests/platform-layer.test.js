@@ -196,6 +196,33 @@ test('a pinned ref that no longer exists tells the user how to get out', () => {
   assert.match(local, /config --unset webapp-evidence\.ref/, '--update leaves no way out either');
 });
 
+test('every translated README is reachable from every other one', () => {
+  // A translation nobody can navigate to is a translation nobody reads, and a switcher that lists
+  // a file which does not exist is a 404 on the front page.
+  const readmes = ['README.md', 'README.vi-VN.md', 'README.ja-JP.md', 'README.zh-Hans.md'];
+  for (const file of readmes) {
+    assert.ok(fs.existsSync(path.join(REPO, file)), `${file} is missing`);
+    const body = read(file);
+    for (const other of readmes.filter((f) => f !== file)) {
+      assert.ok(body.includes(`./${other}`), `${file} does not link to ${other}`);
+    }
+  }
+});
+
+test('a translation keeps the commands and the demo the English one shows', () => {
+  // Prose is translated; a command is not. A reader following the Vietnamese page has to be able to
+  // paste the same lines and land in the same place.
+  const english = read('README.md');
+  const fences = (body) => (body.match(/```/g) ?? []).length;
+  for (const file of ['README.vi-VN.md', 'README.ja-JP.md', 'README.zh-Hans.md']) {
+    const body = read(file);
+    assert.equal(fences(body), fences(english), `${file} has a different number of code blocks`);
+    assert.ok(body.includes('claude plugin install webapp-evidence@webapp-evidence'), `${file} lost the install command`);
+    assert.ok(body.includes('./docs/demo/saucedemo.gif'), `${file} lost the demo recording`);
+    assert.ok(body.includes('/webapp-evidence:recording'), `${file} lost the invocation`);
+  }
+});
+
 test('install.sh ships everything a run needs', () => {
   const ship = read('install.sh').match(/^SHIP='([\s\S]*?)'/m);
   assert.ok(ship, 'install.sh no longer states what it ships');

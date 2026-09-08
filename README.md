@@ -20,6 +20,10 @@
   <a href="#install"><img alt="Antigravity" src="https://img.shields.io/badge/Antigravity-supported-6E56CF?style=flat-square"></a>
 </p>
 
+<p align="center">
+  <strong>English</strong> · <a href="./README.vi-VN.md">Tiếng Việt</a> · <a href="./README.ja-JP.md">日本語</a> · <a href="./README.zh-Hans.md">简体中文</a>
+</p>
+
 Attaching proof to a merge request usually means a screenshot taken at the wrong moment, or a screen
 recording where the mouse teleports, the dropdown never opens, and nobody can tell which button was
 pressed. So most changes ship with no evidence at all, and the review goes ahead on trust.
@@ -103,11 +107,21 @@ claude plugin install webapp-evidence@webapp-evidence
 curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash
 ```
 
-It asks which platform you want. Recording needs Chrome, ffmpeg and Node on the machine — if
-anything is missing, the agent says what and offers to install it.
+It asks which platform you want and tells you where it put things. Recording needs Chrome, ffmpeg
+and Node on the machine — if anything is missing, the agent says what and offers to install it.
 
-Pinning to a branch or a release, and where each platform puts things:
-**[Install](./docs/install.md)**.
+The one-liner installs the newest release, or `main` while there are no releases yet. `--ref` picks
+something else and is remembered, so updating later keeps you where you asked to be:
+
+```bash
+curl -fsSL … /install.sh | bash -s -- --ref main       # a branch, to try a change before it ships
+curl -fsSL … /install.sh | bash -s -- --ref v1.2.0     # a release, to pin a team to one version
+curl -fsSL … /install.sh | bash -s -- --ref latest     # back to following releases
+```
+
+Update with `~/.webapp-evidence/scripts/install-local.sh --update`, remove with `--uninstall --all`.
+Note that `install.sh` is always fetched from the default branch, so a change to the installer
+itself only reaches you once it is merged there.
 
 ## Calling it
 
