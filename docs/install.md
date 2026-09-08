@@ -6,14 +6,12 @@ at once.
 
 ## Before anything
 
-The runner drives a real Chrome and encodes the result, so the machine needs:
+Recording drives a real Chrome and encodes the result, so the machine needs **Google Chrome**,
+**ffmpeg** and **Node.js**.
 
-- **Google Chrome**
-- **ffmpeg** — macOS: `brew install ffmpeg`
-- **Node.js**
-
-The installer sets up the runner's one npm dependency (`playwright-core`) itself and tells you if
-Node or ffmpeg is missing. It never installs those for you.
+The installer sets up the runner's own npm dependency (`playwright-core`) and names anything else
+that is missing. It does not install Chrome or ffmpeg for you — but the agent will, if you ask it
+to: it knows what your machine uses.
 
 ## The one-liner
 
