@@ -1,75 +1,114 @@
-# get-evidence
+<p align="center">
+  <strong>The proof records itself.</strong><br>
+  <sub>An operation video, screenshots and a runbook — from one sentence in your agent.</sub><br>
+  <code>/webapp-evidence:recording</code>
+</p>
 
-Record what your change does on the local dev app into **a video, screenshots and a runbook**, ready
-to attach to an MR/PR — by asking your coding agent for it in plain words. Built and used on Claude
-Code; installs onto Cursor, Codex, Gemini CLI and Antigravity, which read the same skill format.
+<p align="center">
+  <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/github/license/TOMOSIA-VIETNAM/webapp-evidence?style=flat-square&color=blue"></a>
+  <a href="#install"><img alt="Claude Code" src="https://img.shields.io/badge/Claude_Code-supported-D97757?style=flat-square&logo=anthropic&logoColor=white"></a>
+  <a href="#install"><img alt="Cursor" src="https://img.shields.io/badge/Cursor-supported-000000?style=flat-square&logo=cursor&logoColor=white"></a>
+  <a href="#install"><img alt="Codex" src="https://img.shields.io/badge/Codex-supported-412991?style=flat-square&logo=openai&logoColor=white"></a>
+  <a href="#install"><img alt="Gemini CLI" src="https://img.shields.io/badge/Gemini_CLI-supported-4285F4?style=flat-square&logo=google&logoColor=white"></a>
+  <a href="#install"><img alt="Antigravity" src="https://img.shields.io/badge/Antigravity-supported-6E56CF?style=flat-square"></a>
+</p>
 
-The video is made for a person to watch: the mouse cursor is visible, every click leaves a ripple,
-keyboard shortcuts raise a key hint overlay, the pace is slow enough to follow, and the page-load
-wait is trimmed off the front. The cursor moves the way a hand moves — a slightly curved path, quick
-to accelerate and slow to brake, overshooting a distant target before correcting — and clicks that
-only navigate go briskly while the moments with a result to read are held longer.
+<p align="center">
+  <img src="./docs/demo/demo.gif" width="820" alt="The cursor travels to the name field, types a search term, picks a status from a dropdown the recording cannot show — a caption says which one — runs the search, then opens and closes a detail modal.">
+</p>
+
+Reviewers ask for proof. Customers ask for proof. And the honest answer is usually a screenshot
+taken at the wrong moment, or a screen recording where the mouse teleports, the dropdown never
+appears, and nobody can tell which button was pressed.
+
+That is not a recording problem. It is that **a real browser session, replayed for a human to watch,
+is tedious to produce by hand** — so people stop producing it, and the review goes ahead on trust.
+
+`webapp-evidence` makes it one sentence:
+
+```
+/webapp-evidence:recording
+```
+
+The agent works out which screen changed from the conversation you were already having, drives a
+real Chrome through it, and hands you back an mp4, the screenshots, and a runbook that says what
+happens at each timestamp and how to record it again.
+
+## What makes the video watchable
+
+A machine-driven recording is instantly recognisable: the cursor jumps in straight lines, every wait
+is exactly the same length, and values appear in fields with nobody touching them. This one is built
+for the person watching it:
+
+- **The cursor is visible and moves like a hand** — a slightly curved path, quick to accelerate and
+  slow to brake, overshooting a distant target before correcting. Every click leaves a ripple.
+- **The pace follows what is on screen.** Clicks that only navigate go briskly; the moment a result
+  appears, it is held long enough to read. Waits vary instead of ticking identically.
+- **What the frame cannot hold is said out loud.** A `<select>` menu and a file picker are drawn by
+  the operating system and never enter a page recording — so a caption says what was chosen, and why
+  the widget is not visible. Keyboard shortcuts raise a key hint overlay (`⌘ + C`) beside the
+  element they act on.
+- **The page-load wait is trimmed** off the front, so the video starts where the work starts.
+
+The explanation lives in the runbook, not burned into the video — fixing the wording never means
+recording again.
 
 ## Install
 
-Needs **Google Chrome**, **ffmpeg** and **Node.js** on the machine. On macOS: `brew install ffmpeg`.
+Needs **Google Chrome**, **ffmpeg** and **Node.js**. On macOS: `brew install ffmpeg`.
 
-Claude Code:
+**Claude Code**
 
 ```bash
 claude plugin marketplace add TOMOSIA-VIETNAM/webapp-evidence
 claude plugin install webapp-evidence@webapp-evidence
 ```
 
-Cursor, Codex, Gemini CLI, Antigravity:
+**Cursor, Codex, Gemini CLI, Antigravity**
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash
 ```
 
 It asks which platform you want and sets up the runner's dependency itself. Full guide, including
-where each platform puts it and how to remove it: [Install](./docs/install.md).
+where each platform puts it and how to remove it: **[Install](./docs/install.md)**.
 
 ## Using it
 
-Type this in a chat session — `/webapp-evidence:get` on Claude Code, `/get-evidence` on Cursor,
-Gemini CLI and Antigravity, `$get-evidence` on Codex. The examples below use the short form; on
-Claude Code put `/webapp-evidence:` in front:
+| platform | how you call it |
+|---|---|
+| Claude Code | `/webapp-evidence:recording` |
+| Cursor, Gemini CLI, Antigravity | `/webapp-evidence-recording` |
+| Codex | `$webapp-evidence-recording` |
 
-**You just finished a task or a bug fix — the agent already knows which screen changed:**
-
-```
-/get-evidence
-```
-
-**A fresh session with only an MR/PR link — the agent reads the MR and works out what to record:**
+**You just finished a task or a bug fix.** The agent already knows which screen changed:
 
 ```
-/get-evidence https://gitlab.example.com/group/admin/-/merge_requests/1783
+/webapp-evidence:recording
 ```
 
-**Naming the screen and the flow yourself:**
+**A fresh session, and all you have is the link.** It reads the MR/PR — description and diff — and
+works out what to record:
 
 ```
-/get-evidence the /users/new screen, record filling the form and submitting
+/webapp-evidence:recording https://gitlab.example.com/group/admin/-/merge_requests/1783
 ```
 
-There is no syntax to remember — "get evidence for the screen I just fixed" works just as well.
-
-**You don't write code?** Give the page and say what to show, in your own words:
+**You don't write code.** Give the page and say what to show, in your own words:
 
 ```
-/webapp-evidence:get record the search page at https://app.example.com/search:
+/webapp-evidence:recording record the search page at https://app.example.com/search:
 type "abc", press Search, capture the results
 ```
 
-No repository, no setup, nothing to install into a project — the agent opens the page, follows the
-steps you described, and hands back the video and the screenshots with the folder they are in. Write
-the steps in whatever language you think in; the agent replies in the same one.
+No repository, no config, nothing to set up — the agent opens the page, follows the steps you
+described, and hands back the video and the screenshots with the folder they are in. Write the steps
+in whatever language you think in; the agent replies in the same one.
+
+There is no syntax to remember either. "Get evidence for the screen I just fixed" does the same
+thing.
 
 ## What you get
-
-In the issue's evidence directory:
 
 ```
 user-search.mp4                        the operation video
@@ -79,28 +118,28 @@ steps.js                               the recorded steps, editable and re-runna
 user-search-console.log                only present when the page had errors
 ```
 
-The timeline lives in the runbook rather than being burned into the video, so fixing the wording
-does not mean recording again. Ask for a re-record at any time — the data moved on, the video
-broke, or the reviewer wants it slower.
+Ask for a re-record any time — the data moved on, the video broke, the reviewer wants it slower. The
+runbook holds the exact command, and previous takes are kept in `v1`, `v2`… rather than overwritten,
+because evidence already sent with an MR is the one thing you cannot regenerate.
 
-Videos and screenshots are **not committed** to Git. Upload them to the MR/PR yourself.
+Videos and screenshots are **not committed** to Git. You attach them to the MR/PR yourself.
 
-## First time in a new project
+## First time in a project
 
-The skill needs to know where the app runs, how to bring the environment up and how to log in. Ask
-for that once:
+The agent needs to know where the app runs, how to bring the environment up, and how to log in. Ask
+once:
 
 ```
-/get-evidence set up the evidence config for this project
+/webapp-evidence:recording set up the evidence config for this project
 ```
 
-The agent probes the login screen, finds a dev account and writes an `evidence.config.js` into the
+It probes the login screen, finds a dev account, and writes an `evidence.config.js` into the
 project. After that, asking for evidence is all it takes.
 
 ## Tuning it
 
-Anything about the recording can be changed by asking — "record it slower", "captions in Japanese",
-"keep only the newest take". The settings live in the project's `evidence.config.js`:
+Say what you want — "record it slower", "captions in Japanese", "keep only the newest take". The
+settings live in the project's `evidence.config.js`:
 
 ```js
 recording: {
@@ -112,27 +151,18 @@ output: {
 },
 ```
 
-Frame size, video quality and the wait after each kind of action are adjustable too — saying what
-you want is enough for the agent to find the right setting.
+Frame size, video quality and the wait after each kind of action are adjustable too.
 
 ## Limitations
 
 The video records the page, not your screen, so anything the operating system draws stays out of
-frame: `<select>` dropdowns, the file picker, and the browser's `confirm`/`alert` dialogs.
-
-Those moments instead carry **a caption inside the video** saying what was chosen and why the widget
-is not visible, plus a screenshot of the state afterwards to prove the result. Before recording,
-the agent asks whether to show captions and in which language (English by default; 日本語 for a
-Japanese customer).
-
-Keyboard actions leave no trace on screen either — so every shortcut raises a key hint overlay
-(`⌘ + C`, with a description) next to where the action happens, and they are listed again with
-timestamps in the runbook.
-
-Modals, date pickers and dropdowns built in JS record normally.
+frame: `<select>` dropdowns, the file picker, and the browser's `confirm`/`alert` dialogs. Those
+moments carry a caption saying what was chosen, plus a screenshot of the state afterwards. Modals,
+date pickers and dropdowns built in JS record normally.
 
 Recording only ever runs against local dev — never staging, never production.
 
 ---
 
-Working on the skill itself? See `CONTRIBUTING.md`.
+The demo above is recorded by this repository's own runner against the demo app in `tests/e2e/app`,
+with `docs/demo/record.sh`. Working on the skill itself? See **[CONTRIBUTING.md](./CONTRIBUTING.md)**.

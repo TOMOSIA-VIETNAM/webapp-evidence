@@ -1,9 +1,9 @@
 ---
-name: get-evidence
+name: webapp-evidence-recording
 description: Record evidence of a web app — an operation video, screenshots and a runbook — to attach to a pull or merge request, a report, or a hand-off. Use this whenever the user says "get evidence", "lấy evidence", "quay evidence", "chụp màn hình cho MR/PR", asks for proof or a recording of something working, hands over an MR/PR link and wants evidence for it, or describes a page and the steps they want captured on it — including right after finishing a task or bug fix in the same session, when the screen and the flow are already known from context.
 ---
 
-# get-evidence
+# webapp-evidence-recording
 
 Record what happens on a web page, as an mp4 of the operation plus screenshots plus a runbook that
 says what happens at each point in the video and how to record it again.
@@ -28,11 +28,11 @@ templates sit beside it. Where that is depends on how the skill was installed, s
 and reuse it:
 
 ```bash
-SKILL="$(ls -d "${CLAUDE_PLUGIN_ROOT:-/nonexistent}"/skills/get \
-              ~/.agents/skills/get-evidence \
-              ~/.cursor/skills/get-evidence \
-              ~/.gemini/*/skills/get-evidence \
-              ~/.get-evidence/src/skills/get 2>/dev/null | head -1)"
+SKILL="$(ls -d "${CLAUDE_PLUGIN_ROOT:-/nonexistent}"/skills/recording \
+              ~/.agents/skills/webapp-evidence-recording \
+              ~/.cursor/skills/webapp-evidence-recording \
+              ~/.gemini/*/skills/webapp-evidence-recording \
+              ~/.webapp-evidence/src/skills/recording 2>/dev/null | head -1)"
 ```
 
 If that finds nothing, you already know the absolute path of this file — use its directory. Two hits

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# One command to install get-evidence:
+# One command to install webapp-evidence:
 #
 #   curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash
 #
-# It installs nothing itself: it puts a clone in ~/.get-evidence at the latest release tag and hands
+# It installs nothing itself: it puts a clone in ~/.webapp-evidence at the latest release tag and hands
 # over to that clone's scripts/install-local.sh, which is the code that runs. Read it there
 # afterwards. Add --uninstall to remove.
 #
-# Env: GET_EVIDENCE_HOME · GET_EVIDENCE_REF (default: latest release tag) · GET_EVIDENCE_REPO
+# Env: WEBAPP_EVIDENCE_HOME · WEBAPP_EVIDENCE_REF (default: latest release tag) · WEBAPP_EVIDENCE_REPO
 #
 # This file is fetched from the default branch; the tag pins the clone it leaves behind.
 set -euo pipefail
@@ -32,9 +32,9 @@ is_our_clone() {
 
 # Everything lives in main so a download cut short cannot execute half a script.
 main() {
-  local repo="${GET_EVIDENCE_REPO:-https://github.com/TOMOSIA-VIETNAM/webapp-evidence}"
-  local home="${GET_EVIDENCE_HOME:-$HOME/.get-evidence}"
-  local ref="${GET_EVIDENCE_REF:-}"
+  local repo="${WEBAPP_EVIDENCE_REPO:-https://github.com/TOMOSIA-VIETNAM/webapp-evidence}"
+  local home="${WEBAPP_EVIDENCE_HOME:-$HOME/.webapp-evidence}"
+  local ref="${WEBAPP_EVIDENCE_REF:-}"
   local uninstalling=no targeted=no arg tmp=
 
   for arg in "$@"; do
@@ -87,7 +87,7 @@ main() {
       || { printf 'install.sh: %s has no ref named %s\n' "$repo" "$ref" >&2; exit 1; }
     git -C "$home" checkout --quiet --detach FETCH_HEAD
   elif [ -e "$home" ]; then
-    printf 'install.sh: %s exists and is not a clone of get-evidence — move it, nothing written\n' "$home" >&2
+    printf 'install.sh: %s exists and is not a clone of webapp-evidence — move it, nothing written\n' "$home" >&2
     exit 1
   else
     say 'cloning %s at %s into %s\n' "$repo" "$ref" "$home"

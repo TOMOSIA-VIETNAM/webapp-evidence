@@ -1,8 +1,8 @@
 description = "Record evidence for an MR/PR: an operation video, screenshots and a runbook, captured on the local dev app."
 
 prompt = """
-Locate the skill: `ls -d ~/.gemini/extensions/*/src/skills/get-evidence/SKILL.md ~/.agents/skills/get-evidence/SKILL.md ~/.gemini/skills/get-evidence/SKILL.md 2>/dev/null`.
-No output → tell the user get-evidence is not installed for Gemini CLI, point at docs/install.md, and STOP.
+Locate the skill: `ls -d ~/.gemini/extensions/*/src/skills/recording/SKILL.md ~/.agents/skills/webapp-evidence-recording/SKILL.md ~/.gemini/skills/webapp-evidence-recording/SKILL.md 2>/dev/null`.
+No output → tell the user webapp-evidence is not installed for Gemini CLI, point at docs/install.md, and STOP.
 More than one → ask the user which one to use and WAIT for the answer; never pick one silently.
 
 Read that SKILL.md and obey it verbatim, every step, in order. Its references/ directory sits next

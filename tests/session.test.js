@@ -13,7 +13,7 @@ process.env.PROJECT_ROOT = PROJECT;
 const {
   ROOT, SKILL_DIR, assertOutsideSkill, loadProjectConfig,
   makeAccountStore, generatePassword, resolveApp,
-} = require('../src/skills/get/scripts/session');
+} = require('../src/skills/recording/scripts/session');
 
 // The lookup walks up from the script directory, so each case needs its own tree to walk.
 function tree(files) {
