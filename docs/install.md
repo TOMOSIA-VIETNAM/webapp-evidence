@@ -46,6 +46,15 @@ re-checks-out that tag, and only a clone that follows nothing falls back to a pl
 
 `WEBAPP_EVIDENCE_REF` does the same as `--ref` for anyone who prefers an environment variable.
 
+If the ref a clone follows stops existing — the ordinary case being a branch that was merged and
+deleted — the next run stops rather than moving you somewhere you did not ask for. The message names
+the ref, says it came from an earlier install rather than from this command, and gives three ways
+out: `--ref latest` for releases, `--ref <name>` for something else, or removing the clone.
+
+Note that `install.sh` itself is always fetched from the default branch. A change to the installer
+only reaches users once it is merged there, even when they pass `--ref` for a branch that already
+contains it.
+
 ## Per platform
 
 ### Claude Code

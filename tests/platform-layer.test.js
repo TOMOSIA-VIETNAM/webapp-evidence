@@ -152,6 +152,20 @@ test('--update follows the recorded ref rather than whatever branch is default',
   assert.match(script, /checkout --quiet --detach FETCH_HEAD/);
 });
 
+test('a pinned ref that no longer exists tells the user how to get out', () => {
+  // A branch someone installed from gets merged and deleted, and from then on every plain run of
+  // the one-liner fails on a ref name they never typed. Without a way out in the message itself,
+  // the only fix is knowing `--ref latest` exists.
+  const script = read('install.sh');
+  assert.match(script, /missing_ref\(\)/, 'no handler for a ref that disappeared');
+  const handler = script.slice(script.indexOf('missing_ref() {'), script.indexOf('# Everything lives in main'));
+  assert.match(handler, /--ref latest/, 'the message does not name the way back to releases');
+  assert.match(handler, /rm -rf/, 'the message does not offer starting over');
+
+  const local = read('scripts/install-local.sh');
+  assert.match(local, /config --unset webapp-evidence\.ref/, '--update leaves no way out either');
+});
+
 test('install.sh ships everything a run needs', () => {
   const ship = read('install.sh').match(/^SHIP='([\s\S]*?)'/m);
   assert.ok(ship, 'install.sh no longer states what it ships');

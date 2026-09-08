@@ -158,9 +158,15 @@ if [ "$ACTION" = update ]; then
   REF="$(git -C "$REPO" config --get webapp-evidence.ref 2>/dev/null || true)"
   if [ -n "$REF" ]; then
     say 'following %s\n' "$REF"
+    # The ref can be gone — a branch someone installed from, merged and deleted since. Name the way
+    # back, because the ref in the message is one this run never mentioned.
     git -C "$REPO" fetch --quiet --depth 1 origin "$REF" 2>/dev/null \
-      || git -C "$REPO" fetch --quiet --tags origin "$REF" \
-      || { printf 'install-local.sh: %s no longer has a ref named %s\n' "$REPO" "$REF" >&2; exit 1; }
+      || git -C "$REPO" fetch --quiet --tags origin "$REF" 2>/dev/null \
+      || {
+           printf 'install-local.sh: this clone follows %s, which the remote no longer has.\n' "$REF" >&2
+           printf '  Back to released versions: git -C %s config --unset webapp-evidence.ref, then run --update again\n' "$REPO" >&2
+           exit 1
+         }
     git -C "$REPO" checkout --quiet --detach FETCH_HEAD
   else
     git -C "$REPO" pull --ff-only
