@@ -1,5 +1,5 @@
 {
-  "name": "evidence",
+  "name": "webapp",
   "description": "Record evidence (video + screenshots + runbook) for a merge request",
   "skills": "./src/skills/"
 }

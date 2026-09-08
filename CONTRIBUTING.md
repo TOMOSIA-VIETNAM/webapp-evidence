@@ -27,13 +27,14 @@ docs/install.md            the install page every README points at
 | name | where it comes from | what it does |
 |---|---|---|
 | `webapp-evidence` | the repository, and the marketplace catalog in `.claude-plugin/` | what a Claude Code user adds |
-| `evidence` | every `plugin.json` | the namespace Claude Code puts in front of the skill: `/evidence:get-evidence` |
+| `webapp` | every `plugin.json` | the namespace Claude Code puts in front of the skill: `/webapp:get-evidence` |
 | `get-evidence` | `SKILL.md` frontmatter, and the directory under `src/skills/` | what Codex, Cursor, Gemini CLI and Antigravity invoke directly |
 
 Claude Code namespaces every skill inside a plugin, and there is no way to opt out — putting
-`SKILL.md` at the plugin root instead of under `skills/` does not change it. Naming the plugin
-`evidence` rather than `get-evidence` is what keeps the command from reading
-`/get-evidence:get-evidence`.
+`SKILL.md` at the plugin root instead of under `skills/` does not change it. Naming the plugin after
+the domain rather than after its one skill is what keeps the command from reading
+`/get-evidence:get-evidence`, and `webapp` rather than `evidence` keeps it from saying the same word
+twice.
 
 No manifest declares a `version`. A git source falls back to the commit SHA, so every commit is a
 new version and a client with marketplace auto-update on picks it up. Adding a `version` back means

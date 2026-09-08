@@ -27,9 +27,10 @@ const skillDirs = () => fs.readdirSync(SKILLS, { withFileTypes: true })
   .map((e) => e.name);
 
 // Three names, deliberately different. A plugin namespaces the skills inside it, so a plugin
-// called get-evidence would make the command read /get-evidence:get-evidence.
+// called get-evidence would make the command read /get-evidence:get-evidence, and one called
+// evidence would still say the word twice.
 const MARKETPLACE = 'webapp-evidence';   // the repository, which is what a user adds
-const PLUGIN = 'evidence';               // the namespace Claude Code prefixes onto the skill
+const PLUGIN = 'webapp';                 // the namespace Claude Code prefixes onto the skill
 const SKILL = 'get-evidence';            // what the other four platforms invoke directly
 
 test('every manifest names the plugin, and a catalog names the marketplace around it', () => {

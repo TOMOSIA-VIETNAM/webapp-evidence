@@ -36,14 +36,14 @@ Its own marketplace, no clone needed:
 
 ```bash
 claude plugin marketplace add TOMOSIA-VIETNAM/webapp-evidence
-claude plugin install evidence@webapp-evidence
+claude plugin install webapp@webapp-evidence
 ```
 
 The same two lines work as `/plugin marketplace add …` and `/plugin install …` inside a session.
 
-Invoke it with `/evidence:get-evidence`. Claude Code namespaces every skill inside a plugin by the
+Invoke it with `/webapp:get-evidence`. Claude Code namespaces every skill inside a plugin by the
 plugin's name, which is why the command is longer here than on the other platforms — the plugin is
-`evidence`, the skill inside it is `get-evidence`.
+`webapp`, the skill inside it is `get-evidence`.
 
 Updates are the marketplace's job: turn on auto-update for it in `/plugin` → **Marketplaces**, and
 Claude Code picks up new commits shortly after a session starts. Nothing here pins a version, so
