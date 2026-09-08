@@ -1,0 +1,15 @@
+description = "Look at what a recording shows: tile a video into timestamped contact sheets and read them as images."
+
+prompt = """
+Locate the skill: `ls -d ~/.gemini/extensions/*/src/skills/vision/SKILL.md ~/.agents/skills/webapp-evidence-vision/SKILL.md ~/.gemini/skills/webapp-evidence-vision/SKILL.md 2>/dev/null`.
+No output → tell the user webapp-evidence is not installed for Gemini CLI, point at the repository README, and STOP.
+More than one → ask the user which one to use and WAIT for the answer; never pick one silently.
+
+Read that SKILL.md and obey it verbatim, every step, in order.
+
+`{{args}}` is the video to look at, plus anything the user said about what to look for. With no
+video named, ask which one rather than guessing at a path.
+
+FORBIDDEN: summarizing, reordering or skipping a step; acting on what this file says instead of what
+the skill says.
+"""

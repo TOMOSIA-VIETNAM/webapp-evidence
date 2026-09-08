@@ -256,17 +256,34 @@ test('install.sh ships everything a run needs', () => {
 
 test('install.sh ships nothing that only matters to someone editing this project', () => {
   const ship = read('install.sh').match(/^SHIP='([\s\S]*?)'/m)[1];
-  for (const dev of ['/tests/', '/evals/', '/CONTRIBUTING.md']) {
+  for (const dev of ['/tests/', '/evals/', '/CONTRIBUTING.md', '/CLAUDE.md', '/docs/']) {
     assert.ok(!ship.includes(dev), `${dev} has no business on a user's disk`);
   }
 });
 
-test("Gemini CLI's command finds the skill in the directories the installer writes to", () => {
-  const toml = read(`commands/${SKILL_NAME}.toml`);
+test('every skill has a Gemini CLI command, so adding one cannot leave that platform behind', () => {
+  // The installer discovers skills by scanning src/skills, but these TOML files are written by
+  // hand. A new skill therefore reaches four platforms on its own and stops short of the fifth,
+  // silently — which is exactly what happened when `vision` was added.
+  const commands = fs.readdirSync(path.join(REPO, 'commands'))
+    .filter((f) => f.endsWith('.toml'))
+    .map((f) => f.replace(/\.toml$/, ''))
+    .sort();
+  const expected = SKILL_DIRS.map((dir) => `${PLUGIN}-${dir}`).sort();
+  assert.deepEqual(commands, expected, 'commands/ and src/skills/ have drifted apart');
+});
+
+test("each Gemini CLI command finds its own skill where the installer puts it", () => {
   const script = read('scripts/install-local.sh');
-  // The installer names $HOME-relative directories; the command has to look in the shared one.
+  // The installer names $HOME-relative directories; each command has to look in the shared one.
   const targets = [...script.matchAll(/printf '%s\\n' "\$HOME\/([^"]+)"/g)].map((m) => m[1]);
   assert.ok(targets.length > 0, 'install-local.sh no longer states its target directories');
   assert.ok(targets.includes('.agents/skills'), 'the interoperable directory is no longer a target');
-  assert.match(toml, new RegExp(`~/\\.agents/skills/${SKILL_NAME}/SKILL\\.md`));
+
+  for (const dir of SKILL_DIRS) {
+    const name = `${PLUGIN}-${dir}`;
+    const toml = read(`commands/${name}.toml`);
+    assert.match(toml, new RegExp(`~/\\.agents/skills/${name}/SKILL\\.md`), `${name}.toml looks elsewhere`);
+    assert.match(toml, new RegExp(`skills/${dir}/SKILL\\.md`), `${name}.toml does not name its own skill`);
+  }
 });

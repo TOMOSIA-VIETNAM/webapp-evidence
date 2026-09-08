@@ -24,7 +24,7 @@ src/skills/vision/         reads a take back: contact-sheet.js tiles it into tim
 src/.claude-plugin/        plugin manifest, inside what Claude Code's marketplace ships
 .claude-plugin/            the marketplace entry, pointing at ./src
 .codex-plugin/  .cursor-plugin/  .agents/plugins/  plugin.json  gemini-extension.json
-commands/webapp-evidence-recording.toml Gemini CLI's entry format
+commands/*.toml            Gemini CLI's entry format — one per skill, written by hand
 install.sh                 the one-liner: clone, then hand over
 scripts/install-local.sh   the installer that knows every platform's directory
 tests/                     unit tests and the platform-layer guards
