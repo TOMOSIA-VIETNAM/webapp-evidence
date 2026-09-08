@@ -6,8 +6,8 @@
 </p>
 
 <p align="center">
-  <strong>证据自己会录。</strong><br>
-  <sub>说一次就行。拿到一段视频、一组截图，和一份可以直接交给评审者的 runbook。</sub><br>
+  <strong>写下操作步骤，拿到录像。</strong><br>
+  <sub>一条命令录下你的 Web 应用，交给你一段视频、一组截图和一份 runbook——用于 UAT、交接、缺陷报告和评审。</sub><br>
   <code>/webapp-evidence:recording</code>
 </p>
 
@@ -24,8 +24,12 @@
   <a href="./README.md">English</a> · <a href="./README.vi-VN.md">Tiếng Việt</a> · <a href="./README.ja-JP.md">日本語</a> · <strong>简体中文</strong>
 </p>
 
-给 merge request 附证据，通常就是一张时机不对的截图，或者一段鼠标瞬移、下拉菜单始终没打开、谁也看不清
-到底按了哪个按钮的录屏。于是大多数改动干脆什么证据都不附，评审只能靠信任放行。
+总会有人要亲眼看到应用真的能跑：UAT 签字、交接给另一个团队或供应商、一份缺陷报告、一场演示、
+一次代码评审。可是自己录，花掉半小时，效果还是不好。截图总是慢了一拍。鼠标在屏幕上乱跳。下拉
+菜单在画面里不会打开，没人看得出你选了什么。
+
+那就把操作步骤讲给你的编码代理。它操作 Chrome，然后交给你一段干净的视频、停在关键时刻的截图，
+以及一份能把这次录制重现出来的 runbook。
 
 ## 你只要这样说
 
@@ -42,10 +46,10 @@ Flow:
 ## 你会拿回这些
 
 <p align="center">
-  <img src="./docs/demo/saucedemo.gif" width="820" alt="一段 Swag Labs 结账流程的录制：光标完成登录，把商品列表按价格排序 —— 底部有一行字幕说明选了哪一项，因为下拉菜单由操作系统绘制、录不进画面 —— 接着把一个背包加入购物车，填写结账表单，最后完成下单。">
+  <img src="./docs/demo/saucedemo.gif" width="820" alt="Swag Labs 结账流程的录屏：光标登录，按价格排序商品列表（下拉菜单由操作系统绘制、录不进画面，所以底部字幕说明选了哪一项），把背包加入购物车，填写结账表单，完成订单。">
 </p>
 
-外加八张停在关键时刻的截图，以及一份 runbook —— 评审者什么都不用看，读它就够了：
+八张截图，都停在关键的那一刻。还有一份 runbook——拿到的人读一遍就够，不必看视频：
 
 ```markdown
 ## Steps in the video
@@ -71,20 +75,21 @@ Flow:
 - [http 401] https://events.backtrace.io/api/unique-events/submit…
 ```
 
-最后那一段是谁都没想到的。录制时 runner 会一直盯着 console 和网络请求，于是评审者能知道页面正在报 401
-—— 这是任何截图都拍不出来、也根本没人会去找的东西。
+最后那一段是额外的收获。录制的同时，它也在看控制台和网络——所以这里读的人会知道页面正在返回
+401。截图不会告诉你这件事，而且本来也没人在找。
 
-runbook 里还带着能原样复现这次录制的命令。数据变了、视频废了、评审者希望放慢一点：再说一次就行。上一次
-的录制会保存成 `v1`、`v2`……而不是被覆盖，因为已经随 MR 发出去的证据，恰恰是唯一没法重新生成的东西。
+runbook 里还保留着生成这次录制的那条命令。数据变了、视频坏了、对方想看慢一点？再说一次就好。
+旧的录制会保留为 `v1`、`v2`、……，不会被覆盖——因为已经发出去的录制，是唯一无法重新生成的
+东西。
 
-## 为什么值得评审者花时间看
+## 为什么这段视频看得下去
 
-- **光标看得见，而且动得像真人的手**——走弧线，起步快、刹车慢，目标较远时会先冲过头再修正回来。每次点击
-  都留下一圈涟漪。
-- **节奏跟着画面走。** 只负责跳转的点击干脆利落；结果一出现，就停留到足够读完为止。
-- **画面装不下的东西，用嘴说出来。** `<select>` 菜单和文件选择器由操作系统绘制，永远不会进入页面录制
-  —— 所以底部会有一行字幕说明选了什么。键盘快捷键则会在对应元素旁弹出按键提示（`⌘ + C`）。
-- **页面加载的等待被剪掉了**，视频从真正开始干活的地方起步。
+- **光标可见，动得像一只手。** 走曲线，起步快，收得慢，目标远时会冲过头再修回来。每次点击都留下
+  一圈波纹。
+- **节奏跟着画面走。** 只是跳转的点击走得快；结果出现的时候，会停到足够读完。
+- **画面装不下的，用字幕说出来。** `<select>` 菜单和文件选择框由操作系统绘制，永远进不了页面
+  录制，所以底部字幕会说明选了什么。快捷键会在它作用的元素旁边显示按键提示（`⌘ + C`）。
+- **页面加载的等待被剪掉了**，视频从真正开始干活的地方开始。
 
 ## 安装
 
@@ -95,17 +100,17 @@ claude plugin marketplace add TOMOSIA-VIETNAM/webapp-evidence
 claude plugin install webapp-evidence@webapp-evidence
 ```
 
-**Cursor、Codex、Gemini CLI、Antigravity**
+**Cursor, Codex, Gemini CLI, Antigravity**
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash
 ```
 
-它会问你要装到哪个平台，并告诉你东西放在了哪里。录制需要本机有 Chrome、ffmpeg 和 Node —— 缺哪个，
-agent 都会直接说明，并主动帮你装上。
+它会问你用哪个平台，然后告诉你东西都放在哪里。录制需要机器上有 Chrome、ffmpeg 和 Node——缺哪个，
+代理会说清楚，并提出帮你装上。
 
-这条一行命令默认安装最新的 release；还没有 release 时则装 `main`。`--ref` 可以指定别的版本，而且会被
-记住，之后更新也仍停在你指定的位置：
+这条一行命令装的是最新的发布版本；还没有发布版本时装 `main`。想选别的就用 `--ref`，这个选择会被
+记住，以后更新仍然停在你指定的位置：
 
 ```bash
 curl -fsSL … /install.sh | bash -s -- --ref main       # a branch, to try a change before it ships
@@ -114,57 +119,56 @@ curl -fsSL … /install.sh | bash -s -- --ref latest     # back to following rel
 ```
 
 更新用 `~/.webapp-evidence/scripts/install-local.sh --update`，卸载用 `--uninstall --all`。
-注意 `install.sh` 永远从默认分支拉取，所以安装脚本自身的改动，要等合并进默认分支之后才会传到你这边。
+一点要注意：`install.sh` 始终从默认分支下载，所以安装脚本自身的修改，要合并进去之后才会到你手上。
 
-## 怎么调用
+## 三种叫它的方式
 
-| 平台 | 调用方式 |
+| platform | how you call it |
 |---|---|
 | Claude Code | `/webapp-evidence:recording` |
-| Cursor、Gemini CLI、Antigravity | `/webapp-evidence-recording` |
+| Cursor, Gemini CLI, Antigravity | `/webapp-evidence-recording` |
 | Codex | `$webapp-evidence-recording` |
 
-**刚做完一个任务或修完一个 bug。** agent 已经知道是哪个页面变了，所以后面什么都不用写：
+**你刚做完一个任务或修完一个缺陷。** 哪个界面变了，代理已经知道，后面什么都不用写：
 
 ```
 /webapp-evidence:recording
 ```
 
-**你手上只有一个链接。** 它会去读这个 MR/PR 的描述和 diff，自己判断该录什么：
+**你手上只有一个链接。** 它会读 MR/PR 的描述和 diff，自己判断该录什么：
 
 ```
 /webapp-evidence:recording https://gitlab.example.com/group/admin/-/merge_requests/1783
 ```
 
-**你不写代码。** 像上面的例子那样，给出页面地址，说清楚要展示什么就行。不需要仓库，不需要配置，没有任何
-东西要搭。步骤用你习惯的语言写；agent 会用同一种语言回你。
+**你不写代码。** 像上面的例子那样，给出页面、说清要看到什么。不需要仓库，不需要配置，什么都不用
+搭。步骤用你正在想的那种语言写就行；代理用同一种语言回你。
 
-也没有语法需要记 —— 一句「给我刚修好的那个页面录份证据」，效果完全一样。
+也没有语法要记——说“给我刚修好的那个界面的证据”，结果是一样的。
 
-## 在项目里使用
-
-对准一个项目跑一次，它就学会了怎么进去：
+## 对准你的项目，只需一次
 
 ```
 /webapp-evidence:recording set up the evidence config for this project
 ```
 
-它会探查登录页，找到一个开发账号，然后写出一份 `evidence.config.js`。从此每次录制都在一个能用的环境里
-以登录状态开始，不必再交代一遍。
+它会找到登录界面和一个开发账号，然后写出一个 `evidence.config.js`。从此每次录制都从已登录、
+环境可用的状态开始，不会再来问你。
 
-想改什么直接说 ——「录慢一点」「字幕用日语」「只保留最新的一次录制」—— 它会替你改那个文件。
+想改什么，说一声就行——“录慢一点”“字幕用日文”“只留最新的一次”——它会替你改那个文件。
 
 ## 值得知道的限制
 
-视频录的是页面，不是你的屏幕，所以凡是操作系统画出来的东西都进不了画面：`<select>` 下拉框、文件选择器、
-`confirm`/`alert` 对话框。这些时刻会配一行字幕说明选了什么，再加一张事后状态的截图。用 JS 实现的弹窗、
-日期选择器和下拉菜单则能正常录到。
+它录的是页面，不是你的屏幕。所以操作系统画的东西都在画面之外：`<select>` 下拉菜单、文件选择框、
+`confirm`/`alert` 对话框。这些时刻会配一条字幕说明选了什么，再加一张之后状态的截图。用 JS 做的
+模态框、日期选择器和下拉菜单都能正常录进去。
 
-录制只跑在本地开发环境或你指定的站点上 —— 绝不碰 staging，绝不碰生产环境。
+录制只针对本地开发环境或你指定的站点——不碰预发布，也不碰生产。
 
-视频和截图不会进 Git。附到 MR/PR 上这一步，由你自己来。
+视频和截图不进 Git。贴到哪里——工单、MR/PR、报告——由你自己决定。
 
 ---
 
-上面那段录制是本仓库 runner 的真实输出：`docs/demo/record.sh` 基于 `docs/demo/saucedemo-steps.js`
-生成它。想改 skill 本身？请看 **[CONTRIBUTING.md](./CONTRIBUTING.md)**。
+上面那段录制是本仓库 runner 的真实输出：`docs/demo/record.sh` 从
+`docs/demo/saucedemo-steps.js` 生成它。想改这个技能本身？见
+**[CONTRIBUTING.md](./CONTRIBUTING.md)**。
