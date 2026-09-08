@@ -22,6 +22,28 @@ evals/                     queries for checking that the skill description trigg
 docs/install.md            the install page every README points at
 ```
 
+## Three names, on purpose
+
+| name | where it comes from | what it does |
+|---|---|---|
+| `webapp-evidence` | the repository, and the marketplace catalog in `.claude-plugin/` | what a Claude Code user adds |
+| `evidence` | every `plugin.json` | the namespace Claude Code puts in front of the skill: `/evidence:get-evidence` |
+| `get-evidence` | `SKILL.md` frontmatter, and the directory under `src/skills/` | what Codex, Cursor, Gemini CLI and Antigravity invoke directly |
+
+Claude Code namespaces every skill inside a plugin, and there is no way to opt out — putting
+`SKILL.md` at the plugin root instead of under `skills/` does not change it. Naming the plugin
+`evidence` rather than `get-evidence` is what keeps the command from reading
+`/get-evidence:get-evidence`.
+
+No manifest declares a `version`. A git source falls back to the commit SHA, so every commit is a
+new version and a client with marketplace auto-update on picks it up. Adding a `version` back means
+nobody receives anything until someone remembers to bump it, and forgetting fails silently.
+
+`claude plugin validate` warns about the missing version — `Consider adding a version following
+semver`. That warning is the intended state, not something to fix. Validation still passes; only
+`--strict` would treat it as an error, so don't add that flag to a check without changing this
+decision first.
+
 Two rules keep this from rotting:
 
 **The skill exists once.** `src/skills/get-evidence/` is what every platform installs — by symlink

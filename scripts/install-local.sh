@@ -225,7 +225,7 @@ is_installed() {
   dir="$(platform_dir "$leaf")"
   if [ "$kind" = marketplace ]; then
     command -v claude >/dev/null || return 1
-    claude plugin list </dev/null 2>/dev/null | grep -q 'get-evidence' || return 1
+    claude plugin list </dev/null 2>/dev/null | grep -q 'evidence@webapp-evidence' || return 1
     return 0
   fi
   while IFS= read -r path; do
@@ -262,7 +262,7 @@ uninstall_one() {
   local kind="$2" dir="$3" path
   if [ "$kind" = marketplace ]; then
     claude_or_skip || return 0
-    claude plugin uninstall "get-evidence@get-evidence" || claude_failed uninstall
+    claude plugin uninstall "evidence@webapp-evidence" || claude_failed uninstall
     return 0
   fi
   while IFS= read -r path; do
@@ -282,7 +282,7 @@ install_one() {
   if [ "$kind" = marketplace ]; then
     claude_or_skip || return 0
     claude plugin marketplace add "$MARKETPLACE" || { claude_failed "marketplace add"; return 0; }
-    claude plugin install "get-evidence@get-evidence" || { claude_failed install; return 0; }
+    claude plugin install "evidence@webapp-evidence" || { claude_failed install; return 0; }
     say '\nInstalled into Claude Code.\n'
     return 0
   fi

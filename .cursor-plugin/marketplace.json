@@ -1,12 +1,12 @@
 {
-  "name": "get-evidence",
+  "name": "webapp-evidence",
   "description": "Marketplace for get-evidence.",
   "owner": {
     "name": "TOMOSIA-VIETNAM"
   },
   "plugins": [
     {
-      "name": "get-evidence",
+      "name": "evidence",
       "source": "./",
       "description": "Record evidence (video + screenshots + runbook) for a merge request"
     }

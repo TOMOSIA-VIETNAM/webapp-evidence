@@ -1,5 +1,5 @@
 {
-  "name": "get-evidence",
+  "name": "evidence",
   "description": "Record evidence (video + screenshots + runbook) for a merge request",
   "homepage": "https://github.com/TOMOSIA-VIETNAM/webapp-evidence",
   "repository": "https://github.com/TOMOSIA-VIETNAM/webapp-evidence",

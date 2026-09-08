@@ -1,12 +1,12 @@
 {
-  "name": "get-evidence",
+  "name": "webapp-evidence",
   "description": "Records evidence for a merge request: an operation video, screenshots and a runbook, captured on the project's local dev environment.",
   "owner": {
     "name": "TOMOSIA-VIETNAM"
   },
   "plugins": [
     {
-      "name": "get-evidence",
+      "name": "evidence",
       "source": "./src",
       "description": "Record evidence \u2014 an operation video, screenshots and a runbook \u2014 to attach to a pull or merge request."
     }

@@ -36,11 +36,18 @@ Its own marketplace, no clone needed:
 
 ```bash
 claude plugin marketplace add TOMOSIA-VIETNAM/webapp-evidence
-claude plugin install get-evidence@get-evidence
+claude plugin install evidence@webapp-evidence
 ```
 
 The same two lines work as `/plugin marketplace add …` and `/plugin install …` inside a session.
-Invoke it with `/get-evidence`.
+
+Invoke it with `/evidence:get-evidence`. Claude Code namespaces every skill inside a plugin by the
+plugin's name, which is why the command is longer here than on the other platforms — the plugin is
+`evidence`, the skill inside it is `get-evidence`.
+
+Updates are the marketplace's job: turn on auto-update for it in `/plugin` → **Marketplaces**, and
+Claude Code picks up new commits shortly after a session starts. Nothing here pins a version, so
+every commit on the default branch counts as a new one.
 
 ### Codex and Gemini CLI
 
@@ -50,7 +57,7 @@ Both read `~/.agents/skills`, so one install serves both:
 curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash -s -- --platform shared
 ```
 
-Codex invokes it as `$get-evidence` or by describing the task. Gemini CLI also accepts
+Codex invokes it as `$get-evidence`, or triggers it from a description of the task. Gemini CLI also accepts
 `gemini extensions install https://github.com/TOMOSIA-VIETNAM/webapp-evidence`, which additionally
 registers the `/get-evidence` command.
 

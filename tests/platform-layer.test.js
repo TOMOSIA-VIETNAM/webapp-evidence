@@ -26,11 +26,29 @@ const skillDirs = () => fs.readdirSync(SKILLS, { withFileTypes: true })
   .filter((e) => e.isDirectory())
   .map((e) => e.name);
 
-test('every manifest is valid JSON and names the plugin', () => {
+// Three names, deliberately different. A plugin namespaces the skills inside it, so a plugin
+// called get-evidence would make the command read /get-evidence:get-evidence.
+const MARKETPLACE = 'webapp-evidence';   // the repository, which is what a user adds
+const PLUGIN = 'evidence';               // the namespace Claude Code prefixes onto the skill
+const SKILL = 'get-evidence';            // what the other four platforms invoke directly
+
+test('every manifest names the plugin, and a catalog names the marketplace around it', () => {
   for (const rel of MANIFESTS) {
     const manifest = readJson(rel);
-    const name = manifest.name ?? manifest.plugins?.[0]?.name;
-    assert.equal(name, 'get-evidence', rel);
+    if (manifest.plugins) {
+      assert.equal(manifest.name, MARKETPLACE, rel);
+      assert.equal(manifest.plugins[0].name, PLUGIN, rel);
+    } else {
+      assert.equal(manifest.name, PLUGIN, rel);
+    }
+  }
+});
+
+test('the plugin pins no version, so every commit reaches a client that auto-updates', () => {
+  // A git source falls back to the commit SHA. A `version` here would freeze clients until it
+  // is bumped, and forgetting to bump fails silently — nobody gets the update and nobody is told.
+  for (const rel of ['src/.claude-plugin/plugin.json', '.codex-plugin/plugin.json', '.cursor-plugin/plugin.json', 'plugin.json']) {
+    assert.equal(readJson(rel).version, undefined, `${rel} pins a version`);
   }
 });
 
@@ -54,7 +72,7 @@ test("Claude Code's marketplace ships the plugin directory, not the whole reposi
 
 test('the shipped skill is whole: SKILL.md plus what it tells the agent to read', () => {
   const dirs = skillDirs();
-  assert.deepEqual(dirs, ['get-evidence']);
+  assert.deepEqual(dirs, [SKILL]);
 
   const root = path.join(SKILLS, 'get-evidence');
   for (const entry of ['SKILL.md', 'references', 'assets', 'scripts']) {
@@ -76,8 +94,14 @@ test('the shipped skill is whole: SKILL.md plus what it tells the agent to read'
 
 test('the skill declares the name every manifest and the installer use', () => {
   const frontmatter = read('src/skills/get-evidence/SKILL.md').split('---')[1];
-  assert.match(frontmatter, /^name: get-evidence$/m);
+  assert.match(frontmatter, new RegExp(`^name: ${SKILL}$`, 'm'));
   assert.match(frontmatter, /^description: .+/m);
+});
+
+test('the installer installs the plugin under the identifier the manifests declare', () => {
+  const script = read('scripts/install-local.sh');
+  assert.ok(script.includes(`${PLUGIN}@${MARKETPLACE}`), 'installer uses a different plugin id');
+  assert.ok(script.includes(`TOMOSIA-VIETNAM/${MARKETPLACE}`), 'installer adds a different marketplace');
 });
 
 test('the installer looks for the skill where the skill actually is', () => {

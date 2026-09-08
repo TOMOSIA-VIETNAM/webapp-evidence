@@ -18,7 +18,7 @@ Claude Code:
 
 ```bash
 claude plugin marketplace add TOMOSIA-VIETNAM/webapp-evidence
-claude plugin install get-evidence@get-evidence
+claude plugin install evidence@webapp-evidence
 ```
 
 Cursor, Codex, Gemini CLI, Antigravity:
@@ -32,8 +32,9 @@ where each platform puts it and how to remove it: [Install](./docs/install.md).
 
 ## Using it
 
-Type this in a chat session (`/get-evidence` on Claude Code, Cursor, Gemini CLI and Antigravity;
-`$get-evidence` on Codex):
+Type this in a chat session — `/evidence:get-evidence` on Claude Code, `/get-evidence` on Cursor,
+Gemini CLI and Antigravity, `$get-evidence` on Codex. The examples below use the short form; on
+Claude Code put `/evidence:` in front:
 
 **You just finished a task or a bug fix — the agent already knows which screen changed:**
 
