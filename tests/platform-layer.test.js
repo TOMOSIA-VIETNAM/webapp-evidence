@@ -282,6 +282,16 @@ test('a translation keeps the commands and the demo the English one shows', () =
   }
 });
 
+test('every demo file the READMEs link to exists', () => {
+  // A link to a sheet that was never committed is a 404 on the front page, in four languages.
+  for (const file of ['README.md', 'README.vi-VN.md', 'README.ja-JP.md', 'README.zh-Hans.md']) {
+    const body = read(file);
+    for (const ref of body.match(/\.\/docs\/demo\/[A-Za-z0-9_.-]+/g) ?? []) {
+      assert.ok(fs.existsSync(path.join(REPO, ref.slice(2))), `${file} links to a missing ${ref}`);
+    }
+  }
+});
+
 test('the demo gif is wider than the width the README displays it at', () => {
   // A gif narrower than its display width gets scaled UP by the browser, and the text in it goes
   // soft — which is exactly how the first one shipped. Wider means the browser scales down.

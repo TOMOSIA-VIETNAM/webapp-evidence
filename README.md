@@ -154,6 +154,10 @@ header overlaps the table at 00:14", a time you can check yourself and match to 
 up what nobody thought to screenshot: a layout that breaks mid-transition, a banner that flashes and
 is gone.
 
+Here are the sheets it produced from the recording above:
+**[sheet 1](./docs/demo/vision-sheet-01.png)** (00:00–00:19) ·
+**[sheet 2](./docs/demo/vision-sheet-02.png)** (00:20–00:36).
+
 ## Limits
 
 It records the page, not your screen. OS-drawn UI stays out of the video: `<select>` dropdowns, the

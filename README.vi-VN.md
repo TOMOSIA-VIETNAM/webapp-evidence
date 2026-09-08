@@ -149,6 +149,10 @@ khung đóng dấu `mm:ss` — rồi đọc như đọc ảnh. Nhờ vậy phát
 00:14": một mốc bạn tua lại được và đối chiếu được với runbook. Nó bắt được thứ không ai nghĩ tới
 việc chụp: layout vỡ giữa lúc chuyển cảnh, banner loé lên rồi biến mất.
 
+Đây là hai tấm nó tạo ra từ chính bản quay ở trên:
+**[tấm 1](./docs/demo/vision-sheet-01.png)** (00:00–00:19) ·
+**[tấm 2](./docs/demo/vision-sheet-02.png)** (00:20–00:36).
+
 ## Giới hạn
 
 Nó quay trang web, không quay màn hình máy bạn. Thứ do OS vẽ sẽ không vào video: dropdown `<select>`,

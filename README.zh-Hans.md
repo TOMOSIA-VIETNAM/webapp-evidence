@@ -143,6 +143,10 @@ curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/mai
 `mm:ss`——然后当图片来读。所以结论会是“00:14 处标题压住了表格”：一个你能自己回看核对、也能和
 runbook 对上的时刻。它还能发现没人想到要截图的东西：过渡途中错位的布局，闪一下就没了的横幅。
 
+这是它从上面那段录制里生成的两张图：
+**[第 1 张](./docs/demo/vision-sheet-01.png)**（00:00–00:19）·
+**[第 2 张](./docs/demo/vision-sheet-02.png)**（00:20–00:36）。
+
 ## 限制
 
 它录的是页面，不是你的屏幕。操作系统画的东西进不了视频：`<select>` 下拉菜单、文件选择框、
