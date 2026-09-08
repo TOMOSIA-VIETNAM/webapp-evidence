@@ -10,7 +10,7 @@
 set -euo pipefail
 
 REPO="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
-SKILL="$REPO/src/skills/get"
+SKILL="$REPO/src/skills/recording"
 KEEP=no
 [ "${1:-}" = "--keep" ] && KEEP=yes
 

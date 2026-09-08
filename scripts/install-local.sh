@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install get-evidence into a platform that reads it straight off disk. Use when a platform's catalog is
+# Install webapp-evidence into a platform that reads it straight off disk. Use when a platform's catalog is
 # not an option — a submission still pending, or an import gated by plan or role.
 #
 # A vendor's IDE and CLI rarely read the same directory, so a vendor name covers both of theirs; the
@@ -35,7 +35,7 @@ Usage: scripts/install-local.sh [--platform NAME] [--target DIR] [--copy]
   --uninstall      remove only what this script installed
   --all            with --uninstall: sweep every platform above
 
-Skill installed: get-evidence (SKILL.md, references, templates and the Node runner)
+Skill installed: webapp-evidence-recording (SKILL.md, references, templates and the Node runner)
 Never overwrites a file this script did not create.
 EOF
 }
@@ -152,7 +152,19 @@ resolve_members() {
 
 if [ "$ACTION" = update ]; then
   say 'updating %s\n' "$REPO"
-  git -C "$REPO" pull --ff-only
+  # install.sh records the ref this clone follows, and a clone made with --branch has a fetch
+  # refspec narrowed to that one ref — so a bare `pull` on a tag checkout has nothing to track.
+  # Ask for the ref by name, and fall back to a plain pull for a clone made some other way.
+  REF="$(git -C "$REPO" config --get webapp-evidence.ref 2>/dev/null || true)"
+  if [ -n "$REF" ]; then
+    say 'following %s\n' "$REF"
+    git -C "$REPO" fetch --quiet --depth 1 origin "$REF" 2>/dev/null \
+      || git -C "$REPO" fetch --quiet --tags origin "$REF" \
+      || { printf 'install-local.sh: %s no longer has a ref named %s\n' "$REPO" "$REF" >&2; exit 1; }
+    git -C "$REPO" checkout --quiet --detach FETCH_HEAD
+  else
+    git -C "$REPO" pull --ff-only
+  fi
   ACTION=install
 fi
 
@@ -160,10 +172,10 @@ fi
 # platform gets the directory, not a shim pointing back at one.
 #
 # A directory here is named for how Claude Code reads it: that platform builds the command from the
-# plugin name and the DIRECTORY name, so `src/skills/get` inside plugin `webapp-evidence` reads as
-# `/webapp-evidence:get`. The other four platforms have no plugin to prefix anything, so a directory
-# called `get` would leave them with a bare `/get` — too vague to live beside anyone else's skills.
-# They get the SKILL.md `name` instead, which is why source and destination names differ.
+# plugin name and the DIRECTORY name, so `src/skills/recording` inside plugin `webapp-evidence`
+# reads as `/webapp-evidence:recording`. The other four platforms have no plugin to prefix anything,
+# and a bare `/recording` beside everyone else's skills says nothing about what it records. They get
+# the SKILL.md `name` — `webapp-evidence-recording` — which is why source and destination differ.
 SKILL_DIRS=()
 SKILL_NAMES=()
 for dir in "$REPO"/src/skills/*/; do
@@ -348,9 +360,9 @@ EOF
 if [ "$ACTION" = uninstall ] && [ -z "$PLATFORM" ] && [ "$SWEEP" = no ]; then
   found=
   for leaf in $ALL_PLATFORMS; do is_installed "$leaf" && found="${found:+$found }$leaf"; done
-  [ -n "$found" ] || { say 'get-evidence is not installed anywhere this script can see.\n'; exit 0; }
+  [ -n "$found" ] || { say 'webapp-evidence is not installed anywhere this script can see.\n'; exit 0; }
   if [ -n "$ask_on" ]; then
-    say 'get-evidence is installed here:\n'
+    say 'webapp-evidence is installed here:\n'
     i=0
     for leaf in $found; do
       i=$((i + 1)); say '  %d) %-18s %s\n' "$i" "$leaf" "$(platform_dir "$leaf")"
@@ -392,7 +404,7 @@ fi
 # In link mode every platform points at the same clone, so its dependency is installed once; a copy
 # carries its own.
 if [ "$MODE" = link ]; then
-  runner_deps "$REPO/src/skills/get/scripts"
+  runner_deps "$REPO/src/skills/recording/scripts"
 else
   for member in $MEMBERS; do
     [ "$(platform_kind "$member")" = skills ] || continue

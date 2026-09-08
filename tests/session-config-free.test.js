@@ -11,7 +11,7 @@ const path = require('node:path');
 const PROJECT = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'evidence-bare-')));
 process.env.PROJECT_ROOT = PROJECT;
 
-const { loadProjectConfig, resolveApp } = require('../src/skills/get/scripts/session');
+const { loadProjectConfig, resolveApp } = require('../src/skills/recording/scripts/session');
 
 function withBaseUrl(value, fn) {
   const saved = process.env.BASE_URL;

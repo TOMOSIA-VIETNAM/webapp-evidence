@@ -1,7 +1,7 @@
 # Install
 
-get-evidence is one skill plus a Node runner. Every platform below reads the same
-`src/skills/get/` — none of them gets a copy of its own — so an update reaches all of them
+webapp-evidence is one skill plus a Node runner. Every platform below reads the same
+`src/skills/recording/` — none of them gets a copy of its own — so an update reaches all of them
 at once.
 
 ## Before anything
@@ -18,15 +18,33 @@ Node or ffmpeg is missing. It never installs those for you.
 ## The one-liner
 
 Works for every platform on this page. It asks which one you want, then hands over to
-`scripts/install-local.sh` inside a clone at `~/.get-evidence` — that clone is what actually runs,
+`scripts/install-local.sh` inside a clone at `~/.webapp-evidence` — that clone is what actually runs,
 and it is worth reading afterwards.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash
 ```
 
-Later on: `~/.get-evidence/scripts/install-local.sh --update` pulls and reinstalls,
+Later on: `~/.webapp-evidence/scripts/install-local.sh --update` pulls and reinstalls,
 `--uninstall --all` removes every install it made.
+
+### Choosing what it follows
+
+Without `--ref` the clone lands on the newest release tag, or on `main` while the repository has no
+releases. `--ref` picks something else and is remembered:
+
+```bash
+curl -fsSL .../install.sh | bash -s -- --ref main       # a branch, to try a change before it ships
+curl -fsSL .../install.sh | bash -s -- --ref v1.2.0     # a release, to pin a team to one version
+curl -fsSL .../install.sh | bash -s -- --ref latest     # back to following releases
+```
+
+The choice is stored in the clone's own git config (`webapp-evidence.ref`), so re-running the
+one-liner to update keeps you where you asked to be rather than moving you to the default branch.
+`install-local.sh --update` reads the same value: on a branch it fetches that branch, on a tag it
+re-checks-out that tag, and only a clone that follows nothing falls back to a plain pull.
+
+`WEBAPP_EVIDENCE_REF` does the same as `--ref` for anyone who prefers an environment variable.
 
 ## Per platform
 
@@ -41,9 +59,9 @@ claude plugin install webapp-evidence@webapp-evidence
 
 The same two lines work as `/plugin marketplace add …` and `/plugin install …` inside a session.
 
-Invoke it with `/webapp-evidence:get`. Claude Code puts the plugin's name in front of every skill it
+Invoke it with `/webapp-evidence:recording`. Claude Code puts the plugin's name in front of every skill it
 contains, so the skill itself is named for how it reads after that prefix. The other platforms have
-no prefix to work with and install it as `get-evidence`.
+no prefix to work with and install it as `webapp-evidence-recording`.
 
 Updates are the marketplace's job: turn on auto-update for it in `/plugin` → **Marketplaces**, and
 Claude Code picks up new commits shortly after a session starts. Nothing here pins a version, so
@@ -57,9 +75,9 @@ Both read `~/.agents/skills`, so one install serves both:
 curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash -s -- --platform shared
 ```
 
-Codex invokes it as `$get-evidence`, or triggers it from a description of the task. Gemini CLI also accepts
+Codex invokes it as `$webapp-evidence-recording`, or triggers it from a description of the task. Gemini CLI also accepts
 `gemini extensions install https://github.com/TOMOSIA-VIETNAM/webapp-evidence`, which additionally
-registers the `/get-evidence` command.
+registers the `/webapp-evidence-recording` command.
 
 ### Cursor
 
@@ -81,26 +99,26 @@ Its IDE and its CLI also read different directories, and `--platform antigravity
 curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash -s -- --platform antigravity
 ```
 
-The CLI build additionally accepts `agy plugin install ~/.get-evidence`.
+The CLI build additionally accepts `agy plugin install ~/.webapp-evidence`.
 
 ## Where it lands
 
 | platform | directory |
 |---|---|
 | Claude Code | `~/.claude/plugins` (managed by the `claude` CLI) |
-| Codex, Gemini CLI | `~/.agents/skills/get-evidence` |
+| Codex, Gemini CLI | `~/.agents/skills/webapp-evidence-recording` |
 | Cursor IDE | `~/.cursor/plugins/local/webapp-evidence` |
-| Cursor CLI | `~/.cursor/skills/get-evidence` |
-| Antigravity CLI | `~/.gemini/antigravity-cli/skills/get-evidence` |
-| Antigravity IDE | `~/.gemini/config/skills/get-evidence` |
+| Cursor CLI | `~/.cursor/skills/webapp-evidence-recording` |
+| Antigravity CLI | `~/.gemini/antigravity-cli/skills/webapp-evidence-recording` |
+| Antigravity IDE | `~/.gemini/config/skills/webapp-evidence-recording` |
 
-Each is a symlink into `~/.get-evidence` unless you pass `--copy`. The installer refuses to touch a
+Each is a symlink into `~/.webapp-evidence` unless you pass `--copy`. The installer refuses to touch a
 path it did not create, and `--uninstall` removes only what it wrote.
 
 ## Verifying
 
 Claude Code is the only one that reports installation directly: `claude plugin list` shows
-`get-evidence@get-evidence`. Everywhere else, start the agent and ask for evidence of a change — the
+`webapp-evidence@webapp-evidence`. Everywhere else, start the agent and ask for evidence of a change — the
 skill introduces itself by asking which screen and flow to record.
 
 Installation onto Codex, Gemini CLI, Cursor and Antigravity has been verified as far as the files

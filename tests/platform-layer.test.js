@@ -27,12 +27,12 @@ const skillDirs = () => fs.readdirSync(SKILLS, { withFileTypes: true })
   .map((e) => e.name);
 
 // Claude Code builds its command from the plugin name and the skill's DIRECTORY name, while the
-// other four platforms read the SKILL.md `name`. That is why the directory and the installed name
-// differ: `/webapp-evidence:get` reads well with the namespace in front, `/get` alone does not.
+// other four platforms read the SKILL.md `name`. That is why the two differ: with the namespace in
+// front, `recording` is enough; standing alone it has to say `webapp-evidence-recording`.
 const MARKETPLACE = 'webapp-evidence';   // the repository, which is what a user adds
 const PLUGIN = 'webapp-evidence';        // the namespace Claude Code prefixes onto the skill
-const SKILL_DIR = 'get';                 // the directory, which Claude Code turns into the command
-const SKILL_NAME = 'get-evidence';       // the SKILL.md name, which the other four platforms invoke
+const SKILL_DIR = 'recording';           // the directory, which Claude Code turns into the command
+const SKILL_NAME = 'webapp-evidence-recording';  // the SKILL.md name, which the other four platforms invoke
 
 test('every manifest names the plugin, and a catalog names the marketplace around it', () => {
   for (const rel of MANIFESTS) {
@@ -46,9 +46,11 @@ test('every manifest names the plugin, and a catalog names the marketplace aroun
   }
 });
 
-test('the command reads /webapp-evidence:get, with no word said twice', () => {
+test('the two invocation names agree with the manifests they come from', () => {
   const entry = readJson('.claude-plugin/marketplace.json').plugins[0];
-  assert.equal(`${entry.name}:${SKILL_DIR}`, 'webapp-evidence:get');
+  assert.equal(`${entry.name}:${SKILL_DIR}`, 'webapp-evidence:recording');
+  // Without a namespace in front, the name has to carry the subject on its own.
+  assert.ok(SKILL_NAME.startsWith(entry.name), `${SKILL_NAME} does not say what plugin it belongs to`);
 });
 
 test('the plugin pins no version, so every commit reaches a client that auto-updates', () => {
@@ -130,6 +132,26 @@ test('the installer sets up the Node dependency the runner cannot start without'
   assert.ok(fs.existsSync(path.join(SKILLS, SKILL_DIR, 'scripts', 'package.json')));
 });
 
+test('install.sh can follow a branch or a tag, and remembers which', () => {
+  // Installing from a branch is how someone tries a change before it is released, and how a team
+  // pins itself to a tag. Re-running the one-liner must not silently drop them back onto releases.
+  const script = read('install.sh');
+  assert.match(script, /--ref\)/, 'no --ref flag');
+  assert.match(script, /--ref=\?\*\)/, 'no --ref=value form');
+  assert.match(script, /"\$ref" = latest/, '`--ref latest` has no way back to releases');
+  assert.match(script, /git -C "\$home" config webapp-evidence\.ref/, 'the chosen ref is not recorded');
+  assert.match(script, /config --get webapp-evidence\.ref/, 'a later run does not read the recorded ref');
+});
+
+test('--update follows the recorded ref rather than whatever branch is default', () => {
+  // A clone checked out at a tag has no upstream branch to pull, so a bare `git pull` there either
+  // fails or quietly moves the clone somewhere the user did not ask for.
+  const script = read('scripts/install-local.sh');
+  assert.match(script, /config --get webapp-evidence\.ref/);
+  assert.match(script, /fetch --quiet --depth 1 origin "\$REF"/);
+  assert.match(script, /checkout --quiet --detach FETCH_HEAD/);
+});
+
 test('install.sh ships everything a run needs', () => {
   const ship = read('install.sh').match(/^SHIP='([\s\S]*?)'/m);
   assert.ok(ship, 'install.sh no longer states what it ships');
@@ -148,7 +170,7 @@ test('install.sh ships nothing that only matters to someone editing this project
 });
 
 test("Gemini CLI's command finds the skill in the directories the installer writes to", () => {
-  const toml = read('commands/get-evidence.toml');
+  const toml = read(`commands/${SKILL_NAME}.toml`);
   const script = read('scripts/install-local.sh');
   // The installer names $HOME-relative directories; the command has to look in the shared one.
   const targets = [...script.matchAll(/printf '%s\\n' "\$HOME\/([^"]+)"/g)].map((m) => m[1]);
