@@ -19,7 +19,7 @@ cannot be invoked by name.
 | name | written in | read by |
 |---|---|---|
 | `webapp-evidence` | marketplace and every `plugin.json` | what a user installs |
-| `recording`, `vision` | the directory, and `name:` in its SKILL.md | Claude Code: `/webapp-evidence:recording` |
+| `recording`, `vision`, `feedback` | the directory, and `name:` in its SKILL.md | Claude Code: `/webapp-evidence:recording` |
 | `webapp-evidence-recording` | nowhere — the installer derives it | the four platforms without a namespace |
 
 Never write the derived name into a SKILL.md; `plugin.json` already holds that half of it.

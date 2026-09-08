@@ -134,6 +134,7 @@ curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/mai
 | 一个 gif，放进 README 或任何只渲染图片的地方 | `/webapp-evidence:recording -f gif` |
 | 一个 webm，放到你自己的页面上 | `/webapp-evidence:recording -f webm` |
 | 不看视频也知道里面发生了什么 | `/webapp-evidence:vision <the mp4>` |
+| 反馈一个问题，或者提一个缺的功能 | `/webapp-evidence:feedback` |
 
 默认仍然是 mp4：它在 merge request、issue 和各种聊天工具里都能直接播放，也是三种格式里最小的。
 同一段录制转成 gif 会大好几倍，所以这一步是先问你一句，而不是给你一个意外。
@@ -141,6 +142,10 @@ curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/mai
 `vision` 存在的原因是代理看不了视频。它把视频拼成图片网格——每隔几秒一帧，每帧标着
 `mm:ss`——然后当图片来读。所以结论会是“00:14 处标题压住了表格”：一个你能自己回看核对、也能和
 runbook 对上的时刻。它还能发现没人想到要截图的东西：过渡途中错位的布局，闪一下就没了的横幅。
+
+这是它从上面那段录制里生成的两张图：
+**[第 1 张](./docs/demo/vision-sheet-01.png)**（00:00–00:19）·
+**[第 2 张](./docs/demo/vision-sheet-02.png)**（00:20–00:36）。
 
 ## 限制
 

@@ -33,7 +33,7 @@ const MARKETPLACE = 'webapp-evidence';   // the repository, which is what a user
 const PLUGIN = 'webapp-evidence';        // the namespace Claude Code prefixes onto the skill
 const SKILL_DIR = 'recording';           // the directory and the SKILL.md name
 const SKILL_NAME = 'webapp-evidence-recording'; // derived for the platforms with no namespace
-const SKILL_DIRS = ['recording', 'vision'];     // every skill the plugin ships
+const SKILL_DIRS = ['recording', 'vision', 'feedback'];  // every skill the plugin ships
 
 test('every manifest names the plugin, and a catalog names the marketplace around it', () => {
   for (const rel of MANIFESTS) {
@@ -85,8 +85,9 @@ test('every shipped skill is whole: SKILL.md plus what it tells the agent to rea
   const missing = [];
   for (const dir of SKILL_DIRS) {
     const root = path.join(SKILLS, dir);
+    // SKILL.md is the only required part. A skill that drives an existing CLI — `feedback` uses
+    // `gh` — ships no scripts of its own, and inventing an empty directory for it proves nothing.
     assert.ok(fs.existsSync(path.join(root, 'SKILL.md')), `${dir} has no SKILL.md`);
-    assert.ok(fs.existsSync(path.join(root, 'scripts')), `${dir} has no scripts`);
 
     // Every path a skill or its references name has to resolve, or the agent reads the instruction
     // and finds nothing there.
@@ -147,6 +148,43 @@ test('vision says which video to read, rather than leaving the agent to guess', 
   const skill = read('src/skills/vision/SKILL.md');
   assert.match(skill, /## Which video/, 'no rule for choosing the video');
   assert.match(skill, /Otherwise ask/, 'no instruction to ask when it cannot tell');
+});
+
+test('feedback posts only to this plugin\'s own tracker, and only after the user agrees', () => {
+  // It writes in public and cannot be undone, and the material in front of it is a recording of
+  // somebody's real application. Both constraints have to be in the file that gets read, not
+  // implied by the name of the skill.
+  const skill = read('src/skills/feedback/SKILL.md');
+  assert.match(skill, /TOMOSIA-VIETNAM\/webapp-evidence/, 'no destination named');
+  assert.match(skill, /cannot be unposted/, 'does not say the post is irreversible');
+  assert.ok(!/gh issue create[^\n]*\$\{?[A-Z_]*REPO/.test(skill), 'the destination is templated');
+  assert.match(skill, /Strip what identifies them/i, 'no anonymisation step');
+});
+
+test('a skill suggests feedback only when there is something to report', () => {
+  // A closing line that appears on every successful run is noise, and the user stops reading it.
+  for (const dir of ['recording', 'vision']) {
+    const skill = read(`src/skills/${dir}/SKILL.md`);
+    assert.match(skill, /webapp-evidence:feedback/, `${dir} never mentions how to report a problem`);
+    assert.match(skill, /nobody reads/, `${dir} does not guard against suggesting it every time`);
+  }
+});
+
+test('the issue forms exist, and the skill fills the fields they actually have', () => {
+  // The skill names field ids; a form that renamed one silently drops that content on submit.
+  const forms = {
+    'bug_report.yml': ['description', 'steps', 'output', 'version', 'env'],
+    'feature_request.yml': ['problem', 'solution', 'alternatives'],
+  };
+  const skill = read('src/skills/feedback/SKILL.md');
+  for (const [file, ids] of Object.entries(forms)) {
+    const form = read(`.github/ISSUE_TEMPLATE/${file}`);
+    assert.match(skill, new RegExp(file.replace('.', '\\.')), `the skill never names ${file}`);
+    for (const id of ids) {
+      assert.match(form, new RegExp(`^\\s+id: ${id}$`, 'm'), `${file} has no field ${id}`);
+      assert.ok(skill.includes(`\`${id}\``), `the skill does not fill ${id}`);
+    }
+  }
 });
 
 test('the description stays short enough to read in a command list', () => {
@@ -241,6 +279,16 @@ test('a translation keeps the commands and the demo the English one shows', () =
     assert.ok(body.includes('claude plugin install webapp-evidence@webapp-evidence'), `${file} lost the install command`);
     assert.ok(body.includes('./docs/demo/saucedemo.gif'), `${file} lost the demo recording`);
     assert.ok(body.includes('/webapp-evidence:recording'), `${file} lost the invocation`);
+  }
+});
+
+test('every demo file the READMEs link to exists', () => {
+  // A link to a sheet that was never committed is a 404 on the front page, in four languages.
+  for (const file of ['README.md', 'README.vi-VN.md', 'README.ja-JP.md', 'README.zh-Hans.md']) {
+    const body = read(file);
+    for (const ref of body.match(/\.\/docs\/demo\/[A-Za-z0-9_.-]+/g) ?? []) {
+      assert.ok(fs.existsSync(path.join(REPO, ref.slice(2))), `${file} links to a missing ${ref}`);
+    }
   }
 });
 

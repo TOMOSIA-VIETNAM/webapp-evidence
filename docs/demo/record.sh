@@ -7,7 +7,8 @@
 # runner, so a reader sees real output rather than a mock-up. Needs Google Chrome, ffmpeg and Node,
 # and about a minute.
 #
-# The recording goes to a temporary directory; only docs/demo/saucedemo.gif lands in the repository.
+# The recording goes to a temporary directory; docs/demo/saucedemo.gif and the vision sheets beside
+# it are the only things that land in the repository.
 # The runbook is printed at the end because the README quotes from it, and quoting something you
 # have not just regenerated is how a README drifts away from the thing it describes.
 set -euo pipefail
@@ -49,6 +50,20 @@ ffmpeg -v error -y -i "$OUT_DIR/saucedemo-checkout.mp4" -i "$PALETTE" \
   -lavfi "fps=$FPS,scale=$WIDTH:-1:flags=lanczos[v];[v][1:v]paletteuse=dither=none" \
   "$GIF"
 
-printf 'done — %s (%s)\n\n' "$GIF" "$(du -h "$GIF" | cut -f1)"
-printf -- '---- the runbook this take produced ----\n\n'
+printf 'done — %s (%s)\n' "$GIF" "$(du -h "$GIF" | cut -f1)"
+
+# The same take read back the way the vision skill reads one, so the sheets the README links to come
+# from the recording it shows rather than from a different run.
+printf '\ntiling it into contact sheets\n'
+node "$REPO/src/skills/vision/scripts/contact-sheet.js" "$OUT_DIR/saucedemo-checkout.mp4" \
+  --every 1 --columns 4 --rows 5 --out "$OUT_DIR" >/dev/null
+i=1
+for sheet in "$OUT_DIR"/saucedemo-checkout-sheet-*.png; do
+  target="$REPO/docs/demo/$(printf 'vision-sheet-%02d.png' "$i")"
+  cp -- "$sheet" "$target"
+  printf 'done — %s (%s)\n' "$target" "$(du -h "$target" | cut -f1)"
+  i=$((i + 1))
+done
+
+printf -- '\n---- the runbook this take produced ----\n\n'
 cat "$OUT_DIR/saucedemo-checkout-runbook.md"

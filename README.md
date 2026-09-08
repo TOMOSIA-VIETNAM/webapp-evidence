@@ -142,6 +142,7 @@ syntax to memorise either — "get evidence for the screen I just fixed" works f
 | A gif, for a README or anywhere that only renders images | `/webapp-evidence:recording -f gif` |
 | A webm, for a page you control | `/webapp-evidence:recording -f webm` |
 | To know what the video shows, without watching it | `/webapp-evidence:vision <the mp4>` |
+| To tell us something is wrong, or missing | `/webapp-evidence:feedback` |
 
 mp4 stays the default: it plays inline in a merge request, an issue and every chat tool, and it's the
 smallest of the three. A gif of the same recording is several times larger, so you get an offer
@@ -152,6 +153,10 @@ couple of seconds, each stamped `mm:ss` — and reads those as images. So a find
 header overlaps the table at 00:14", a time you can check yourself and match to the runbook. It picks
 up what nobody thought to screenshot: a layout that breaks mid-transition, a banner that flashes and
 is gone.
+
+Here are the sheets it produced from the recording above:
+**[sheet 1](./docs/demo/vision-sheet-01.png)** (00:00–00:19) ·
+**[sheet 2](./docs/demo/vision-sheet-02.png)** (00:20–00:36).
 
 ## Limits
 

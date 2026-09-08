@@ -1,0 +1,57 @@
+name: 🐛 Bug report
+description: A recording came out wrong, a command failed, or the skill did something unexpected
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened
+      description: What the skill did, and what you expected instead.
+      placeholder: |
+        E.g.: The video was recorded but the caption for the <select> never appeared, so
+        there is no way to tell which option was chosen. Expected a subtitle along the bottom.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to reach it
+      description: What you typed and in what order. A step script or a config, if one was involved.
+      placeholder: |
+        1. /webapp-evidence:recording Page: https://example.com — steps: ...
+        2. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: output
+    attributes:
+      label: What the runner printed
+      description: |
+        The lines it printed, or the error. A screenshot or a frame from the video helps — you can
+        drag images straight into this field.
+      placeholder: Paste the output, the error, or drop a screenshot here...
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: Version in use
+      description: "`claude plugin list` in Claude Code, or the release tag you installed."
+      placeholder: e.g. v0.2.0, or a commit SHA
+    validations:
+      required: false
+
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: OS, which agent you called it from, and the browser and ffmpeg versions if the recording itself misbehaved.
+      placeholder: |
+        - OS: macOS 15
+        - Agent: Claude Code / Cursor / Codex / Gemini CLI / Antigravity
+        - Chrome: ..., ffmpeg: ...
+    validations:
+      required: false
