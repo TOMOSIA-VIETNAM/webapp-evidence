@@ -1,7 +1,6 @@
 # Working on the skill
 
-`README.md` covers installing and using it, `docs/install.md` covers every platform. This file is
-for changing it.
+`README.md` covers installing and using it, in four languages. This file is for changing it.
 
 Contributions are welcome. Before opening a pull request, run both checks — `node --test
 'tests/*.test.js'` and `./tests/e2e/run.sh` — and say in the description which of them you ran,
@@ -30,7 +29,6 @@ scripts/install-local.sh   the installer that knows every platform's directory
 tests/                     unit tests and the platform-layer guards
 tests/e2e/                 the demo app and the recording check that drives it
 evals/                     queries for checking that the skill description triggers correctly
-docs/install.md            the install page every README points at
 ```
 
 ## Where each name comes from

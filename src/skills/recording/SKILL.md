@@ -92,11 +92,13 @@ Do not guess selectors from memory or from reading the template — the running 
 source that tells the truth, especially for JS-rendered UI.
 
 ```bash
-# Install the runner's dependency (first time only)
-[ -d scripts/node_modules ] || npm install --prefix scripts --no-audit --no-fund
-
 node scripts/inspect.js /path-of-the-screen
 ```
+
+Recording drives a real Chrome and encodes the result, so the machine needs Chrome, ffmpeg, Node and
+the runner's own npm dependency. When something is missing the command says so. Do not walk the user
+through installing it and do not paste instructions from here — offer to install it yourself, wait
+for them to agree, then do it with whatever the machine already uses. Their machine, their call.
 
 It prints buttons, inputs, selects (with their real option lists) and links, one usable selector per
 line. Shared navigation chrome is filtered out; `--all` shows everything.

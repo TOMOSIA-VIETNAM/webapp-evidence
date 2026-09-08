@@ -7,7 +7,7 @@
 
 <p align="center">
   <strong>The proof records itself.</strong><br>
-  <sub>An operation video, screenshots and a runbook — from one sentence in your agent.</sub><br>
+  <sub>Ask once. Get a video, the screenshots, and a runbook you can hand to a reviewer.</sub><br>
   <code>/webapp-evidence:recording</code>
 </p>
 
@@ -21,49 +21,78 @@
 </p>
 
 <p align="center">
-  <img src="./docs/demo/demo.gif" width="820" alt="The cursor travels to the name field, types a search term, picks a status from a dropdown the recording cannot show — a subtitle along the bottom says which one — runs the search, then opens and closes a detail modal.">
+  <strong>English</strong> · <a href="./README.vi-VN.md">Tiếng Việt</a> · <a href="./README.ja-JP.md">日本語</a> · <a href="./README.zh-Hans.md">简体中文</a>
 </p>
 
-Reviewers ask for proof. Customers ask for proof. And the honest answer is usually a screenshot
-taken at the wrong moment, or a screen recording where the mouse teleports, the dropdown never
-appears, and nobody can tell which button was pressed.
+Attaching proof to a merge request usually means a screenshot taken at the wrong moment, or a screen
+recording where the mouse teleports, the dropdown never opens, and nobody can tell which button was
+pressed. So most changes ship with no evidence at all, and the review goes ahead on trust.
 
-That is not a recording problem. It is that **a real browser session, replayed for a human to watch,
-is tedious to produce by hand** — so people stop producing it, and the review goes ahead on trust.
-
-`webapp-evidence` makes it one sentence:
+## You ask for this
 
 ```
-/webapp-evidence:recording
+/webapp-evidence:recording Page: https://www.saucedemo.com
+Flow:
+1. Log in using standard_user / secret_sauce
+2. Change the sort dropdown to "Price (low to high)"
+3. Add "Sauce Labs Backpack" to the cart, then open the cart
+4. Checkout, fill First Name / Last Name / Zip as Minh / Tang / 700000
+5. Continue, then Finish, and stop at the "Thank you for your order!" screen
 ```
 
-The agent works out which screen changed from the conversation you were already having, drives a
-real Chrome through it, and hands you back an mp4, the screenshots, and a runbook that says what
-happens at each timestamp and how to record it again.
+## You get this back
 
-## What makes the video watchable
+<p align="center">
+  <img src="./docs/demo/saucedemo.gif" width="820" alt="A recording of the Swag Labs checkout: the cursor signs in, sorts the product list by price — a subtitle along the bottom says which option was chosen, because the dropdown is drawn by the operating system and cannot be filmed — adds a backpack to the cart, fills the checkout form, and finishes the order.">
+</p>
 
-A machine-driven recording is instantly recognisable: the cursor jumps in straight lines, every wait
-is exactly the same length, and values appear in fields with nobody touching them. This one is built
-for the person watching it:
+Plus eight screenshots at the moments that matter, and a runbook a reviewer can read without
+watching anything:
 
-- **The cursor is visible and moves like a hand** — a slightly curved path, quick to accelerate and
-  slow to brake, overshooting a distant target before correcting. Every click leaves a ripple.
-- **The pace follows what is on screen.** Clicks that only navigate go briskly; the moment a result
-  appears, it is held long enough to read. Waits vary instead of ticking identically.
+```markdown
+## Steps in the video
+
+00:00 - 00:01  Open the sign-in screen
+00:01 - 00:08  Sign in as standard_user
+00:08 - 00:13  Sort the product list by Price (low to high)
+00:13 - 00:16  Add Sauce Labs Backpack to the cart
+00:16 - 00:19  Open the shopping cart
+00:19 - 00:26  Enter the customer information
+00:26 - 00:29  Review the order summary
+00:29 - 00:36  Finish the order
+
+## Captions shown in the video
+
+- 00:10  Selected "Price (low to high)". The dropdown menu is drawn by the operating
+         system, so it does not appear in this recording.
+- 00:31  The order is placed on the public saucedemo.com demo site, so no real data
+         is created.
+
+## Page errors recorded during the take
+
+- [http 401] https://events.backtrace.io/api/unique-events/submit…
+```
+
+That last section is the part nobody expects. The runner watches the console and the network while
+it records, so the reviewer learns the page was throwing 401s — something no screenshot would have
+shown, and nobody was looking for.
+
+The runbook also carries the exact command that reproduces the take. Data moved on, the video broke,
+the reviewer wants it slower: ask again. The previous take is kept in `v1`, `v2`… rather than
+overwritten, because evidence already sent with an MR is the one thing you cannot regenerate.
+
+## Why it is worth a reviewer's time
+
+- **The cursor is visible and moves like a hand** — a curved path, quick to accelerate, slow to
+  brake, overshooting a distant target before correcting. Every click leaves a ripple.
+- **The pace follows the screen.** Clicks that only navigate go briskly; the moment a result
+  appears, it is held long enough to read.
 - **What the frame cannot hold is said out loud.** A `<select>` menu and a file picker are drawn by
   the operating system and never enter a page recording — so a subtitle along the bottom says what
-  was chosen, and why the widget is not visible. It sits where a film puts its subtitles, so it
-  never covers the thing being proven. Keyboard shortcuts are different: they raise a key hint
-  overlay (`⌘ + C`) beside the element they act on, because which element matters.
-- **The page-load wait is trimmed** off the front, so the video starts where the work starts.
-
-The explanation lives in the runbook, not burned into the video — fixing the wording never means
-recording again.
+  was chosen. Keyboard shortcuts raise a key hint overlay (`⌘ + C`) beside the element they act on.
+- **The page-load wait is trimmed**, so the video starts where the work starts.
 
 ## Install
-
-Needs **Google Chrome**, **ffmpeg** and **Node.js**. On macOS: `brew install ffmpeg`.
 
 **Claude Code**
 
@@ -78,40 +107,23 @@ claude plugin install webapp-evidence@webapp-evidence
 curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash
 ```
 
-It asks which platform you want and sets up the runner's dependency itself.
+It asks which platform you want and tells you where it put things. Recording needs Chrome, ffmpeg
+and Node on the machine — if anything is missing, the agent says what and offers to install it.
 
-### Picking a version
-
-The one-liner installs the newest release tag, or `main` while there are no releases yet. To follow
-something else, pass `--ref`:
+The one-liner installs the newest release, or `main` while there are no releases yet. `--ref` picks
+something else and is remembered, so updating later keeps you where you asked to be:
 
 ```bash
-# a branch — to try a change before it ships
-curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash -s -- --ref main
-
-# a specific release — to pin a team to one version
-curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash -s -- --ref v1.2.0
-
-# back to following releases
-curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash -s -- --ref latest
+curl -fsSL … /install.sh | bash -s -- --ref main       # a branch, to try a change before it ships
+curl -fsSL … /install.sh | bash -s -- --ref v1.2.0     # a release, to pin a team to one version
+curl -fsSL … /install.sh | bash -s -- --ref latest     # back to following releases
 ```
 
-The clone remembers what you chose, so re-running the one-liner to update keeps you on that branch
-or tag instead of dropping you back onto releases. `~/.webapp-evidence/scripts/install-local.sh
---update` does the same from the clone itself.
+Update with `~/.webapp-evidence/scripts/install-local.sh --update`, remove with `--uninstall --all`.
+Note that `install.sh` is always fetched from the default branch, so a change to the installer
+itself only reaches you once it is merged there.
 
-Install from a branch and that branch later gets merged and deleted, and the next plain run stops
-with `has no ref named …` — the ref is gone, and nothing is guessed on your behalf. `--ref latest`
-puts you back on releases.
-
-One thing the one-liner cannot do is upgrade itself ahead of time: `install.sh` is always fetched
-from the default branch, so a new flag only reaches you once it is merged there, even when you ask
-for a branch that already has it.
-
-Full guide, including where each platform puts it and how to remove it:
-**[Install](./docs/install.md)**.
-
-## Using it
+## Calling it
 
 | platform | how you call it |
 |---|---|
@@ -119,88 +131,54 @@ Full guide, including where each platform puts it and how to remove it:
 | Cursor, Gemini CLI, Antigravity | `/webapp-evidence-recording` |
 | Codex | `$webapp-evidence-recording` |
 
-**You just finished a task or a bug fix.** The agent already knows which screen changed:
+**Just finished a task or a bug fix.** The agent already knows which screen changed, so there is
+nothing to type after it:
 
 ```
 /webapp-evidence:recording
 ```
 
-**A fresh session, and all you have is the link.** It reads the MR/PR — description and diff — and
-works out what to record:
+**All you have is the link.** It reads the MR/PR — description and diff — and works out what to
+record:
 
 ```
 /webapp-evidence:recording https://gitlab.example.com/group/admin/-/merge_requests/1783
 ```
 
-**You don't write code.** Give the page and say what to show, in your own words:
+**You don't write code.** Give the page and say what to show, the way the example above does. No
+repository, no config, nothing to set up. Write the steps in whatever language you think in; the
+agent replies in the same one.
 
-```
-/webapp-evidence:recording record the search page at https://app.example.com/search:
-type "abc", press Search, capture the results
-```
-
-No repository, no config, nothing to set up — the agent opens the page, follows the steps you
-described, and hands back the video and the screenshots with the folder they are in. Write the steps
-in whatever language you think in; the agent replies in the same one.
-
-There is no syntax to remember either. "Get evidence for the screen I just fixed" does the same
+There is no syntax to remember either — "get evidence for the screen I just fixed" does the same
 thing.
 
-## What you get
+## In a project
 
-```
-user-search.mp4                        the operation video
-user-search-runbook.md                 timeline + shortcuts + captions + how to run it again
-01-index.png … 99-full-page.png        screenshots, one per step
-steps.js                               the recorded steps, editable and re-runnable
-user-search-console.log                only present when the page had errors
-```
-
-Ask for a re-record any time — the data moved on, the video broke, the reviewer wants it slower. The
-runbook holds the exact command, and previous takes are kept in `v1`, `v2`… rather than overwritten,
-because evidence already sent with an MR is the one thing you cannot regenerate.
-
-Videos and screenshots are **not committed** to Git. You attach them to the MR/PR yourself.
-
-## First time in a project
-
-The agent needs to know where the app runs, how to bring the environment up, and how to log in. Ask
-once:
+Point it at a project once and it learns how to get in:
 
 ```
 /webapp-evidence:recording set up the evidence config for this project
 ```
 
-It probes the login screen, finds a dev account, and writes an `evidence.config.js` into the
-project. After that, asking for evidence is all it takes.
+It probes the login screen, finds a dev account, and writes an `evidence.config.js`. From then on
+every recording starts signed in on a working environment without being asked.
 
-## Tuning it
+Say what you want changed — "record it slower", "captions in Japanese", "keep only the newest take"
+— and it edits that file for you.
 
-Say what you want — "record it slower", "captions in Japanese", "keep only the newest take". The
-settings live in the project's `evidence.config.js`:
-
-```js
-recording: {
-  speed: 'slow',                             // like video playback speed: 'fast' | 'normal' | 'slow' | 'slowest'
-  captions: { enabled: true, locale: 'ja' }, // caption language: en | ja | vi
-},
-output: {
-  overwrite: false,                          // false: previous takes are kept in evidence/v1, v2…
-},
-```
-
-Frame size, video quality and the wait after each kind of action are adjustable too.
-
-## Limitations
+## Limits worth knowing
 
 The video records the page, not your screen, so anything the operating system draws stays out of
-frame: `<select>` dropdowns, the file picker, and the browser's `confirm`/`alert` dialogs. Those
-moments carry a caption saying what was chosen, plus a screenshot of the state afterwards. Modals,
-date pickers and dropdowns built in JS record normally.
+frame: `<select>` dropdowns, the file picker, `confirm`/`alert` dialogs. Those moments get a
+subtitle saying what was chosen, plus a screenshot of the state afterwards. Modals, date pickers and
+dropdowns built in JS record normally.
 
-Recording only ever runs against local dev — never staging, never production.
+Recording runs against local dev or a site you name — never staging, never production.
+
+Videos and screenshots stay out of Git. You attach them to the MR/PR yourself.
 
 ---
 
-The demo above is recorded by this repository's own runner against the demo app in `tests/e2e/app`,
-with `docs/demo/record.sh`. Working on the skill itself? See **[CONTRIBUTING.md](./CONTRIBUTING.md)**.
+The recording above is real output from this repository's runner: `docs/demo/record.sh` produces it
+from `docs/demo/saucedemo-steps.js`. Working on the skill itself? See
+**[CONTRIBUTING.md](./CONTRIBUTING.md)**.
