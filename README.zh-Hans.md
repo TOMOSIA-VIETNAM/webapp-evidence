@@ -115,15 +115,15 @@ curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/mai
 
 能跟它要的东西：
 
-| 你想要 | 在命令后面输入 |
+| 你想要 | 输入什么 |
 |---|---|
-| 刚改完的页面的证据 | *什么都不用输* —— 它知道你刚在做什么 |
-| 某个 MR 或 PR 的证据 | `https://gitlab.example.com/group/admin/-/merge_requests/1783` |
-| 按你的描述录一个页面 | `Page: https://app.example.com/search` 然后写步骤，就像上面的例子 |
-| 再录一遍同样的内容 | `再录一遍` —— 命令在 runbook 里，旧的录制不会被覆盖 |
-| 录慢一点 | `录慢一点` |
-| 换一种语言的字幕 | `字幕用日文` —— 按项目记住 |
-| 给项目配一次，以后录制都已登录 | `set up the evidence config for this project` |
+| 刚改完的页面的证据 | `/webapp-evidence:recording` —— 它知道你刚在做什么 |
+| 某个 MR 或 PR 的证据 | `/webapp-evidence:recording https://gitlab.example.com/group/admin/-/merge_requests/1783` |
+| 按你的描述录一个页面 | `/webapp-evidence:recording Page: https://app.example.com/search` 然后写步骤，就像上面的例子 |
+| 再录一遍同样的内容 | `/webapp-evidence:recording 再录一遍` —— 命令在 runbook 里，旧的录制不会被覆盖 |
+| 录慢一点 | `/webapp-evidence:recording 录慢一点` |
+| 换一种语言的字幕 | `/webapp-evidence:recording 字幕用日文` —— 按项目记住 |
+| 给项目配一次，以后录制都已登录 | `/webapp-evidence:recording set up the evidence config for this project` |
 
 步骤用你平时用的那种语言写就行，代理也用同一种语言回你。也没有语法要记——说“给我刚修好的那个
 界面的证据”，一样能跑。

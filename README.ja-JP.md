@@ -122,15 +122,15 @@ ffmpeg、Node が必要です。足りないものがあれば、エージェン
 
 頼めることは次のとおりです:
 
-| やりたいこと | コマンドのあとに入力 |
+| やりたいこと | 入力するもの |
 |---|---|
-| いま直した画面の証跡 | *何も入力しない* — 直前の作業から判断します |
-| MR / PR の証跡 | `https://gitlab.example.com/group/admin/-/merge_requests/1783` |
-| 説明したとおりにページを録る | `Page: https://app.example.com/search` に続けて手順を、上の例のように |
-| 同じ内容をもう一度 | `もう一度録って` — コマンドはランブックにあり、前の録画も残ります |
-| もっとゆっくり録る | `もう少しゆっくり録って` |
-| 字幕を別の言語で | `字幕は英語で` — プロジェクトごとに覚えます |
-| 最初に一度だけ設定して、以降はログイン済みで録る | `set up the evidence config for this project` |
+| いま直した画面の証跡 | `/webapp-evidence:recording` — 直前の作業から判断します |
+| MR / PR の証跡 | `/webapp-evidence:recording https://gitlab.example.com/group/admin/-/merge_requests/1783` |
+| 説明したとおりにページを録る | `/webapp-evidence:recording Page: https://app.example.com/search` に続けて手順を、上の例のように |
+| 同じ内容をもう一度 | `/webapp-evidence:recording もう一度録って` — コマンドはランブックにあり、前の録画も残ります |
+| もっとゆっくり録る | `/webapp-evidence:recording もう少しゆっくり録って` |
+| 字幕を別の言語で | `/webapp-evidence:recording 字幕は英語で` — プロジェクトごとに覚えます |
+| 最初に一度だけ設定して、以降はログイン済みで録る | `/webapp-evidence:recording set up the evidence config for this project` |
 
 手順は自分が使っている言語で書いてかまいません。エージェントも同じ言語で答えます。覚える構文も
 ないので、「さっき直した画面の証跡を取って」で通じます。

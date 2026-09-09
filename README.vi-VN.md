@@ -119,15 +119,15 @@ Gọi thế nào thì tuỳ nơi bạn đang ngồi làm:
 
 Những thứ bạn có thể yêu cầu:
 
-| Bạn cần | Gõ sau lệnh |
+| Bạn cần | Gõ gì |
 |---|---|
-| Bằng chứng cho màn hình bạn vừa sửa | *không gõ gì* — nó biết bạn vừa làm gì |
-| Bằng chứng cho một MR hoặc PR | `https://gitlab.example.com/group/admin/-/merge_requests/1783` |
-| Quay một trang theo mô tả của bạn | `Page: https://app.example.com/search` rồi liệt kê các bước, như ví dụ ở trên |
-| Quay lại đúng bản cũ | `quay lại bản đó` — runbook giữ sẵn lệnh, bản cũ không bị ghi đè |
-| Quay chậm hơn | `quay chậm lại` |
-| Chú thích bằng tiếng khác | `chú thích tiếng Nhật` — nhớ theo từng dự án |
-| Cấu hình dự án một lần, để lần sau quay là đã đăng nhập sẵn | `set up the evidence config for this project` |
+| Bằng chứng cho màn hình bạn vừa sửa | `/webapp-evidence:recording` — nó biết bạn vừa làm gì |
+| Bằng chứng cho một MR hoặc PR | `/webapp-evidence:recording https://gitlab.example.com/group/admin/-/merge_requests/1783` |
+| Quay một trang theo mô tả của bạn | `/webapp-evidence:recording Page: https://app.example.com/search` rồi liệt kê các bước, như ví dụ ở trên |
+| Quay lại đúng bản cũ | `/webapp-evidence:recording quay lại bản đó` — runbook giữ sẵn lệnh, bản cũ không bị ghi đè |
+| Quay chậm hơn | `/webapp-evidence:recording quay chậm lại` |
+| Chú thích bằng tiếng khác | `/webapp-evidence:recording chú thích tiếng Nhật` — nhớ theo từng dự án |
+| Cấu hình dự án một lần, để lần sau quay là đã đăng nhập sẵn | `/webapp-evidence:recording set up the evidence config for this project` |
 
 Viết các bước bằng ngôn ngữ nào cũng được, agent trả lời đúng ngôn ngữ đó. Cũng chẳng có cú pháp nào
 phải nhớ — nói "lấy evidence cho màn mình vừa sửa" là chạy.

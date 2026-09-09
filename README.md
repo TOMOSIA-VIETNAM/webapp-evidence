@@ -123,15 +123,15 @@ How you call it depends on where you are:
 
 What you can ask for:
 
-| You want | Type after the command |
+| You want | Type this |
 |---|---|
-| Evidence of the screen you just changed | *nothing* — it knows what you were working on |
-| Evidence for an MR or PR | `https://gitlab.example.com/group/admin/-/merge_requests/1783` |
-| A page recorded from your description | `Page: https://app.example.com/search` then the steps, like the example above |
-| The same recording again | `record that again` — the runbook keeps the command, old takes are never overwritten |
-| A slower recording | `record it slower` |
-| Captions in another language | `captions in Japanese` — remembered per project |
-| A project set up once, so recordings start signed in | `set up the evidence config for this project` |
+| Evidence of the screen you just changed | `/webapp-evidence:recording` — it knows what you were working on |
+| Evidence for an MR or PR | `/webapp-evidence:recording https://gitlab.example.com/group/admin/-/merge_requests/1783` |
+| A page recorded from your description | `/webapp-evidence:recording Page: https://app.example.com/search` then the steps, like the example above |
+| The same recording again | `/webapp-evidence:recording record that again` — the runbook keeps the command, old takes are never overwritten |
+| A slower recording | `/webapp-evidence:recording record it slower` |
+| Captions in another language | `/webapp-evidence:recording captions in Japanese` — remembered per project |
+| A project set up once, so recordings start signed in | `/webapp-evidence:recording set up the evidence config for this project` |
 
 Write the steps in whatever language you use, and the agent replies in that language. There's no
 syntax to memorise either — "get evidence for the screen I just fixed" works fine.
