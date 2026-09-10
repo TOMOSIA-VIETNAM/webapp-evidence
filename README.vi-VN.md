@@ -166,7 +166,7 @@ Nó quay trang web, không quay màn hình máy bạn. Thứ do OS vẽ sẽ kh�
 hộp thoại chọn file, `confirm`/`alert`. Những chỗ đó được thay bằng phụ đề nói đã chọn gì, kèm
 screenshot ngay sau đó. Modal, date picker và dropdown viết bằng JS thì quay bình thường.
 
-Chỉ chạy trên local dev hoặc site bạn chỉ định — không đụng staging hay production.
+Quay chỉ chạy trên site bạn chỉ định, không gì khác.
 
 Video và screenshot không commit vào Git. Đính vào ticket, MR/PR, báo cáo là việc của bạn.
 
