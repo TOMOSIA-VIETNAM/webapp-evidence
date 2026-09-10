@@ -74,8 +74,8 @@ function readingTime(text, pace) {
 
 // The mouse interpolates its way over before clicking, so the viewer can see where the click lands
 function buildContext({
-  page, outDir, marks, hotkeys, notes, startedAt, pace, viewport, human, captions, terminal,
-  redactions,
+  page, outDir, marks, hotkeys, notes, dialogs, startedAt, pace, viewport, human, captions,
+  terminal, redactions, capturesBrowserUi,
 }) {
   const mark = (label) => marks.push({ at: (Date.now() - startedAt) / 1000, label });
   const since = () => (Date.now() - startedAt) / 1000;
@@ -278,6 +278,63 @@ function buildContext({
     await waitFor(pause);
   }
 
+  // A dialog the browser puts up itself — alert, confirm, prompt, beforeunload.
+  //
+  // Two things make this need a helper rather than a plain click. Playwright dismisses a dialog
+  // the instant it appears unless something is listening, so by default one never reaches the
+  // screen at all. And the click that triggers it does not return until the dialog is answered,
+  // so awaiting the click first would wait forever.
+  //
+  // Nothing may talk to the page while a dialog is up — every evaluate and every mouse move
+  // blocks on it — so the cursor and the caption overlays stay still for the duration, which is
+  // also what a real dialog looks like.
+  async function dialog(body, { accept = true, text, hold = pace.dialogHoldMs, timeout = 10000 } = {}) {
+    if (typeof body !== 'function') {
+      throw new Error('dialog() takes the steps that trigger it: dialog(async () => { … })');
+    }
+
+    let onDialog;
+    const appeared = new Promise((resolve, reject) => {
+      onDialog = resolve;
+      page.once('dialog', resolve);
+      setTimeout(() => reject(new Error(
+        `No browser dialog appeared within ${timeout}ms.\n` +
+        'dialog() is for alert, confirm, prompt and beforeunload. A modal drawn by the ' +
+        'application itself is ordinary page content — click it like anything else.'
+      )), timeout);
+    });
+
+    // Deliberately not awaited: it cannot finish until the dialog below is answered
+    const triggered = Promise.resolve().then(body);
+    triggered.catch(() => {});   // reported after the dialog is out of the way, not before
+
+    let opened;
+    try {
+      opened = await appeared;
+    } finally {
+      page.off('dialog', onDialog);
+    }
+
+    const message = opened.message();
+    // Held on screen long enough to read, the way a person would before answering
+    await sleep(human.wait(hold));
+    await (accept ? opened.accept(text) : opened.dismiss());
+    await triggered;
+
+    dialogs.push({ at: since(), kind: opened.type(), message, accepted: accept });
+
+    // When the window is being recorded the dialog is in the video and needs no explaining.
+    // When only page content is, the viewer sees a value change with nothing to account for it.
+    if (!capturesBrowserUi) {
+      const caption = captions.text('browserDialog', { accepted: accept, message });
+      if (await showNote(caption)) {
+        await sleep(readingTime(caption, pace));
+        await hideCaption();
+      }
+    }
+    return { message, type: opened.type() };
+  }
+
   let shotIndex = 0;
   async function shot(name) {
     // A screenshot taken while something is being kept out of the video has to be kept out of the
@@ -367,7 +424,7 @@ function buildContext({
   }
 
   return {
-    page, mark, click, type, select, upload, hotkey, note, shot, redact, sleep, moveTo,
+    page, mark, click, type, select, upload, hotkey, note, shot, redact, dialog, sleep, moveTo,
     term: terminal.term,
   };
 }
@@ -411,6 +468,18 @@ function buildTimeline(marks, trimAt, duration, removed = []) {
     .map((m, i) => ({ from: m.at, to: shifted[i + 1]?.at ?? duration, label: m.label }))
     .filter((r) => r.to - r.from > 0.4);
   return rows.map((r) => `${fmt(r.from)} - ${fmt(r.to)}  ${r.label}`).join('\n');
+}
+
+// What the browser asked and what was answered. Worth its own section whichever backend
+// recorded the take: in a page recording the dialog is not in the video at all, and in a window
+// recording it is on screen for a couple of seconds among everything else.
+function buildDialogSection(dialogs, trimAt, removed) {
+  const shown = placed(dialogs, trimAt, removed);
+  if (!shown.length) return '';
+  const rows = shown.map((entry) => (
+    `- ${fmt(entry.at)}  ${entry.kind}: "${entry.message}" — ${entry.accepted ? 'accepted' : 'dismissed'}`
+  ));
+  return `## Dialogs the browser put up\n\n${rows.join('\n')}\n\n`;
 }
 
 // A blurred rectangle in the middle of a video looks like a rendering fault unless the reader is
@@ -651,7 +720,7 @@ To change what gets recorded, edit \`${rel(meta.stepsFile)}\`, not the runbook f
 
 ${meta.timeline}
 
-${meta.hotkeySection}${meta.noteSection}${meta.commandSection}${meta.redactionSection}${meta.removedSection}## Screenshots
+${meta.hotkeySection}${meta.noteSection}${meta.commandSection}${meta.dialogSection}${meta.redactionSection}${meta.removedSection}## Screenshots
 
 ${meta.shots.length ? meta.shots.map((f) => `- ${f}`).join('\n') : '- (none)'}
 
@@ -740,6 +809,7 @@ async function main() {
   const marks = [];
   const hotkeys = [];
   const notes = [];
+  const dialogs = [];
   const redactions = createRedactions();
   const captions = createCaptions(settings.recording.captions);
 
@@ -774,8 +844,11 @@ async function main() {
   });
 
   const ctx = buildContext({
-    page, outDir, marks, hotkeys, notes, startedAt, pace, viewport, human, captions, terminal,
-    redactions,
+    page, outDir, marks, hotkeys, notes, dialogs, startedAt, pace, viewport, human, captions,
+    terminal, redactions,
+    // A dialog the browser draws is in the video when the window is being recorded, and needs a
+    // caption standing in for it when only page content is.
+    capturesBrowserUi: capture.mode !== 'page',
   });
   ctx.baseUrl = baseUrl;
   try {
@@ -823,6 +896,7 @@ async function main() {
     runner: __filename, timeline, hotkeySection: buildHotkeySection(hotkeys, trimAt, removed),
     noteSection: buildNoteSection(notes, trimAt, removed),
     commandSection: buildCommandSection(terminal.commands, trimAt, removed),
+    dialogSection: buildDialogSection(dialogs, trimAt, removed),
     redactionSection: buildRedactionSection(redactions.all(), trimAt, removed),
     removedSection: buildRemovedSection(removed),
     shots, fixes, problems,
@@ -852,7 +926,8 @@ module.exports = {
   // Exported for the unit tests: pure helpers that decide timings, timeline rows and the
   // .gitignore hints, none of which need a browser to be checked.
   fmt, keyCaps, readingTime, buildTimeline, buildHotkeySection, buildNoteSection,
-  buildCommandSection, buildRedactionSection, buildRemovedSection, placeAt, ignoreHints,
+  buildCommandSection, buildDialogSection, buildRedactionSection, buildRemovedSection, placeAt,
+  ignoreHints,
   // Re-exported where the pacing tests already look for it; it lives in human.js with the rest
   // of the pacing, because the terminal helpers read the same vocabulary.
   resolvePause,

@@ -7,10 +7,12 @@ const assert = require('node:assert/strict');
 const {
   visibleRows, columnsFor, isBehindPanel, LINE_HEIGHT, PANEL_CHROME_PX,
 } = require('../src/skills/recording/scripts/terminal');
-const { DEFAULTS } = require('../src/skills/recording/scripts/settings');
+const { resolveSettings } = require('../src/skills/recording/scripts/settings');
 
 test('the rows sent fit inside the panel, with none drawn past its bottom edge', () => {
-  const { height, fontSize } = DEFAULTS.recording.terminal;
+  // The height is derived from the frame, so it is read from a resolved configuration rather
+  // than from the defaults, where it is still the instruction to derive one.
+  const { height, fontSize } = resolveSettings({}).recording.terminal;
   const rows = visibleRows(height, fontSize);
   assert.ok(rows * fontSize * LINE_HEIGHT <= height - PANEL_CHROME_PX);
 });

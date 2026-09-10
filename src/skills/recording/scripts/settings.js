@@ -20,6 +20,9 @@ const DEFAULTS = {
     captions: { enabled: true, locale: 'en' },
     browserChannel: 'chrome',
     headed: false,
+    // Open DevTools with the browser. Only meaningful alongside a window capture — it is
+    // browser UI, so a recording of page content cannot contain it either way.
+    devtools: false,
     // How fast the actions run in the video. Accepts a preset name ('slowest' | 'slow' | 'normal'
     // | 'fast') or a number read like a video player's playback rate: 1 = normal, 0.5 = half
     // speed, 1.5 = one and a half times faster. A bigger number is always faster, exactly as the
@@ -47,6 +50,7 @@ const DEFAULTS = {
       afterSelectMs: 900,
       afterUploadMs: 1200,    // hold so the file name has time to appear
       afterCommandMs: 1600,   // hold after a command finishes, so its output can be read
+      dialogHoldMs: 2600,     // how long a browser dialog stays up before it is answered
       beforeHotkeyMs: 450,    // the key hint overlay appears first, then the keys are pressed
       hotkeyHoldMs: 1400,     // keep the overlay up after the press, long enough to read both the keys and the result
       afterHotkeyMs: 900,     // pause after the overlay goes away
@@ -85,7 +89,10 @@ const DEFAULTS = {
     // so a step script can prove what happened behind the browser — a job that was enqueued, a
     // file that was written — without recording the whole screen.
     terminal: {
-      height: 300,           // the bottom strip of the frame the panel occupies, in pixels
+      // The bottom strip of the frame the panel occupies. null derives it from the viewport, so
+      // a small frame does not have to override a number it never asked for — and a take that
+      // never opens a terminal is never stopped by one.
+      height: null,
       fontSize: 13,
       // --norc keeps the take independent of whoever's dotfiles are on the machine. The
       // environment is still inherited, so a PATH set up by rbenv, nvm or asdf applies.
@@ -113,6 +120,23 @@ const SPEED_PRESETS = { slowest: 0.5, slow: 0.67, normal: 1, fast: 1.67 };
 const SPEED_RANGE = { min: 0.2, max: 5 };
 
 const isObject = (v) => v && typeof v === 'object' && !Array.isArray(v);
+
+// A plain object is one worth merging into and copying. A RegExp (recording.terminal.scrub) and
+// a Date are objects too, and copying them field by field would quietly turn them into something
+// that is no longer either.
+const isPlain = (v) => isObject(v)
+  && (Object.getPrototypeOf(v) === Object.prototype || Object.getPrototypeOf(v) === null);
+
+// DEFAULTS is a module-level object, and the settings handed back are written to afterwards —
+// an environment variable overrides a value, a derived one is filled in. A shallow copy leaves
+// every nested scope pointing at DEFAULTS itself, so the first run writes into the defaults and
+// the second run reads what the first one decided. That is a bug that only shows up in the
+// second run, which in practice means only ever in the tests.
+function clone(value) {
+  if (Array.isArray(value)) return value.map(clone);
+  if (!isPlain(value)) return value;
+  return Object.fromEntries(Object.entries(value).map(([key, inner]) => [key, clone(inner)]));
+}
 
 // speed scales every duration in pace. The interpolation step count stays as it is, because it
 // decides whether the cursor path looks smooth, not whether it is fast or slow.
@@ -150,10 +174,10 @@ function applySpeed(pace, speed) {
 }
 
 function merge(base, override) {
-  const out = { ...base };
+  const out = clone(base);
   for (const [key, value] of Object.entries(override || {})) {
     if (value === undefined) continue;
-    out[key] = isObject(value) && isObject(base[key]) ? merge(base[key], value) : value;
+    out[key] = isPlain(value) && isPlain(base[key]) ? merge(base[key], value) : clone(value);
   }
   return out;
 }
@@ -217,10 +241,19 @@ function parseSwitch(value) {
 const MIN_PANEL_ROWS_HEIGHT = 120;
 const MAX_PANEL_SHARE = 0.6;
 
-function assertTerminal({ terminal, viewport }) {
+function resolveTerminal({ terminal, viewport }) {
   const fail = (key, message) => {
     throw new Error(`recording.terminal.${key} ${message}`);
   };
+
+  // Derived rather than fixed: the panel should be a share of the frame, and the fixed default
+  // it used to have made a 480px frame refuse to record at all.
+  if (terminal.height === null || terminal.height === undefined) {
+    terminal.height = Math.max(
+      MIN_PANEL_ROWS_HEIGHT,
+      Math.min(300, Math.round(viewport.height * 0.4)),
+    );
+  }
 
   if (!Number.isFinite(terminal.height) || terminal.height < MIN_PANEL_ROWS_HEIGHT) {
     fail('height', `must be at least ${MIN_PANEL_ROWS_HEIGHT}px, got ${JSON.stringify(terminal.height)}`);
@@ -315,7 +348,7 @@ function resolveSettings(config) {
     settings.recording.captions.locale = assertLocale(process.env.CAPTION_LOCALE, 'CAPTION_LOCALE');
   }
   assertLocale(settings.recording.captions.locale, 'recording.captions.locale');
-  assertTerminal(settings.recording);
+  resolveTerminal(settings.recording);
   assertCapture(settings.recording);
 
   // A hidden window has nothing on a screen to record, so asking for one settles the other

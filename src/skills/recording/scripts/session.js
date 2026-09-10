@@ -185,11 +185,19 @@ function resolveApp(config, app) {
 }
 
 async function launchBrowser(settings) {
-  const { headed, browserChannel, viewport } = settings.recording;
+  const { headed, browserChannel, viewport, devtools } = settings.recording;
   return chromium.launch({
     headless: !headed,
     channel: browserChannel,
-    args: headed ? ['--window-position=0,0', `--window-size=${viewport.width},${viewport.height + 120}`] : [],
+    args: headed
+      ? [
+        '--window-position=0,0',
+        `--window-size=${viewport.width},${viewport.height + 120}`,
+        // DevTools is browser UI, so it only reaches a video that records the window. Docked, it
+        // takes its room out of the page area, which is why it is off unless asked for.
+        ...(devtools ? ['--auto-open-devtools-for-tabs'] : []),
+      ]
+      : [],
   });
 }
 
