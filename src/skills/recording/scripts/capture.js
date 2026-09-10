@@ -150,15 +150,16 @@ async function windowRect(page) {
 
 // Stopping a recorder, with an escalation rather than a single hopeful signal.
 //
-// `q` is the polite way and normally works, but a capture device can leave ffmpeg somewhere it
-// does not read its own input from, and then a plain `await exit` never returns: the take is
-// finished, the runner is idle, and the screen carries on being recorded until somebody notices.
-// The waits are what make that impossible.
+// `q` is the polite way and works for most inputs. avfoundation is not one of them: the capture
+// device holds ffmpeg somewhere it reads neither its own input nor an interrupt, so on macOS
+// every take ends at the last step. Waiting for the polite one alone means the take is finished,
+// the runner is idle, and the screen carries on being recorded until somebody notices.
 //
-// Which one worked matters. SIGINT still writes the index, so the file plays; SIGKILL does not,
-// and the caller has to say so rather than hand over a file that will not open.
-const STOP_QUIET_MS = 4000;
-const STOP_TERM_MS = 3000;
+// The waits are short because the last step is the expected one here, not a disaster: the
+// capture is written in fragments that are flushed as they are made, so a killed recorder still
+// leaves a video that plays.
+const STOP_QUIET_MS = 2000;
+const STOP_TERM_MS = 2000;
 
 function stopRecorder(child, { quietMs = STOP_QUIET_MS, termMs = STOP_TERM_MS } = {}) {
   return new Promise((resolve) => {
@@ -191,6 +192,22 @@ function stopRecorder(child, { quietMs = STOP_QUIET_MS, termMs = STOP_TERM_MS } 
       try { child.kill('SIGKILL'); } catch { finish(); }
     }, quietMs + termMs));
   });
+}
+
+// The one thing that matters about the file the recorder left behind. Checked here rather than
+// inferred from how it was stopped, and before the encode fails on it with a message about
+// atoms that says nothing about screen recording.
+function assertReadable(file, stoppedBy) {
+  try {
+    execFileSync('ffprobe', [
+      '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width', '-of', 'csv=p=0', file,
+    ], { stdio: ['ignore', 'ignore', 'pipe'] });
+  } catch (error) {
+    throw new Error(
+      `The screen recording at ${file} cannot be read back (the recorder was stopped by ` +
+      `${stoppedBy}).\n${String(error.stderr || '').trim()}`
+    );
+  }
 }
 
 function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
@@ -259,6 +276,19 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
         // Captured in real time, so the encoder must never be the bottleneck; the take is
         // re-encoded to the configured quality afterwards, along with any redactions.
         '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '18', '-pix_fmt', 'yuv420p',
+        // Written so that killing the recorder still leaves a video that plays.
+        //
+        // This is not a nicety. avfoundation ignores both the stop request and an interrupt —
+        // the capture device holds ffmpeg somewhere neither reaches — so every take on macOS
+        // ends by killing it. An ordinary mp4 keeps its index in memory until the process
+        // exits cleanly, and a killed one has no index at all: a recording with nothing
+        // wrong with it that no player will open.
+        //
+        // Fragments carry their own index, and `-flush_packets` is what puts them on disk as
+        // they are made rather than at the end. Without that flag the fragments never reach
+        // the file and the result is exactly as unreadable.
+        '-movflags', '+frag_keyframe+empty_moov', '-frag_duration', '500000',
+        '-flush_packets', '1',
         // A cap on the whole recording, so a runner that dies partway cannot leave a screen
         // recorder running until the disk fills.
         '-t', String(screen.maxSeconds),
@@ -301,13 +331,11 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
       const stoppedBy = running ? await stopRecorder(running) : 'q';
       await context.close();
 
-      if (stoppedBy === 'kill') {
-        throw new Error(
-          'The screen recorder ignored both a stop request and an interrupt, so it had to be ' +
-          'killed and the video it was writing has no index — it will not play.\n' +
-          `The unfinished capture is at ${file}; \`ffmpeg -i\` may still recover part of it.`
-        );
-      }
+      // Whether it stopped politely or had to be killed does not decide this — the fragmented
+      // output is meant to survive either. What decides it is whether the file can be read, so
+      // that is what is checked, before the encode reports the same thing less clearly.
+      assertReadable(file, stoppedBy);
+
       if (endedEarly) {
         throw new Error(
           `The screen recording stopped on its own after recording.screenCapture.maxSeconds ` +
@@ -321,6 +349,7 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
 }
 
 module.exports = {
-  createCapture, assertConsent, parseScreenDevices, cropFor, createProgressReader, stopRecorder,
+  createCapture, assertConsent, assertReadable, parseScreenDevices, cropFor,
+  createProgressReader, stopRecorder,
   MODES, PAGE, WINDOW, SCREEN, CONSENT_ENV,
 };

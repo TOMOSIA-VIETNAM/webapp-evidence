@@ -4,8 +4,13 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 const {
-  assertConsent, parseScreenDevices, cropFor, createProgressReader, stopRecorder, CONSENT_ENV,
+  assertConsent, assertReadable, parseScreenDevices, cropFor, createProgressReader, stopRecorder,
+  CONSENT_ENV,
 } = require('../src/skills/recording/scripts/capture');
 
 // ---------- consent ----------
@@ -149,4 +154,23 @@ test('only the first frame starts the clock, however many follow', () => {
 
 test('progress output that has not reached a frame yet starts nothing', () => {
   assert.equal(firstFrameFrom(['bitrate=N/A\nout_time_ms=0\n']), 0);
+});
+
+// ---------- the file the recorder left behind ----------
+
+const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'evidence-capture-'));
+
+test('a capture that cannot be read back is reported as that, not left to the encoder', () => {
+  // An mp4 with no index fails the encode with a message about atoms, which says nothing about
+  // screen recording and sends whoever reads it looking in the wrong place.
+  const broken = path.join(scratch, 'broken.mp4');
+  fs.writeFileSync(broken, Buffer.from('not a video'));
+  assert.throws(() => assertReadable(broken, 'kill'), /cannot be read back/);
+});
+
+test('a capture that plays passes, however it was stopped', () => {
+  const good = path.join(scratch, 'good.mp4');
+  execFileSync('ffmpeg', ['-y', '-v', 'error', '-f', 'lavfi',
+    '-i', 'testsrc=size=64x64:rate=10:duration=0.5', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', good]);
+  assert.doesNotThrow(() => assertReadable(good, 'kill'));
 });
