@@ -10,6 +10,15 @@ module.exports = {
   fullPageShot: false,
 
   async run({ page, mark, click, select, shot, dialog, sleep }) {
+    // Where the field is, for the check that follows. A native menu opens directly below it,
+    // and it is a small part of the frame — measuring the whole page for a change washes it
+    // out. Written from here because this is the only place that can measure the live page.
+    const field = await page.locator('#q_status_eq').boundingBox();
+    require('fs').writeFileSync(
+      `${process.env.OUT_DIR}/geometry.json`,
+      `${JSON.stringify({ statusField: field })}\n`,
+    );
+
     mark('Open the status dropdown and choose from it');
     // select() drives the value with arrow keys because the menu cannot be recorded. Whether the
     // menu opens at all under a synthetic click is exactly what this take is measuring, so the

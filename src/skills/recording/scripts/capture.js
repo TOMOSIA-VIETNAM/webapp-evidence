@@ -197,6 +197,7 @@ async function windowRect(page) {
     width: window.outerWidth,
     height: window.outerHeight,
     chromeHeight: window.outerHeight - window.innerHeight,
+    innerWidth: window.innerWidth,
   }));
 }
 
@@ -208,8 +209,8 @@ async function windowRect(page) {
 // check they produced a crop of the top-left quarter of the window that passed every assertion.
 //
 // A context with no viewport emulates nothing, so its page reports the display.
-async function displayMetrics(page) {
-  const context = await page.context().browser().newContext({ viewport: null });
+async function displayMetrics(browser) {
+  const context = await browser.newContext({ viewport: null });
   try {
     const probe = await context.newPage();
     return await probe.evaluate(() => ({
@@ -317,6 +318,21 @@ function assertReadable(file, stoppedBy) {
   }
 }
 
+// A rectangle measured on the page, moved into the frame the video actually holds.
+//
+// For a page recording they are the same thing. For a window recording the frame is the whole
+// window in physical pixels, so a redaction drawn at page coordinates lands on the browser's
+// toolbar — and on a 2x display covers a quarter of what it was meant to.
+function frameRect(box, offset) {
+  if (!offset) return box;
+  return {
+    x: Math.round((box.x + offset.x) * offset.scale),
+    y: Math.round((box.y + offset.y) * offset.scale),
+    width: Math.round(box.width * offset.scale),
+    height: Math.round(box.height * offset.scale),
+  };
+}
+
 function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
   if (!MODES.includes(mode)) {
     throw new Error(`recording.capture is invalid: ${JSON.stringify(mode)}\nUse one of ${MODES.join(' | ')}.`);
@@ -330,6 +346,9 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
   let ffmpeg = null;
   let rect = null;
   let scale = 1;
+  let device = null;
+  let display = null;
+  let contentOffset = null;
   let endedEarly = false;
   // What the capture writes is not what is handed over: the encode reads it, applies whatever
   // was redacted and the configured quality, and deletes it.
@@ -339,8 +358,29 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
   return {
     mode,
 
+    // What has to be known before the recording context exists, because it decides how the page
+    // inside it is rendered. Cheap, and the device probe doubles as proof this machine will hand
+    // over a capture at all — better found now than after a take has been performed.
+    async prepare(browser) {
+      if (mode === PAGE) return;
+      device = screenDeviceIndex(screen.display);
+      display = await displayMetrics(browser);
+      const captured = probeDevice(device);
+      // Not devicePixelRatio: the recording context sets that, so asking the page for it is
+      // asking the answer to be echoed back. The only honest ratio is between what the device
+      // hands over and what the display measures.
+      scale = captured.width / display.width;
+    },
+
     // Playwright has to be told at context creation, before anything has been recorded
-    contextOptions: () => (mode === PAGE ? { recordVideo: { dir: outDir, size: viewport } } : {}),
+    contextOptions() {
+      if (mode === PAGE) return { recordVideo: { dir: outDir, size: viewport } };
+      // The page has to be drawn at the same scale as everything else on that screen. Rendered
+      // at 1 on a 2x display it comes out half the size of the menus and dialogs the operating
+      // system draws over it, and the video shows an application that does not match its own
+      // widgets.
+      return { deviceScaleFactor: scale };
+    },
 
     attach(parts) {
       page = parts.page;
@@ -355,6 +395,9 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
     // someone checking the video can measure it against.
     frame: () => (rect ? { ...rect, scale } : null),
 
+    // Where a rectangle measured on the page lands in the recorded frame
+    pageToFrame: (box) => frameRect(box, contentOffset),
+
     // Returns the origin every timestamp in the take is measured from, and how much of the front
     // to cut off. They differ by backend: Playwright has been recording since the page existed,
     // so the load has to be trimmed; ffmpeg is started once the page is ready, so there is
@@ -364,24 +407,27 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
         return { startedAt: openedAt, trimAt: (Date.now() - openedAt) / 1000 };
       }
 
+      const geometry = await windowRect(page);
+      // Checked before anyone is asked to hand over their machine, not after
+      if (mode === WINDOW) assertWindowFits(geometry, display.usable);
+
       await announce(screen);
 
-      const device = screenDeviceIndex(screen.display);
-      const display = await displayMetrics(page);
-      const captured = probeDevice(device);
+      // How far the page content sits inside the window. A redaction is measured in page
+      // coordinates, and here the video is the whole window in physical pixels, so a rectangle
+      // drawn without these two lands on the browser's toolbar.
+      contentOffset = {
+        x: Math.max(0, (geometry.width - geometry.innerWidth) / 2),
+        y: geometry.chromeHeight,
+        scale,
+      };
 
-      // Not devicePixelRatio: the recording context pins that to 1. The only honest ratio is
-      // between what the device hands over and what the display measures.
-      scale = captured.width / display.width;
-
-      const geometry = await windowRect(page);
-      if (mode === WINDOW) assertWindowFits(geometry, display.usable);
       rect = mode === WINDOW
         ? { x: geometry.x, y: geometry.y, width: geometry.width, height: geometry.height }
         : { x: 0, y: 0, width: display.width, height: display.height };
       const crop = mode === WINDOW ? cropFor(rect, scale, display) : null;
 
-      // The second window opened to measure the display took the focus with it
+      // The page has to be the frontmost window when the first frame is taken
       await page.bringToFront();
 
       const args = [
@@ -477,7 +523,7 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
 
 module.exports = {
   createCapture, assertConsent, assertPlatformCanCapture, assertReadable, assertWindowFits,
-  parseScreenDevices, cropFor,
+  parseScreenDevices, cropFor, frameRect,
   createProgressReader, stopRecorder,
   MODES, PAGE, WINDOW, SCREEN, CONSENT_ENV,
 };

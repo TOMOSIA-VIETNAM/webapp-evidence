@@ -10,7 +10,7 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const {
   assertConsent, assertPlatformCanCapture, assertReadable, assertWindowFits, parseScreenDevices,
-  cropFor, createProgressReader, stopRecorder, CONSENT_ENV,
+  cropFor, frameRect, createProgressReader, stopRecorder, CONSENT_ENV,
 } = require('../src/skills/recording/scripts/capture');
 
 // ---------- consent ----------
@@ -232,4 +232,28 @@ test('the crop is measured against the display the device hands over, not the em
   assert.equal(crop.width, 1804);
   assert.equal(crop.height, 1360);
   assert.equal(crop.y, 88);
+});
+
+// ---------- where a page rectangle lands in the recorded frame ----------
+
+const BOX = { x: 40, y: 60, width: 200, height: 30 };
+
+test('a page recording leaves a rectangle where it was measured', () => {
+  assert.deepEqual(frameRect(BOX, null), BOX);
+});
+
+test('a window recording moves it past the browser chrome and onto physical pixels', () => {
+  // Drawn at page coordinates without this, a redaction lands on the browser's toolbar — and
+  // on a 2x display covers a quarter of what it was meant to.
+  assert.deepEqual(
+    frameRect(BOX, { x: 1, y: 80, scale: 2 }),
+    { x: 82, y: 280, width: 400, height: 60 },
+  );
+});
+
+test('on an ordinary display only the chrome moves it', () => {
+  assert.deepEqual(
+    frameRect(BOX, { x: 0, y: 80, scale: 1 }),
+    { x: 40, y: 140, width: 200, height: 30 },
+  );
 });

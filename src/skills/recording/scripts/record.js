@@ -75,7 +75,7 @@ function readingTime(text, pace) {
 // The mouse interpolates its way over before clicking, so the viewer can see where the click lands
 function buildContext({
   page, outDir, marks, hotkeys, notes, dialogs, startedAt, pace, viewport, human, captions,
-  terminal, redactions, capturesBrowserUi,
+  terminal, redactions, capture, capturesBrowserUi,
 }) {
   const mark = (label) => marks.push({ at: (Date.now() - startedAt) / 1000, label });
   const since = () => (Date.now() - startedAt) / 1000;
@@ -406,7 +406,9 @@ function buildContext({
     } finally {
       active = previous;
       box = unionBox(box, await measure());
-      if (box) entry.box = padBox(box, REDACT_PADDING, viewport);
+      // Padded in page coordinates, then moved into the frame the video actually holds: for a
+      // window recording that is the whole window, in physical pixels.
+      if (box) entry.box = capture.pageToFrame(padBox(box, REDACT_PADDING, viewport));
       // Leaving `from` unset drops the entry, so a step script that threw halfway does not blur
       // everything after the point it failed.
       if (!failed) {
@@ -797,9 +799,17 @@ async function main() {
     viewport,
   });
 
+  // Measured before the context exists, because the scale it hands back decides how the page
+  // inside it is drawn
+  await capture.prepare(browser);
+
   const context = await browser.newContext({
     viewport,
     locale: settings.recording.locale,
+    // A page recording is the video, so one page pixel to one video pixel keeps it sharp and
+    // the file small. A screen recording overrides this with the display's own scale: drawn at
+    // 1 on a 2x display, the page comes out half the size of the menus and dialogs the
+    // operating system draws over it.
     deviceScaleFactor: 1,
     storageState,
     // An app with a strict Content-Security-Policy would block the cursor's styles; the cursor is only
@@ -853,7 +863,7 @@ async function main() {
 
   const ctx = buildContext({
     page, outDir, marks, hotkeys, notes, dialogs, startedAt, pace, viewport, human, captions,
-    terminal, redactions,
+    terminal, redactions, capture,
     // A dialog the browser draws is in the video when the window is being recorded, and needs a
     // caption standing in for it when only page content is.
     capturesBrowserUi: capture.mode !== 'page',

@@ -76,27 +76,39 @@ VIEWPORT_H=$(node -e 'process.env.BASE_URL="http://x";
 
 step "Checking the dropdown a <select> opens"
 # macOS draws that menu itself, in a window of its own, so no recording of page content can hold
-# it. Whether a synthetic click even opens one is the question: if it does not, the page looks
-# the same before and after.
+# it. Whether a synthetic click even opens one is the question.
 #
-# The area is the page below the browser's chrome, worked out from the rectangle the runner
-# recorded rather than from this machine's numbers, and the moment is found by trying several
-# rather than assuming a pace. The cursor moving accounts for a fraction of a percent over an
-# area this size; a menu accounts for a great deal more.
+# Measured over the patch of frame the menu actually covers, not the whole page: the menu is a
+# little over one percent of the page, and averaged across all of it a menu opening and nothing
+# opening look the same. The step script wrote down where the field is, because it is the only
+# thing that could measure the live page; everything else here is derived from what the runner
+# recorded, so none of it depends on the display this ran on.
+GEOMETRY="$OUT_DIR/geometry.json"
+[ -f "$GEOMETRY" ] || fail "the step script did not record where the Status field is"
+read -r SX SY SW SH <<EOF
+$(node -e 'const g = require(process.argv[1]).statusField;
+  console.log(Math.round(g.x), Math.round(g.y), Math.round(g.width), Math.round(g.height))' "$GEOMETRY")
+EOF
+
+# Page coordinates into frame coordinates: past the browser chrome, then onto physical pixels.
 PAGE_CHROME=$(( FH - VIEWPORT_H ))
-PAGE_AREA="$(px "$FW"):$(px $(( FH - PAGE_CHROME ))):0:$(px "$PAGE_CHROME")"
+MENU_X=$(px "$SX")
+MENU_Y=$(px $(( SY + PAGE_CHROME )))
+MENU_W=$(px $(( SW * 2 )))
+MENU_H=$(px $(( SH * 4 )))
+
 MENU_CHANGE=0
 MENU_AT=
 for t in 1.0 1.5 2.0 2.5 3.0 3.5; do
-  d="$(changed_between 0.3 "$t" "$PAGE_AREA")"
+  d="$(changed_between 0.3 "$t" "${MENU_W}:${MENU_H}:${MENU_X}:${MENU_Y}")"
   [ -n "$d" ] || continue
   if awk -v a="$d" -v b="$MENU_CHANGE" 'BEGIN { exit (a > b) ? 0 : 1 }'; then
     MENU_CHANGE="$d"
     MENU_AT="$t"
   fi
 done
-awk -v c="$MENU_CHANGE" 'BEGIN { exit (c > 4) ? 0 : 1 }' \
-  || fail "nothing ever opened over the page after the Status field was clicked (largest difference $MENU_CHANGE).
+awk -v c="$MENU_CHANGE" 'BEGIN { exit (c > 6) ? 0 : 1 }' \
+  || fail "nothing ever opened below the Status field (largest difference $MENU_CHANGE).
   Either a synthetic click does not open the native menu on this machine, or the menu fell
   outside the crop."
 
