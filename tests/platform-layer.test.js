@@ -248,6 +248,20 @@ test('a clone that moved to another ref is copied into Claude Code again', () =>
   assert.match(script, /rev-parse HEAD/);
 });
 
+test('installing into Claude Code says that updates are not automatic', () => {
+  // Reading the clone is what makes a branch or a pinned tag possible, and is also why no update
+  // arrives on its own. Someone who installed once to try a branch would sit on that commit for
+  // good, with nothing on screen saying so — and the published catalog, which Claude Code fetches
+  // itself, is the thing they would have wanted.
+  const script = read('scripts/install-local.sh');
+  assert.match(script, /Updates are not automatic/);
+  assert.match(script, /--update/);
+  // The owner/repo for that catalog comes from the manifest, not from a copy in here.
+  assert.match(script, /SLUG=[\s\S]{0,300}?plugin\.json/);
+  assert.ok(!script.includes(`add ${MARKETPLACE}`), 'the installer hardcodes the published catalog');
+  assert.match(readJson('src/.claude-plugin/plugin.json').repository, /github\.com\/[^/]+\/[^/]+$/);
+});
+
 test('installing into Claude Code says which ref it installed', () => {
   // Claude Code reports a plugin name and nothing about where the code came from. Without this the
   // gap between the ref someone asked for and the code that arrived shows up at first use.
