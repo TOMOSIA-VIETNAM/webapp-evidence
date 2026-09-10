@@ -36,12 +36,15 @@ and runner labels inside it stay verbatim, because those are what they will copy
 
 1. **Work out the context**: which app, which issue (it names the output directory), which screen,
    which flow the MR needs to prove.
-2. **Pick the evidence type**: screenshots alone, or video plus screenshots.
+2. **Pick the evidence type**: screenshots alone, or video plus screenshots — and what the
+   recording has to contain, which decides whether it can run headless.
 3. **Probe the screen** with `inspect.js` to get real selectors.
 4. **Choose where the results go** — see `references/output-locations.md`.
 5. **Settle the captions** — on or off, and in which language.
-6. **Write `steps.js`** — see `references/writing-step-scripts.md`.
-7. **Record**, then hand the user the runner's own output lines.
+6. **Ask, if the take needs a screen** — see below. Nothing else in the path needs the user's
+   machine; this does.
+7. **Write `steps.js`** — see `references/writing-step-scripts.md`.
+8. **Record**, then hand the user the runner's own output lines.
 
 ### Working out the context
 
@@ -115,22 +118,69 @@ Reach for it when the MR's claim is about something behind the browser. It is li
 only, so a full-screen program (`vim`, `less`, `htop`) is out; the helpers and their limits are in
 `references/writing-step-scripts.md`.
 
-### When the operating system drew it
+### Choosing what the recording contains
 
-The default recording is page content, so a `<select>` dropdown, the file picker and a
-`confirm`/`alert` are not in it — captions stand in for them. When one of those *is* what the MR
-has to prove, `recording.capture: 'window'` records the browser window through ffmpeg instead, and
-on macOS all three are drawn inside that window.
+Three things can be added to a take, and each one costs more than the last. Take the cheapest
+that proves the claim.
 
-It costs a great deal more than it sounds:
+| The claim | What records it | What it costs |
+|---|---|---|
+| Anything happening on the page | `capture: 'page'` — the default | nothing. Headless, no permission, runs in CI |
+| The click reached a worker, wrote a file, moved a row | the same, plus `term` in the step script | nothing. The shell runs in the page |
+| A `<select>` menu, the file picker, `confirm`/`alert`, DevTools | `capture: 'window'` | a screen, permission, and the machine to itself |
+| Something outside the browser entirely | `capture: 'screen'` | the same, and everything else on that display is in the video |
 
-- it cannot run headless or in CI, and the machine has to be left alone for the length of the take
-- it needs Screen Recording permission for whichever application runs the recording
-- it records what is on a screen, so **ask the user before running one** and pass `SCREEN_CAPTURE=1`
-  once they agree. The runner refuses without it and cannot ask on its own: started through a
-  shell, a prompt on stdin waits forever
+The default stays the default. A page recording is the only one that does not depend on whose
+machine it runs on, what is on that screen, or whether anyone touches the keyboard for the next
+minute — so reach past it only when what the MR proves is one of the rows below it.
 
-So reach for it when a native dialog is the evidence, and stay on `page` otherwise.
+Measured, so it does not have to be guessed: with `window`, the menu a `<select>` opens is in the
+video, the browser's dialogs are, and DevTools is. DevTools takes its room out of the page area
+while the page still renders at its configured width, so the application appears cut off down the
+right-hand side; lower `recording.viewport.width` if that side matters.
+
+Recording a screen is implemented for macOS only. Elsewhere the runner refuses and says so —
+record the page instead, and let a caption stand in for what the operating system drew.
+
+### Asking before recording a screen
+
+The person at that machine has to agree, and has to stop using it. They are probably not looking
+at the terminal — they may not know a recording was asked for at all. So the notice goes to the
+screen first and the question goes to them second, in that order:
+
+1. **Put the notice up**, in the language *they* write in — not the language of the runbook:
+
+   ```bash
+   node scripts/announce.js --kind confirm --locale vi
+   ```
+
+   It floats above whatever they are looking at, says nothing is being recorded yet, and sends
+   them back to this terminal. It dismisses itself.
+
+2. **Ask here**, with the structured question tool where the agent has one (Claude Code's
+   `AskUserQuestion`), otherwise as one chat message. Ask one question with three answers, and
+   say what each one means:
+
+   | Answer | What it means |
+   |---|---|
+   | Record the screen (recommended when a native dialog is the evidence) | They hand the machine over for about a minute and do not touch it |
+   | Record the page instead | Headless, they keep using the machine, and what the operating system draws is missing |
+   | Not now | Nothing is recorded |
+
+3. **Only on the first answer**, record with `SCREEN_CAPTURE=1`:
+
+   ```bash
+   OUT_DIR=<the evidence directory> SCREEN_CAPTURE=1 OPERATOR_LOCALE=vi \
+     node scripts/record.js <path to steps.js>
+   ```
+
+   The runner refuses without that variable, and it cannot ask for it itself: started through a
+   shell, a prompt on stdin waits forever. Passing it is the agent saying the person agreed.
+   `OPERATOR_LOCALE` is the language of the second notice, the one that goes up as the recording
+   starts.
+
+From the moment they answer, the machine is the agent's. Do not ask them anything else until the
+take is finished, and tell them plainly when it is.
 
 ### Keeping something out of the video
 
@@ -180,8 +230,8 @@ The runner brings the environment up (via `prepare` in the config), logs in (via
 trims the page-load wait from the front, and writes the mp4 plus the runbook. Everything it fixed is
 printed as a `FIXED: …` line — pass those lines into the report.
 
-Every script here — `record.js`, `inspect.js`, `convert.js` — answers `--help` with its arguments and
-environment variables. Call that instead of reading the source. They are written to be used as black
+Every script here — `record.js`, `inspect.js`, `convert.js`, `announce.js` — answers `--help` with
+its arguments and environment variables. Call that instead of reading the source. They are written to be used as black
 boxes: the source is long, it is loaded into context in full when you open it, and it tells you
 nothing `--help` does not.
 

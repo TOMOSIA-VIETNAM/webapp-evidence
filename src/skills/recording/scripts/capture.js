@@ -12,6 +12,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawn, execFileSync } = require('child_process');
+const { noticeText } = require('./captions');
 
 const PAGE = 'page';
 const WINDOW = 'window';
@@ -132,18 +133,16 @@ function createProgressReader(onFirstFrame) {
   };
 }
 
-// The operator is about to have their screen recorded, and they are probably not looking at the
-// terminal the runner was started from. An AppleScript dialog floats above every application, so
-// it is the one place a notice is certain to be seen. It dismisses itself, and the countdown that
-// follows is time to move the mouse away before the first frame.
+// The last thing before the first frame: the recording starts now, in the language of whoever
+// is at the machine. An AppleScript dialog floats above every application, so it is the one
+// place a notice is certain to be seen, and the countdown after it is time to move the mouse
+// away.
 //
-// This is a notice, not the consent: consent was given to the agent before the runner started,
-// because a runner spawned through a shell has nobody to answer a prompt.
-async function announce(countdownSeconds) {
-  const message =
-    'Screen recording is about to start.\n\n'
-    + 'Please do not use this machine until it finishes, and turn on Do Not Disturb so a '
-    + 'notification cannot appear in the video.';
+// This is not where consent is given — by now it has been. announce.js puts the earlier notice
+// up, the one that sends the person back to the terminal to answer; a runner spawned through a
+// shell has nobody to answer a prompt.
+async function announce(countdownSeconds, locale) {
+  const message = noticeText('screenCaptureStarting', locale);
   try {
     execFileSync('osascript', [
       '-e',
@@ -358,7 +357,7 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
         return { startedAt: openedAt, trimAt: (Date.now() - openedAt) / 1000 };
       }
 
-      await announce(screen.countdownSeconds);
+      await announce(screen.countdownSeconds, screen.locale);
 
       const device = screenDeviceIndex(screen.display);
       const display = await displayMetrics(page);

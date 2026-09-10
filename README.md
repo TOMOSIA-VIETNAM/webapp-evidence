@@ -169,7 +169,8 @@ of the state right after. Modals, date pickers, and JS dropdowns record normally
 
 When one of those dialogs is the thing you need to show, it can record the browser window instead,
 and then they are in the video. That needs a screen, permission, and the machine left alone for the
-length of the take, so it is not the default.
+length of the take, so it is not the default — your agent asks before it does that, and a notice
+appears on screen telling you where the question is.
 
 A secret that appears on screen can be blurred, blacked out, or cut from the take — say so when you
 describe the flow, and it is kept out of the screenshots too.

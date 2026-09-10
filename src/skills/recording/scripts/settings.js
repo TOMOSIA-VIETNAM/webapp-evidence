@@ -81,6 +81,10 @@ const DEFAULTS = {
       framerate: 30,
       display: 0,             // which display, when there is more than one
       countdownSeconds: 3,    // after the on-screen notice, before the first frame
+      // The language of whoever is sitting at the machine, which is not the language of
+      // whoever reviews the merge request: recording.captions.locale is that one. The person
+      // being asked to hand over their machine has to be able to read the request.
+      locale: 'en',
       // A ceiling on the recording itself. A runner that dies partway cannot then leave a screen
       // recorder running until the disk fills; a take that needs longer says so and raises it.
       maxSeconds: 600,
@@ -305,6 +309,7 @@ function assertCapture({ capture, screenCapture }) {
       `${JSON.stringify(screenCapture.maxSeconds)}`
     );
   }
+  assertLocale(screenCapture.locale, 'recording.screenCapture.locale');
   if (!Number.isFinite(screenCapture.countdownSeconds) || screenCapture.countdownSeconds < 0) {
     throw new Error(
       `recording.screenCapture.countdownSeconds must not be negative, got ` +
@@ -343,6 +348,9 @@ function resolveSettings(config) {
   if (process.env.BROWSER_CHANNEL) settings.recording.browserChannel = process.env.BROWSER_CHANNEL;
   if (process.env.EVIDENCE_OVERWRITE === '1') settings.output.overwrite = true;
   if (process.env.CAPTURE) settings.recording.capture = process.env.CAPTURE;
+  if (process.env.OPERATOR_LOCALE) {
+    settings.recording.screenCapture.locale = assertLocale(process.env.OPERATOR_LOCALE, 'OPERATOR_LOCALE');
+  }
   if (process.env.CAPTIONS) settings.recording.captions.enabled = parseSwitch(process.env.CAPTIONS);
   if (process.env.CAPTION_LOCALE) {
     settings.recording.captions.locale = assertLocale(process.env.CAPTION_LOCALE, 'CAPTION_LOCALE');

@@ -38,7 +38,10 @@ const HELP_ENV = `Environment variables:
                       the video too; screen records the whole display. Both show the window, so
                       both imply HEADED=1.
     SCREEN_CAPTURE=1  Required for window and screen: they record what is on someone's screen,
-                      so the operator has to have agreed before the run starts.`;
+                      so the operator has to have agreed before the run starts.
+    OPERATOR_LOCALE   Language of the notice shown on that screen as the recording starts
+                      (en | ja | vi). Not the caption language: this one is read by whoever is
+                      at the machine, not by whoever reviews the merge request.`;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
