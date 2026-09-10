@@ -3,5 +3,8 @@ src/skills/recording/scripts/node_modules/
 
 .DS_Store
 
-# Another session's git worktrees live here; they are repositories of their own
+# Repositories that live inside this one: another session's git worktrees, and whatever is
+# checked out under notebooks/. Without these, one `git add -A` commits a nested repository as
+# a gitlink and the clone that follows has an empty directory where it was.
 .claude/worktrees/
+notebooks/
