@@ -93,8 +93,9 @@ claude_landed() {
   short="$(git -C "$home" rev-parse --short=12 HEAD 2>/dev/null || true)"
 
   printf '\ninstall.sh: Claude Code holds commit %s, not %s (%s)\n' "$got" "$ref" "$short" >&2
-  printf '  %s carries an installer from before Claude Code read this clone, so the Claude Code\n' "$ref" >&2
-  printf '  step there installed from GitHub instead. Everything else asked for is on %s.\n' "$ref" >&2
+  printf '  %s carries an installer from before Claude Code was pointed at this clone, so its\n' "$ref" >&2
+  printf '  Claude Code step went to GitHub instead — or refused outright, once a marketplace of that\n' >&2
+  printf '  name points here.\n' >&2
   source="$(claude_field 'marketplace list' "\"name\":\"$market\"" path)"
   if [ "$source" = "$home" ]; then
     printf '\n  Put Claude Code on it:  claude plugin update %s@%s\n' "$plugin" "$market" >&2
