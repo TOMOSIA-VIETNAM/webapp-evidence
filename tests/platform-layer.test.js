@@ -358,6 +358,27 @@ test('every page that names a flag shows the form that reaches the installer', (
   assert.match(read('install.sh'), /\| bash -s -- --ref latest/);
 });
 
+test('install.sh says so when the ref never reached Claude Code', () => {
+  // The requested ref supplies its own installer, so a ref cut before Claude Code was pointed at
+  // the clone installs Claude Code from the repository name there — the default branch — and
+  // reports success. install.sh is fetched fresh on every run, which makes it the only part that
+  // can still tell the user, so it has to stay around after the installer instead of exec'ing it.
+  const script = read('install.sh');
+  assert.ok(!/exec "\$home\/scripts\/install-local\.sh"/.test(script),
+    'install.sh hands off with exec, so nothing of it runs afterwards');
+  assert.match(script, /claude_landed "\$home"/);
+  assert.match(script, /\|\| rc=\$\?/, 'the installer\'s exit status is dropped');
+  assert.match(script, /exit "\$rc"/);
+  // What it compares, and what it offers when they differ.
+  assert.match(script, /rev-parse HEAD/);
+  assert.match(script, /claude plugin update %s@%s/);
+  assert.match(script, /claude plugin marketplace add %s/);
+  // The plugin id comes from the clone's own manifests, not from a copy written down here.
+  assert.match(script, /manifest_name "\$home\/src\/\.claude-plugin\/plugin\.json"/);
+  assert.match(script, /manifest_name "\$home\/\.claude-plugin\/marketplace\.json"/);
+  assert.ok(!script.includes(`${PLUGIN}@${MARKETPLACE}`), 'install.sh hardcodes the plugin id');
+});
+
 test('the version in gemini-extension.json keeps up with the published releases', () => {
   // Gemini CLI reads this manifest, and a git tag cannot be moved once someone has installed from
   // it — so a tag placed over a stale version ships that number permanently. Release notes come
