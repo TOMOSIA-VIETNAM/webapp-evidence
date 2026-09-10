@@ -13,7 +13,7 @@ module.exports = {
 
   // Only act through the helpers (click/type/select/upload). Calling locator.click() or
   // locator.setInputFiles() directly leaves the cursor where it was, and the video loses its thread.
-  async run({ page, mark, click, type, select, upload, hotkey, note, shot, sleep, term }) {
+  async run({ page, mark, click, type, select, upload, hotkey, note, shot, sleep, term, redact }) {
     mark('一覧画面を開く');
     await sleep(1400);
     await shot('list');
@@ -63,6 +63,17 @@ module.exports = {
     //
     // The panel covers the bottom of the frame while it is open, and click() refuses to operate on
     // anything behind it — finish with the page, or call term.close(), before going back to it.
+    // Anything on screen during the body is kept out of the finished video. The step script is
+    // the only place that knows a key is about to be revealed, so nothing has to be found
+    // afterwards — and the screenshot is masked over the same element.
+    // 'blur' is the default; 'box' when it must be unreadable rather than hard to read; 'cut'
+    // removes the stretch, which moves every timestamp after it in the runbook.
+    mark('APIキーを表示');
+    await redact(page.locator('#api_key'), async () => {
+      await click(page.getByRole('button', { name: 'Reveal' }), { pause: 'observe' });
+      await shot('key-revealed');
+    });
+
     mark('バックグラウンドジョブが動いたことを確認');
     await term.open();
     // start() is for a command that does not end on its own; run() waits for one that does.

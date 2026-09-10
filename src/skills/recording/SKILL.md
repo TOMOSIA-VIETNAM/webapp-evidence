@@ -115,6 +115,30 @@ Reach for it when the MR's claim is about something behind the browser. It is li
 only, so a full-screen program (`vim`, `less`, `htop`) is out; the helpers and their limits are in
 `references/writing-step-scripts.md`.
 
+### When the operating system drew it
+
+The default recording is page content, so a `<select>` dropdown, the file picker and a
+`confirm`/`alert` are not in it — captions stand in for them. When one of those *is* what the MR
+has to prove, `recording.capture: 'window'` records the browser window through ffmpeg instead, and
+on macOS all three are drawn inside that window.
+
+It costs a great deal more than it sounds:
+
+- it cannot run headless or in CI, and the machine has to be left alone for the length of the take
+- it needs Screen Recording permission for whichever application runs the recording
+- it records what is on a screen, so **ask the user before running one** and pass `SCREEN_CAPTURE=1`
+  once they agree. The runner refuses without it and cannot ask on its own: started through a
+  shell, a prompt on stdin waits forever
+
+So reach for it when a native dialog is the evidence, and stay on `page` otherwise.
+
+### Keeping something out of the video
+
+If the flow puts a secret on screen — an API key, a token, a real customer's details — the step
+script wraps that stretch in `redact()`, and it is covered in the video and masked in the
+screenshot. See `references/writing-step-scripts.md`. Decide this while writing the steps: it
+costs nothing there, and nothing afterwards can be relied on to find what was missed.
+
 ### Settling the captions
 
 A recording cannot contain a `<select>` dropdown or a file picker — the operating system draws
@@ -178,6 +202,12 @@ fine and the errors are expected, add nothing.
 
 When the user is outside the codebase — a URL and a description, a hand-off, a report — just hand
 over the files. A code fix they cannot apply is noise.
+
+**After a `window` or `screen` take, look at it once with the `vision` skill before handing it
+over**, and report what you find with timestamps. That recording contains whatever was on the
+screen, and the crop is the only thing that kept the rest of the desktop out of it. This is a last
+look for the user to act on, not a filter: say what you saw and let them decide, rather than
+declaring the video clean.
 
 ### Another format
 

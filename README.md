@@ -132,6 +132,7 @@ What you can ask for:
 | A slower recording | `/webapp-evidence:recording record it slower` |
 | Captions in another language | `/webapp-evidence:recording captions in Japanese` — remembered per project |
 | Proof the click reached the backend — a job ran, a file was written | `/webapp-evidence:recording show the worker log after clicking Run sync` |
+| A secret kept out of the recording | `/webapp-evidence:recording blur the API key when it appears` |
 | A project set up once, so recordings start signed in | `/webapp-evidence:recording set up the evidence config for this project` |
 
 Write the steps in whatever language you use, and the agent replies in that language. There's no
@@ -165,6 +166,13 @@ Here are the sheets it produced from the recording above:
 It records the page, not your screen. OS-drawn UI stays out of the video: `<select>` dropdowns, the
 file picker, `confirm`/`alert` dialogs. Those get a caption of what was chosen, plus a screenshot
 of the state right after. Modals, date pickers, and JS dropdowns record normally.
+
+When one of those dialogs is the thing you need to show, it can record the browser window instead,
+and then they are in the video. That needs a screen, permission, and the machine left alone for the
+length of the take, so it is not the default.
+
+A secret that appears on screen can be blurred, blacked out, or cut from the take — say so when you
+describe the flow, and it is kept out of the screenshots too.
 
 When the proof is not on the page at all — a job that ran, a file that was written — a step can
 open a terminal panel over the page and put the real command and its real output in the same

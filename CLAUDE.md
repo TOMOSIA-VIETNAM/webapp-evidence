@@ -37,7 +37,12 @@ Never write the derived name into a SKILL.md; `plugin.json` already holds that h
 npm install --prefix src/skills/recording/scripts --no-audit --no-fund   # first time
 node --test 'tests/*.test.js'     # no browser needed
 ./tests/e2e/run.sh                # records the demo app in real Chrome
+./tests/e2e/run-window.sh         # records the browser WINDOW — needs a screen and permission
 ```
+
+`run-window.sh` is the only check that cannot run headless or in CI: it records what is on a
+screen, so it needs Screen Recording permission and the machine left alone for half a minute. Run
+it when the capture backend or the crop arithmetic changes; `run.sh` covers everything else.
 
 Assertions target behaviour, not message wording — that is what let the whole runner be translated
 without touching the suite.
