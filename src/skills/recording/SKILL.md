@@ -41,8 +41,8 @@ and runner labels inside it stay verbatim, because those are what they will copy
 3. **Probe the screen** with `inspect.js` to get real selectors.
 4. **Choose where the results go** — see `references/output-locations.md`.
 5. **Settle the captions** — on or off, and in which language.
-6. **Ask, if the take needs a screen** — see below. Nothing else in the path needs the user's
-   machine; this does.
+6. **Ask, if the take needs a screen** — `references/recording-a-screen.md`. Nothing else in
+   the path needs the user's machine; this does.
 7. **Write `steps.js`** — see `references/writing-step-scripts.md`.
 8. **Record**, then hand the user the runner's own output lines.
 
@@ -87,7 +87,7 @@ not write it to `accountStore` unless there is a project config that says where 
 |---|---|
 | A static screen, display-only change, one or two actions | Screenshots are enough |
 | A multi-step flow — filling fields, submitting, modals, moving between screens | Video plus screenshots at the main moments |
-| The change's result is not on the page — a job enqueued, a file written, rows imported | Video plus the terminal panel, so the command and its output land in the same take |
+| The change's result is not on the page — a job enqueued, a file written, rows imported, a dialog the operating system drew | Video plus whatever holds that: a shell in the page, or a recording of the browser window. See below |
 | Recording is impossible for a technical reason | Screenshots at minimum, and say plainly in the report why there is no video |
 
 ### Probing the screen before writing anything
@@ -107,119 +107,30 @@ for them to agree, then do it with whatever the machine already uses. Their mach
 It prints buttons, inputs, selects (with their real option lists) and links, one usable selector per
 line. Shared navigation chrome is filtered out; `--all` shows everything.
 
-### When the proof is not on the page
+### When the page alone cannot prove it
 
-A button that enqueues a job, a form that writes a file, an import that moves rows: the click is
-visible and the result is not. A step script can open a terminal panel over the page and read the
-log, run the command, check the file — a real shell on the machine doing the recording, in the same
-video and the same runbook.
+Three things a page recording cannot contain, in the order they cost:
 
-Reach for it when the MR's claim is about something behind the browser. It is line-oriented output
-only, so a full-screen program (`vim`, `less`, `htop`) is out; the helpers and their limits are in
-`references/writing-step-scripts.md`.
+| The claim | What it needs |
+|---|---|
+| The click reached a worker, wrote a file, moved a row | a shell in the page — `term` in the step script, see `references/writing-step-scripts.md`. Still headless, costs nothing |
+| A `<select>` menu, the file picker, `confirm`/`alert`, DevTools | a recording of the browser window, which needs a screen, permission, and the machine to itself |
+| Something outside the browser entirely | a recording of the whole display, and everything else on it |
 
-### Choosing what the recording contains
+The default is the page, and it takes something to leave: it is the only backend that does not
+depend on whose machine it runs on, what is on that screen, or whether anyone touches the
+keyboard for the next minute.
 
-Three things can be added to a take, and each one costs more than the last. Take the cheapest
-that proves the claim.
-
-| The claim | What records it | What it costs |
-|---|---|---|
-| Anything happening on the page | `capture: 'page'` — the default | nothing. Headless, no permission, runs in CI |
-| The click reached a worker, wrote a file, moved a row | the same, plus `term` in the step script | nothing. The shell runs in the page |
-| A `<select>` menu, the file picker, `confirm`/`alert`, DevTools | `capture: 'window'` | a screen, permission, and the machine to itself |
-| Something outside the browser entirely | `capture: 'screen'` | the same, and everything else on that display is in the video |
-
-The default stays the default. A page recording is the only one that does not depend on whose
-machine it runs on, what is on that screen, or whether anyone touches the keyboard for the next
-minute — so reach past it only when what the MR proves is one of the rows below it.
-
-Measured, so it does not have to be guessed: with `window`, the menu a `<select>` opens is in the
-video, the browser's dialogs are, and DevTools is. DevTools takes its room out of the page area
-while the page still renders at its configured width, so the application appears cut off down the
-right-hand side; lower `recording.viewport.width` if that side matters.
-
-Recording a screen is implemented for macOS only. Elsewhere the runner refuses and says so —
-record the page instead, and let a caption stand in for what the operating system drew.
-
-### What actually reaches the video
-
-Worth knowing before deciding how much to worry, because the two backends are not the same risk.
-
-`window` crops to the browser window, so nothing outside it can be in the frame — not another
-application, not the desktop, not the Dock. The window is opened at the top left, and
-notification banners arrive at the top right, so on any display wider than the window one cannot
-land in it either. The window is not made smaller to achieve this and there is no reason to
-shrink it: the crop is what excludes things, not the size.
-
-`screen` records the display, all of it. Everything on it is in the video. If that is what the
-evidence needs, say so plainly when asking, and it is worth suggesting they move the browser to
-an empty desktop first — a new Space on macOS, a new virtual desktop on Windows. Neither can be
-created from a script, so it is a request, not a step.
-
-Neither backend can keep out something drawn *on top of* the browser: a notification that lands
-there, another application brought to the front. That is what the Do Not Disturb line in the
-notice is for, and why the machine has to be left alone.
-
-Recording one display while the operator keeps working on another is the best answer to all of
-this, and it is not implemented — `backlogs/screen-capture/other-platforms.md` says what it
-needs. Today the browser is always on the primary display and that is the one recorded.
-
-### Asking before recording a screen
-
-The person at that machine has to agree, and has to stop using it. They are probably not looking
-at the terminal — they may not know a recording was asked for at all. So the notice goes to the
-screen first and the question goes to them second, in that order:
-
-1. **Put the notice up**, in the language *they* write in — not the language of the runbook:
-
-   ```bash
-   node scripts/announce.js --kind confirm --locale vi
-   ```
-
-   The language is theirs, not the runbook's. Nothing else in a recording is shown to them.
-
-   It floats above whatever they are looking at, and it is the only thing that appears on that
-   screen: nothing is being recorded yet, turn on Do Not Disturb, press OK, come back here and
-   answer. **It waits to be pressed** — a notice that dismisses itself is one they may never
-   see, and this is the one thing they have to have seen. The command does not return until
-   they press it, so ask afterwards, not before.
-
-   It exits non-zero if nobody presses it within five minutes. That is nobody at the machine,
-   not consent: say so and stop, rather than recording an empty chair.
-
-2. **Ask here**, with the structured question tool where the agent has one (Claude Code's
-   `AskUserQuestion`), otherwise as one chat message. Ask one question with three answers, and
-   say what each one means:
-
-   | Answer | What it means |
-   |---|---|
-   | Record the screen (recommended when a native dialog is the evidence) | They hand the machine over for about a minute and do not touch it |
-   | Record the page instead | Headless, they keep using the machine, and what the operating system draws is missing |
-   | Not now | Nothing is recorded |
-
-3. **Only on the first answer**, record with `SCREEN_CAPTURE=1`:
-
-   ```bash
-   OUT_DIR=<the evidence directory> SCREEN_CAPTURE=1 \
-     node scripts/record.js <path to steps.js>
-   ```
-
-   The runner refuses without that variable, and it cannot ask for it itself: started through a
-   shell, a prompt on stdin waits forever. Passing it is the agent saying the person agreed.
-
-   Their answer here is the handover — nothing else appears on their screen, because by then
-   they have read the notice, turned off notifications and walked back to this terminal. A few
-   seconds after they answer, the first frame is recorded.
-
-From the moment they answer, the machine is the agent's. Do not ask them anything else until the
-take is finished, and tell them plainly when it is.
+**Anything but the page records what is on someone's screen, so ask them first** — with the
+structured question tool where the agent has one — and show them the notice before you ask.
+`references/recording-a-screen.md` has the sequence, and the runner refuses to start one that
+has not been through it.
 
 ### Keeping something out of the video
 
 If the flow puts a secret on screen — an API key, a token, a real customer's details — the step
 script wraps that stretch in `redact()`, and it is covered in the video and masked in the
-screenshot. See `references/writing-step-scripts.md`. Decide this while writing the steps: it
+screenshot. See `references/writing-step-scripts.md`. Decide it while writing the steps: it
 costs nothing there, and nothing afterwards can be relied on to find what was missed.
 
 ### Settling the captions
@@ -286,10 +197,9 @@ fine and the errors are expected, add nothing.
 When the user is outside the codebase — a URL and a description, a hand-off, a report — just hand
 over the files. A code fix they cannot apply is noise.
 
-**After a `window` or `screen` take, look at it once with the `vision` skill before handing it
-over**, and report what you find with timestamps. That recording contains whatever was on the
-screen, and the crop is the only thing that kept the rest of the desktop out of it. This is a last
-look for the user to act on, not a filter: say what you saw and let them decide, rather than
+**A take that recorded a screen gets one more look before it is handed over** — with the `vision`
+skill, reporting what you find with timestamps. It holds whatever was on that screen. This is a
+last look for the user to act on, not a filter: say what you saw and let them decide, rather than
 declaring the video clean.
 
 ### Another format
@@ -358,6 +268,7 @@ Read these when the step calls for them, not upfront:
 | `references/project-setup.md` | The project has no `evidence.config.js` yet, or the recording needs different pacing, captions or archiving behaviour |
 | `references/writing-step-scripts.md` | Writing or editing `steps.js`: the helpers, how long to pause after each click, captions, keyboard shortcuts, and what a recording physically cannot capture |
 | `references/output-locations.md` | Choosing `OUT_DIR`, dealing with the git-ignore check, and reading the runner's output to build the final report |
+| `references/recording-a-screen.md` | The evidence is something a page recording cannot hold: a `<select>` menu, a file picker, a browser dialog, DevTools, anything outside the browser. Covers asking the user first, what each backend does and does not pick up, and which machines can do it at all |
 | `references/other-formats.md` | The take has to be a gif or a webm, and you need to know what that costs |
 
 Templates to copy from: `assets/evidence.config.example.js` and `assets/steps.example.js`.
