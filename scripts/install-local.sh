@@ -14,7 +14,6 @@ say() { printf "$@" 2>/dev/null || true; }
 REPO="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 MARKER='<!-- installed by webapp-evidence scripts/install-local.sh — safe to delete -->'
 STAMP=".webapp-evidence-local-install"
-MARKETPLACE='TOMOSIA-VIETNAM/webapp-evidence'
 
 usage() {
   cat <<'EOF'
@@ -30,7 +29,8 @@ Usage: scripts/install-local.sh [--platform NAME] [--target DIR] [--copy]
                    antigravity-ide  skills       ~/.gemini/config/skills
                    Omit it and the script asks.
   --target DIR     install somewhere else; one platform at a time
-  --copy           copy instead of linking (if your platform will not follow symlinks)
+  --copy           copy instead of linking (if your platform will not follow symlinks).
+                   Claude Code reads this clone either way — its marketplace is a path.
   --update         git pull in this clone, then reinstall
   --uninstall      remove only what this script installed
   --all            with --uninstall: sweep every platform above
@@ -182,9 +182,19 @@ fi
 # other four platforms have no prefix to lean on, and a bare `recording` sitting beside everyone
 # else's skills says nothing about what it records — so they get the plugin name joined to it,
 # `webapp-evidence-recording`, built here rather than written down twice.
-PLUGIN="$(sed -n 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \
-          "$REPO/src/.claude-plugin/plugin.json" | head -1)"
+# A manifest's name is its first `"name"`: the plugin's own in a plugin.json, the marketplace's in
+# the catalog that lists the plugins under it.
+manifest_name() {
+  sed -n 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$1" | head -1
+}
+
+PLUGIN="$(manifest_name "$REPO/src/.claude-plugin/plugin.json")"
 [ -n "$PLUGIN" ] || { printf 'install-local.sh: no plugin name in src/.claude-plugin/plugin.json\n' >&2; exit 1; }
+
+# Claude Code installs `plugin@marketplace`, and the marketplace here is the catalog in this clone.
+MARKET="$(manifest_name "$REPO/.claude-plugin/marketplace.json")"
+[ -n "$MARKET" ] || {
+  printf 'install-local.sh: no marketplace name in .claude-plugin/marketplace.json\n' >&2; exit 1; }
 
 SKILL_DIRS=()
 SKILL_NAMES=()
@@ -260,7 +270,7 @@ is_installed() {
   dir="$(platform_dir "$leaf")"
   if [ "$kind" = marketplace ]; then
     command -v claude >/dev/null || return 1
-    claude plugin list </dev/null 2>/dev/null | grep -q 'webapp-evidence@webapp-evidence' || return 1
+    claude plugin list </dev/null 2>/dev/null | grep -qF "$PLUGIN@$MARKET" || return 1
     return 0
   fi
   while IFS= read -r path; do
@@ -291,13 +301,49 @@ claude_or_skip() {
   exit 1
 }
 
+# Where Claude Code currently thinks this marketplace lives, empty unless it is registered as a
+# directory. `marketplace list --json` is the only account of that; squeezing the whitespace out
+# leaves the pretty and the compact spelling of the same JSON reading alike, and each entry is one
+# flat object, so a brace is where the next one starts.
+claude_marketplace_path() {
+  claude plugin marketplace list --json </dev/null 2>/dev/null \
+    | tr -d ' \n' | tr '{' '\n' \
+    | grep -F "\"name\":\"$MARKET\"" \
+    | sed -n 's/.*"path":"\([^"]*\)".*/\1/p' | head -1
+}
+
+# The commit Claude Code copied out of the clone, which is the code an agent there loads — a
+# directory marketplace is copied at install time, not read where it lies.
+claude_installed_commit() {
+  claude plugin list --json </dev/null 2>/dev/null \
+    | tr -d ' \n' | tr '{' '\n' \
+    | grep -F "\"id\":\"$PLUGIN@$MARKET\"" \
+    | sed -n 's/.*"version":"\([^"]*\)".*/\1/p' | head -1
+}
+
+# What a run installed, in the terms someone can check: the ref this clone follows, and the commit
+# it is on. Claude Code shows neither — it reports a plugin name — so a mismatch between the ref
+# that was asked for and the code that arrived would otherwise surface at first use.
+clone_ref() {
+  local ref sha
+  ref="$(git -C "$REPO" config --get webapp-evidence.ref 2>/dev/null || true)"
+  [ -n "$ref" ] || ref="$(git -C "$REPO" describe --tags --exact-match 2>/dev/null || true)"
+  sha="$(git -C "$REPO" rev-parse --short HEAD 2>/dev/null || true)"
+  printf '%s\n' "${ref:-no ref recorded}${sha:+ at $sha}"
+}
+
 removed=0
 
 uninstall_one() {
   local kind="$2" dir="$3" path
   if [ "$kind" = marketplace ]; then
     claude_or_skip || return 0
-    claude plugin uninstall "webapp-evidence@webapp-evidence" || claude_failed uninstall
+    claude plugin uninstall "$PLUGIN@$MARKET" || claude_failed uninstall
+    # The marketplace entry exists to carry this one plugin, so it goes with it. Leaving it behind
+    # would also make a later install from a different clone a no-op: `marketplace add` on a name
+    # already taken keeps the source that is there.
+    claude plugin marketplace remove "$MARKET" >/dev/null 2>&1 || true
+    removed=$((removed + 1))
     return 0
   fi
   while IFS= read -r path; do
@@ -316,9 +362,35 @@ install_one() {
   local kind="$2" dir="$3" path name tmp
   if [ "$kind" = marketplace ]; then
     claude_or_skip || return 0
-    claude plugin marketplace add "$MARKETPLACE" || { claude_failed "marketplace add"; return 0; }
-    claude plugin install "webapp-evidence@webapp-evidence" || { claude_failed install; return 0; }
-    say '\nInstalled into Claude Code.\n'
+    # Claude Code reads this clone, the same one every other platform is pointed at. Registering the
+    # repository by name instead would send it to the default branch: install.sh checks the clone out
+    # at the release tag or the `--ref` someone asked for, and none of that reaches a marketplace
+    # that clones the repository again for itself. Registered once, the entry survives every later
+    # ref this clone follows; the copy taken from it does not, which is what the update below is for.
+    if [ "$(claude_marketplace_path)" != "$REPO" ]; then
+      # `marketplace add` on a name already taken leaves the registered source alone, so an entry
+      # pointing anywhere else has to be removed first — and the plugin installed from it with it,
+      # or the install below has nothing to replace.
+      claude plugin uninstall "$PLUGIN@$MARKET" >/dev/null 2>&1 || true
+      claude plugin marketplace remove "$MARKET" >/dev/null 2>&1 || true
+      claude plugin marketplace add "$REPO" || { claude_failed "marketplace add"; return 0; }
+    fi
+    claude plugin install "$PLUGIN@$MARKET" || { claude_failed install; return 0; }
+    # Installing copies the clone into Claude Code's own cache, in a directory named for the commit,
+    # and installing again when a copy is already there does nothing at all — so a clone that has
+    # moved to another ref since needs the copy taken again.
+    claude plugin update "$PLUGIN@$MARKET" >/dev/null 2>&1 || true
+    say '\nInstalled into Claude Code, from %s — %s\n' "$REPO" "$(clone_ref)"
+    say 'Restart Claude Code to pick it up: skills are read at startup.\n'
+    # That copy is what gets loaded, so a copy left on an older commit is exactly the failure this
+    # whole path exists to prevent: the ref installed everywhere else, Claude Code on the one before.
+    local head got
+    head="$(git -C "$REPO" rev-parse HEAD 2>/dev/null || true)"
+    got="$(claude_installed_commit)"
+    if [ -n "$head" ] && [ -n "$got" ] && [ "${head#"$got"}" = "$head" ]; then
+      say 'warning Claude Code holds commit %s, this clone is on %s. Run this again after restarting it.\n' \
+        "$got" "$(git -C "$REPO" rev-parse --short=12 HEAD)"
+    fi
     return 0
   fi
   while IFS= read -r path; do
