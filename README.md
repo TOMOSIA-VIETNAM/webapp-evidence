@@ -171,7 +171,7 @@ It records the page, not your screen. OS-drawn UI stays out of the video: `<sele
 file picker, `confirm`/`alert` dialogs. Those get a caption of what was chosen, plus a screenshot
 of the state right after. Modals, date pickers, and JS dropdowns record normally.
 
-Recording only runs against local dev or a site you name — never staging or production.
+Recording runs against the site you name, and nothing else.
 
 Videos and screenshots are not committed to Git. Attaching them to a ticket, MR/PR, or report is up
 to you.

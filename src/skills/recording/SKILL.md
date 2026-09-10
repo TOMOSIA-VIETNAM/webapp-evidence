@@ -249,6 +249,5 @@ timestamped sheets you can read as images.
 - Do not edit the project's `.gitignore`, not even to legitimise a place to store results.
 - Do not build a second directory tree for an issue that already has one.
 - Do not delete old takes (`v1`, `v2`…) — suggest it and let the user decide.
-- Do not touch staging or production; local dev only.
 - Do not burn the timeline into the video — the explanation lives in the runbook so it can be fixed
   without recording again.
