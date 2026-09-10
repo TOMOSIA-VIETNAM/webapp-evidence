@@ -113,7 +113,7 @@ Three things a page recording cannot contain, in the order they cost:
 
 | The claim | What it needs |
 |---|---|
-| The click reached a worker, wrote a file, moved a row | a shell in the page — `term` in the step script, see `references/writing-step-scripts.md`. Still headless, costs nothing |
+| The click reached a worker, wrote a file, moved a row | a shell in the page — `term` in the step script, see `references/terminal-in-the-page.md`. Still headless, costs nothing |
 | A `<select>` menu, the file picker, `confirm`/`alert`, DevTools | a recording of the browser window, which needs a screen, permission, and the machine to itself |
 | Something outside the browser entirely | a recording of the whole display, and everything else on it |
 
@@ -130,8 +130,8 @@ has not been through it.
 
 If the flow puts a secret on screen — an API key, a token, a real customer's details — the step
 script wraps that stretch in `redact()`, and it is covered in the video and masked in the
-screenshot. See `references/writing-step-scripts.md`. Decide it while writing the steps: it
-costs nothing there, and nothing afterwards can be relied on to find what was missed.
+screenshot. See `references/redaction.md`. Decide it while writing the steps: it costs nothing
+there, and nothing afterwards can be relied on to find what was missed.
 
 ### Settling the captions
 
@@ -266,7 +266,9 @@ Read these when the step calls for them, not upfront:
 | File | Read it when |
 |---|---|
 | `references/project-setup.md` | The project has no `evidence.config.js` yet, or the recording needs different pacing, captions or archiving behaviour |
-| `references/writing-step-scripts.md` | Writing or editing `steps.js`: the helpers, how long to pause after each click, captions, keyboard shortcuts, and what a recording physically cannot capture |
+| `references/writing-step-scripts.md` | Writing or editing `steps.js`: the helpers, how long to pause after each click, captions, keyboard shortcuts, the browser's own dialogs, and what a recording physically cannot capture |
+| `references/terminal-in-the-page.md` | The step script has to show something that happened on the machine rather than in the page — a job that ran, a file that was written |
+| `references/redaction.md` | Something on screen must not survive into the evidence |
 | `references/output-locations.md` | Choosing `OUT_DIR`, dealing with the git-ignore check, and reading the runner's output to build the final report |
 | `references/recording-a-screen.md` | The evidence is something a page recording cannot hold: a `<select>` menu, a file picker, a browser dialog, DevTools, anything outside the browser. Covers asking the user first, what each backend does and does not pick up, and which machines can do it at all |
 | `references/other-formats.md` | The take has to be a gif or a webm, and you need to know what that costs |

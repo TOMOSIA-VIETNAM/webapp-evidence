@@ -30,6 +30,7 @@ script, and it only shows up when someone watches the video back.
 | `locator.selectOption(...)` | `select(locator, 'label')` |
 | `locator.setInputFiles(path)` | `upload(locator, path)` |
 | `page.keyboard.press('Meta+C')` | `hotkey('ControlOrMeta+C', { label: 'コピー' })` |
+| a click that raises `alert`/`confirm` | `dialog(async () => click(locator))` — see below |
 
 The helpers' default pacing is already tuned for a viewer to keep up. When it needs adjusting: hold a
 modal or dialog for at least 4s before closing it. Write `mark()` in the language the MR reviewer
@@ -121,106 +122,39 @@ if the UI has a real button, click it, because the viewer needs to see which but
 `hotkey()` only when the shortcut itself is what the MR has to prove, or when the UI offers no other
 way.
 
-## Proving what happens outside the browser
+## Two things that need their own file
 
-Some of what an MR changes never shows on the page. A button enqueues a job; a form writes a file; an
-import moves rows. The click is visible and the result is not, and a video of the click alone proves
-half of it.
+| The claim | Read |
+|---|---|
+| The click reached a worker, wrote a file, moved a row — `term` opens a real shell in the page | `terminal-in-the-page.md` |
+| Something on screen must not survive into the evidence — `redact()` covers it, in the video and the screenshot | `redaction.md` |
 
-`term` is a real shell on the machine doing the recording, drawn in a panel over the page. The
-commands are real, the output is real, and it lands in the same video and the same runbook as
-everything else.
+## A dialog the browser puts up
 
-```js
-mark('Confirm the worker picked the job up');
-await click(page.getByRole('button', { name: 'Run sync' }), { pause: 'observe' });
+`alert`, `confirm`, `prompt`, `beforeunload`. Two things make these need a helper rather than an
+ordinary click, and both look like the take hanging:
 
-await term.open();
-await term.start('tail -f log/worker.log');
-await term.waitFor(/SyncJob .* finished/, { timeout: 30000 });
-await shot('worker-finished');
-await term.interrupt();
-await term.run('ls -l tmp/exports');
-await term.close();
-```
-
-| Call | Waits for | Use it for |
-|---|---|---|
-| `term.open()` | the panel to slide in and the shell to be ready | |
-| `term.run(cmd)` | the command to exit; returns `{ exitCode, output }` | commands that finish |
-| `term.start(cmd)` | the command to be typed and entered, nothing more | `tail -f`, a watcher, a server |
-| `term.waitFor(pattern)` | a string or RegExp to appear in the output | the assertion that makes it evidence |
-| `term.interrupt()` | the last `start` to stop, the way ^C would | stopping a `start` |
-| `term.close()` | the panel to slide out | |
-
-`term.run` throws when the command exits non-zero, because a failing command in a piece of evidence
-is a broken take rather than a result — pass `{ allowFailure: true }` when the failure is the thing
-being shown. `term.waitFor` throws on timeout, with the last lines of output in the message.
-
-The pause after a command follows the same vocabulary as a click (`'quick' | 'normal' | 'observe'`,
-or a number of milliseconds): `term.run('rake db:seed', { pause: 'quick' })`.
-
-**Write `waitFor`, not `sleep`.** A fixed wait either fails the day the machine is busy or pads every
-take with dead air, and neither one proves the line arrived. `waitFor` is also what the runbook
-quotes as the assertion.
-
-**The panel covers the bottom of the frame while it is open**, so `click()` refuses to operate on
-anything behind it: the click would work and the video would not show it. Finish with the page
-before opening the panel, or call `term.close()` before going back to it.
-
-Three things it is not:
-
-- **Not a terminal emulator.** Line-oriented output only. A full-screen program — `vim`, `less`,
-  `htop`, anything that takes over the display — stops the take with an error saying so, rather than
-  drawing something misleading.
-- **Not interactive.** A command that waits on standard input hangs until the step times out. Pass
-  what it needs on the command line or from a file.
-- **Not a terminal.** Programs decide by themselves whether to buffer their output when nothing is
-  watching, and one that buffers appears in bursts. `stdbuf -oL <command>` fixes it where it matters.
-  Colour works for the tools that read `CLICOLOR_FORCE` and `FORCE_COLOR`; the rest need
-  `--color=always`.
-
-The commands run from the project root, in a shell that inherits the environment the runner was
-started with — the `PATH` from rbenv, nvm or asdf still applies. `recording.terminal` in
-`evidence.config.js` changes the directory, the environment and the panel's size.
-
-The password of the account used to sign in is blacked out of the panel, the runbook and the
-screenshots. Anything else your commands print that should not be in a video goes in
-`recording.terminal.scrub`.
-
-## Keeping something out of the finished video
-
-An API key on screen, a customer's name, a token in a response. Whoever wrote the step knows
-exactly when it appears, so they say so and nothing has to be found afterwards:
+- Playwright dismisses a dialog the instant it appears unless something is listening, so by
+  default one never reaches the screen at all.
+- The click that raises it does not return until the dialog is answered. Awaiting the click
+  first waits forever.
 
 ```js
-await redact(page.locator('#api_key'), async () => {
-  await click(page.getByRole('button', { name: 'Reveal' }), { pause: 'observe' });
-  await shot('key-revealed');          // masked in the screenshot too
+mark('Confirm the deletion');
+await dialog(async () => {
+  await click(page.getByRole('button', { name: 'Delete selected' }), { pause: 'quick' });
 });
+await shot('deleted');
 ```
 
-| mode | What it does | When |
-|---|---|---|
-| `blur` (default) | blurs the region for that stretch | something is there and its shape still tells the story |
-| `box` | fills it with a solid block | the value must be unreadable, not merely hard to read |
-| `cut` | removes the stretch from the video | it should never have been recorded at all |
+`{ accept: false }` presses Cancel instead; `{ text: '…' }` answers a `prompt`. The runbook lists
+what was asked and what was answered, whichever backend recorded the take.
 
-Pass `'frame'` instead of a locator when the position is not known: `redact('frame', body)`.
+Nothing may talk to the page while a dialog is up — every evaluate and every mouse move blocks on
+it — so the cursor and the captions stay still for the duration, which is also what a real dialog
+looks like.
 
-**`cut` moves every timestamp after it.** The runbook is rebuilt against the shortened video, and
-rows that fell inside the cut are dropped. That is handled, but it means the runbook of a take
-with a cut cannot be compared against one without.
-
-`shot()` inside a region window is masked over the same element by Playwright. Inside a `'frame'`
-window, or a `cut` one, it is refused: an entirely blacked screenshot proves nothing, and a
-screenshot of a stretch being removed defeats the point of removing it.
-
-The runbook lists what was covered, when and where. A blurred rectangle in the middle of a video
-reads as a rendering fault unless the reader is told it was deliberate.
-
-Terminal output is separate: `recording.terminal.scrub` blacks out patterns before they are drawn
-at all, so they never reach a frame to be blurred.
+A modal the application draws itself is ordinary page content. Click it like anything else.
 
 ## What a recording cannot capture
 
@@ -235,13 +169,15 @@ The video records **page content**, not the machine's screen. Consequences:
 - **The operating system's file picker**: not recordable. The `upload()` helper loads the file,
   pauses long enough for the filename to appear in the field, and captions which file was chosen.
   What can be proved is the state after choosing, not the dialog.
-- **The browser's `confirm`/`alert` dialogs**: also drawn by the operating system. If the flow depends
-  on them, take screenshots of the state before and after and say so plainly in the report.
+- **The browser's `confirm`/`alert` dialogs**: drawn by the browser, over the page rather than in
+  it. `dialog()` drives them, and its own section is below — a click that raises one and is
+  awaited never returns.
 - **The keyboard**: nothing on screen shows which key was pressed. The `hotkey()` helper compensates
   with the key hint overlay in the video, and the runbook lists the presses again with timestamps.
 
 Widgets built in JS — modals, date pickers, a UI kit's dropdowns — record perfectly well. So does
-anything that happens on the machine rather than in the page, through `term` above.
+anything that happens on the machine rather than in the page, through `term` — see
+`terminal-in-the-page.md`.
 
 Everything in this list is about the default backend, which records page content. Setting
 `recording.capture` to `'window'` records the browser window instead, and on macOS the file
