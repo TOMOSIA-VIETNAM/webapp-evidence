@@ -161,4 +161,27 @@ function createHuman({ pace, viewport, seed }) {
   return { wait, moveDuration, movePlan, aimDelay, charDelay, typeDelays, restingPoint, rng };
 }
 
-module.exports = { createHuman, createRng, hashSeed, ballistic };
+// Not every action has something to look at. Opening a tab, expanding a menu, moving to the next
+// field — a real person goes straight through those; they only stop to read once a result appears
+// on screen. These three levels let a step script say that instead of scattering ms numbers
+// around, and they read the same whether the action was a click or a command in the terminal.
+const PAUSE_LEVELS = {
+  quick: 'afterClickQuickMs',      // only a step towards the next action, nothing to look at
+  normal: 'afterClickMs',
+  observe: 'afterClickObserveMs',  // the result on screen has to be read
+};
+
+function resolvePause(pause, pace, fallbackMs) {
+  if (pause === undefined) return fallbackMs;
+  if (typeof pause === 'number') return pause;
+  const key = PAUSE_LEVELS[pause];
+  if (!key) {
+    throw new Error(
+      `Invalid pause: ${JSON.stringify(pause)}\n` +
+      `Use a number of ms, or one of ${Object.keys(PAUSE_LEVELS).join(' | ')}.`
+    );
+  }
+  return pace[key];
+}
+
+module.exports = { createHuman, createRng, hashSeed, ballistic, PAUSE_LEVELS, resolvePause };

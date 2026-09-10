@@ -46,6 +46,7 @@ const DEFAULTS = {
       selectStepMs: 220,      // time per option change inside a select
       afterSelectMs: 900,
       afterUploadMs: 1200,    // hold so the file name has time to appear
+      afterCommandMs: 1600,   // hold after a command finishes, so its output can be read
       beforeHotkeyMs: 450,    // the key hint overlay appears first, then the keys are pressed
       hotkeyHoldMs: 1400,     // keep the overlay up after the press, long enough to read both the keys and the result
       afterHotkeyMs: 900,     // pause after the overlay goes away
@@ -64,6 +65,23 @@ const DEFAULTS = {
       jitter: 0.18,
     },
     video: { crf: 26, preset: 'slow' },
+    // The shell shown in the panel over the page. It runs on the machine doing the recording,
+    // so a step script can prove what happened behind the browser — a job that was enqueued, a
+    // file that was written — without recording the whole screen.
+    terminal: {
+      height: 300,           // the bottom strip of the frame the panel occupies, in pixels
+      fontSize: 13,
+      // --norc keeps the take independent of whoever's dotfiles are on the machine. The
+      // environment is still inherited, so a PATH set up by rbenv, nvm or asdf applies.
+      shell: ['bash', '--norc', '--noprofile', '-s'],
+      cwd: undefined,        // defaults to the project root
+      env: {},
+      // Extra patterns blacked out of the panel, the runbook and the screenshots. The password
+      // of the signed-in account is covered already; this is for whatever else the project's
+      // own commands print.
+      scrub: [],
+      title: undefined,      // the label in the panel's title bar; defaults to the shell's name
+    },
   },
   output: {
     // false: keep older takes by moving them into evidence/v1, v2… before recording a new one.
@@ -178,6 +196,38 @@ function parseSwitch(value) {
   );
 }
 
+// The panel covers the bottom of the frame, so its height is not a free choice: leave it too
+// tall and the app being recorded has nowhere left to show what is being proven.
+const MIN_PANEL_ROWS_HEIGHT = 120;
+const MAX_PANEL_SHARE = 0.6;
+
+function assertTerminal({ terminal, viewport }) {
+  const fail = (key, message) => {
+    throw new Error(`recording.terminal.${key} ${message}`);
+  };
+
+  if (!Number.isFinite(terminal.height) || terminal.height < MIN_PANEL_ROWS_HEIGHT) {
+    fail('height', `must be at least ${MIN_PANEL_ROWS_HEIGHT}px, got ${JSON.stringify(terminal.height)}`);
+  }
+  const ceiling = Math.round(viewport.height * MAX_PANEL_SHARE);
+  if (terminal.height > ceiling) {
+    fail('height', `is ${terminal.height}px, more than ${ceiling}px of the ${viewport.height}px frame. ` +
+      'The application being recorded needs the rest of it.');
+  }
+  if (!Number.isFinite(terminal.fontSize) || terminal.fontSize < 9 || terminal.fontSize > 24) {
+    fail('fontSize', `must be between 9 and 24, got ${JSON.stringify(terminal.fontSize)}`);
+  }
+  if (!Array.isArray(terminal.shell) || !terminal.shell.length
+      || terminal.shell.some((part) => typeof part !== 'string')) {
+    fail('shell', 'must be a non-empty array of strings, for example [\'bash\', \'--norc\', \'-s\']');
+  }
+  terminal.scrub.forEach((pattern, index) => {
+    if (!(pattern instanceof RegExp)) {
+      fail(`scrub[${index}]`, `must be a regular expression, got ${typeof pattern}`);
+    }
+  });
+}
+
 function resolveSettings(config) {
   warnShadowedLegacy(config);
   warnRemovedPaceKeys(config);
@@ -212,6 +262,7 @@ function resolveSettings(config) {
     settings.recording.captions.locale = assertLocale(process.env.CAPTION_LOCALE, 'CAPTION_LOCALE');
   }
   assertLocale(settings.recording.captions.locale, 'recording.captions.locale');
+  assertTerminal(settings.recording);
 
   return settings;
 }

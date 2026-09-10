@@ -6,10 +6,11 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 const {
   HELP_ENV, sleep, watchProblems, assertOutsideSkill, resolveSettings,
-  loadProjectConfig, resolveApp, launchBrowser, prepareApp, signIn,
+  loadProjectConfig, resolveApp, launchBrowser, prepareApp, signIn, makeAccountStore, ROOT,
 } = require('./session');
-const { createHuman } = require('./human');
+const { createHuman, resolvePause } = require('./human');
 const { createCaptions } = require('./captions');
+const { createTerminal, isBehindPanel } = require('./terminal');
 
 const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
@@ -51,15 +52,6 @@ The page-load wait at the start is trimmed off the video; the sign-in step is no
 }
 
 // ---------- interaction helpers ----------
-// Not every click has something to look at. Opening a tab, expanding a menu, moving to the next field —
-// a real person clicks straight through those; they only stop to read once a result appears on screen.
-// These three levels let the step script say that instead of scattering ms numbers around.
-const PAUSE_LEVELS = {
-  quick: 'afterClickQuickMs',      // only a step towards the next action, nothing to look at
-  normal: 'afterClickMs',          // default
-  observe: 'afterClickObserveMs',  // the result on screen has to be read
-};
-
 // How long to leave a caption up. A fixed hold suits one sentence length and no other: short ones
 // sit there long after they have been read, long ones vanish before they have. So the hold follows
 // the reading rather than the clock — a floor for noticing that something appeared, plus time
@@ -76,21 +68,10 @@ function readingTime(text, pace) {
   return Math.round(Math.min(pace.noteHoldMs + (characters / perSecond) * 1000, pace.noteHoldMaxMs));
 }
 
-function resolvePause(pause, pace) {
-  if (pause === undefined) return pace.afterClickMs;
-  if (typeof pause === 'number') return pause;
-  const key = PAUSE_LEVELS[pause];
-  if (!key) {
-    throw new Error(
-      `Invalid pause: ${JSON.stringify(pause)}\n` +
-      `Use a number of ms, or one of ${Object.keys(PAUSE_LEVELS).join(' | ')}.`
-    );
-  }
-  return pace[key];
-}
-
 // The mouse interpolates its way over before clicking, so the viewer can see where the click lands
-function buildContext(page, outDir, marks, hotkeys, notes, startedAt, pace, viewport, human, captions) {
+function buildContext({
+  page, outDir, marks, hotkeys, notes, startedAt, pace, viewport, human, captions, terminal,
+}) {
   const mark = (label) => marks.push({ at: (Date.now() - startedAt) / 1000, label });
   const since = () => (Date.now() - startedAt) / 1000;
 
@@ -141,6 +122,14 @@ function buildContext(page, outDir, marks, hotkeys, notes, startedAt, pace, view
       box = await locator.boundingBox();
     }
     if (!box) throw new Error('The element to click is not visible');
+    // A click under the open terminal panel would work and would not be visible: the video shows
+    // the panel where the button was, and the reviewer is left with a result and no action.
+    if (terminal.isOpen() && isBehindPanel(box, viewport.height, terminal.panelHeight)) {
+      throw new Error(
+        'The element to click is behind the terminal panel, so the click would not be visible ' +
+        'in the recording.\nCall term.close() before operating on the bottom of the page.'
+      );
+    }
     const cx = box.x + box.width / 2;
     const cy = box.y + box.height / 2;
     // The click does not land dead centre: a human hand lands slightly off centre, and the larger
@@ -153,7 +142,7 @@ function buildContext(page, outDir, marks, hotkeys, notes, startedAt, pace, view
     await page.mouse.down();
     await sleep(human.wait(pace.clickHoldMs));
     await page.mouse.up();
-    await sleep(human.wait(resolvePause(pause, pace)));
+    await sleep(human.wait(resolvePause(pause, pace, pace.afterClickMs)));
     // After a navigation the fake cursor is redrawn from its default position, so it has to be resynced
     await page.mouse.move(tx + 0.5, ty + 0.5);
   }
@@ -288,7 +277,23 @@ function buildContext(page, outDir, marks, hotkeys, notes, startedAt, pace, view
     return file;
   }
 
-  return { page, mark, click, type, select, upload, hotkey, note, shot, sleep, moveTo };
+  return { page, mark, click, type, select, upload, hotkey, note, shot, sleep, moveTo, term: terminal.term };
+}
+
+// The commands are the half of the evidence the video is worst at: a viewer scrubbing for the
+// moment a job was picked up has to watch the panel until they spot it. The waitFor rows matter
+// most of all — that is the assertion the take rests on, stated once, with the text that matched.
+function buildCommandSection(commands, trimAt) {
+  if (!commands.length) return '';
+  const rows = commands.map((entry) => {
+    const at = fmt(Math.max(0, entry.at - trimAt));
+    if (entry.kind === 'wait') return `- ${at}  waited for ${entry.text} — matched \`${entry.matched}\``;
+    const suffix = entry.kind === 'run' ? `exit ${entry.exitCode}`
+      : entry.kind === 'start' ? 'started, left running'
+      : 'interrupted';
+    return `- ${at}  \`${entry.text}\` — ${suffix}`;
+  });
+  return `## Commands run in the terminal\n\n${rows.join('\n')}\n\n`;
 }
 
 // The timeline is not written out as its own file: it lives in the runbook so there is only one place to edit.
@@ -500,7 +505,7 @@ To change what gets recorded, edit \`${rel(meta.stepsFile)}\`, not the runbook f
 
 ${meta.timeline}
 
-${meta.hotkeySection}${meta.noteSection}## Screenshots
+${meta.hotkeySection}${meta.noteSection}${meta.commandSection}## Screenshots
 
 ${meta.shots.length ? meta.shots.map((f) => `- ${f}`).join('\n') : '- (none)'}
 
@@ -514,6 +519,19 @@ ${meta.problems.length ? meta.problems.slice(0, 20).map((p) => `- ${p}`).join('\
 `;
   fs.writeFileSync(file, body);
   return file;
+}
+
+// The account is stored so a recording does not have to ask for it again, which means the runner
+// holds a password while a step script runs commands that may echo one. Whatever the project's
+// login adapter chose to call it, these are the fields worth blacking out of the panel, the
+// runbook and the screenshots.
+const SECRET_FIELD = /pass|secret|token|key/i;
+
+function accountSecrets(account) {
+  if (!account || typeof account !== 'object') return [];
+  return Object.entries(account)
+    .filter(([field, value]) => typeof value === 'string' && SECRET_FIELD.test(field))
+    .map(([, value]) => value);
 }
 
 // ---------- run ----------
@@ -560,6 +578,7 @@ async function main() {
   });
   await context.addInitScript({ path: path.join(__dirname, 'cursor.js') });
   await context.addInitScript({ path: path.join(__dirname, 'caption.js') });
+  await context.addInitScript({ path: path.join(__dirname, 'terminal-panel.js') });
   const page = await context.newPage();
   const problems = watchProblems(page);
 
@@ -572,6 +591,20 @@ async function main() {
   // The seed comes from the step script's name: the pacing jitter of a given step script is the same
   // across every take, so the runbook keeps its promise that re-running produces this same recording.
   const human = createHuman({ pace, viewport, seed: name });
+
+  // A shell shown in the page, for the part of the evidence the browser cannot show: that the
+  // click actually reached a worker, wrote a file, moved a row. Nothing is spawned until a step
+  // script asks for it, so a take that never mentions the terminal starts no process.
+  const terminal = createTerminal({
+    page,
+    viewport,
+    config: settings.recording.terminal,
+    human,
+    pace,
+    root: ROOT,
+    since: () => (Date.now() - startedAt) / 1000,
+    secrets: accountSecrets(makeAccountStore(settings.output.accountStore).get(app)),
+  });
 
   // The page-load wait is trimmed off the video
   await page.goto(`${baseUrl}${steps.start || '/'}`, { waitUntil: 'networkidle' });
@@ -586,11 +619,17 @@ async function main() {
 
   const trimAt = (Date.now() - startedAt) / 1000;
 
-  const ctx = buildContext(
-    page, outDir, marks, hotkeys, notes, startedAt, pace, viewport, human, captions
-  );
+  const ctx = buildContext({
+    page, outDir, marks, hotkeys, notes, startedAt, pace, viewport, human, captions, terminal,
+  });
   ctx.baseUrl = baseUrl;
-  await steps.run(ctx);
+  try {
+    await steps.run(ctx);
+  } finally {
+    // A step script that throws halfway must not leave a shell — or whatever it was running —
+    // alive on the machine after the runner has gone.
+    await terminal.dispose();
+  }
 
   await sleep(pace.tailMs);
   const total = (Date.now() - startedAt) / 1000;
@@ -625,7 +664,9 @@ async function main() {
     captions: captions.enabled ? captions.locale : 'off',
     duration: total - trimAt, recordedAt: new Date().toISOString(),
     runner: __filename, timeline, hotkeySection: buildHotkeySection(hotkeys, trimAt),
-    noteSection: buildNoteSection(notes, trimAt), shots, fixes, problems,
+    noteSection: buildNoteSection(notes, trimAt),
+    commandSection: buildCommandSection(terminal.commands, trimAt),
+    shots, fixes, problems,
   });
 
   fixes.forEach((f) => console.log(`FIXED: ${f}`));
@@ -651,5 +692,9 @@ module.exports = {
   main, buildContext, archivePreviousRun, reportResult, runArtifacts,
   // Exported for the unit tests: pure helpers that decide timings, timeline rows and the
   // .gitignore hints, none of which need a browser to be checked.
-  fmt, keyCaps, resolvePause, readingTime, buildTimeline, buildHotkeySection, buildNoteSection, ignoreHints,
+  fmt, keyCaps, readingTime, buildTimeline, buildHotkeySection, buildNoteSection,
+  buildCommandSection, ignoreHints,
+  // Re-exported where the pacing tests already look for it; it lives in human.js with the rest
+  // of the pacing, because the terminal helpers read the same vocabulary.
+  resolvePause,
 };
