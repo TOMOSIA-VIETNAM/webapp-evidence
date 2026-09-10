@@ -304,12 +304,13 @@ claude_or_skip() {
 # Where Claude Code currently thinks this marketplace lives, empty unless it is registered as a
 # directory. `marketplace list --json` is the only account of that; squeezing the whitespace out
 # leaves the pretty and the compact spelling of the same JSON reading alike, and each entry is one
-# flat object, so a brace is where the next one starts.
+# flat object, so a brace is where the next one starts. Finding nothing is an ordinary answer, which
+# is what the `|| true` says — without it a grep that matched nothing would end the run.
 claude_marketplace_path() {
   claude plugin marketplace list --json </dev/null 2>/dev/null \
     | tr -d ' \n' | tr '{' '\n' \
     | grep -F "\"name\":\"$MARKET\"" \
-    | sed -n 's/.*"path":"\([^"]*\)".*/\1/p' | head -1
+    | sed -n 's/.*"path":"\([^"]*\)".*/\1/p' | head -1 || true
 }
 
 # The commit Claude Code copied out of the clone, which is the code an agent there loads — a
@@ -318,7 +319,7 @@ claude_installed_commit() {
   claude plugin list --json </dev/null 2>/dev/null \
     | tr -d ' \n' | tr '{' '\n' \
     | grep -F "\"id\":\"$PLUGIN@$MARKET\"" \
-    | sed -n 's/.*"version":"\([^"]*\)".*/\1/p' | head -1
+    | sed -n 's/.*"version":"\([^"]*\)".*/\1/p' | head -1 || true
 }
 
 # What a run installed, in the terms someone can check: the ref this clone follows, and the commit

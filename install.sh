@@ -54,6 +54,60 @@ missing_ref() {
   exit 1
 }
 
+# A manifest's name is its first `"name"`. The clone's installer reads these too; this file cannot
+# borrow that code, because it runs whatever installer the requested ref happens to carry.
+manifest_name() {
+  sed -n 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$1" 2>/dev/null | head -1
+}
+
+# One flat object per entry in these JSON listings, so squeezing the whitespace out and splitting on
+# a brace reads the same whether the output is pretty-printed or compact.
+# Nothing matching is an ordinary answer here, not a failure — hence the `|| true`, which keeps a
+# grep that found nothing from ending the run under `set -e`.
+claude_field() {
+  local key="$1" match="$2" field="$3"
+  # shellcheck disable=SC2086  # `marketplace list` is two words on purpose
+  claude plugin $key --json </dev/null 2>/dev/null | tr -d ' \n' | tr '{' '\n' \
+    | grep -F "$match" | sed -n "s/.*\"$field\":\"\([^\"]*\)\".*/\1/p" | head -1 || true
+}
+
+# The clone is checked out at the requested ref before its installer runs, so the installer that
+# runs is the one carried by that ref. A ref cut before Claude Code was pointed at the clone carries
+# an older one, which installs Claude Code from the repository name — the default branch, whatever
+# was asked for — and says it succeeded. Nothing here can fix that ref, but this file is always
+# fetched fresh, so it can at least refuse to let the mismatch pass in silence: ask Claude Code
+# which commit it ended up holding, and compare.
+claude_landed() {
+  local home="$1" ref="$2" plugin market got head short source
+  command -v claude >/dev/null || return 0
+  plugin="$(manifest_name "$home/src/.claude-plugin/plugin.json")"
+  market="$(manifest_name "$home/.claude-plugin/marketplace.json")"
+  [ -n "$plugin" ] && [ -n "$market" ] || return 0
+  got="$(claude_field list "\"id\":\"$plugin@$market\"" version)"
+  # Not installed there at all: this run did not ask for Claude Code, and there is nothing to say.
+  [ -n "$got" ] || return 0
+  head="$(git -C "$home" rev-parse HEAD 2>/dev/null)" || return 0
+  [ -n "$head" ] || return 0
+  # Claude Code names its copy after the commit, so a prefix match means the ref did land.
+  [ "${head#"$got"}" = "$head" ] || return 0
+  short="$(git -C "$home" rev-parse --short=12 HEAD 2>/dev/null || true)"
+
+  printf '\ninstall.sh: Claude Code holds commit %s, not %s (%s)\n' "$got" "$ref" "$short" >&2
+  printf '  %s carries an installer from before Claude Code read this clone, so the Claude Code\n' "$ref" >&2
+  printf '  step there installed from GitHub instead. Everything else asked for is on %s.\n' "$ref" >&2
+  source="$(claude_field 'marketplace list' "\"name\":\"$market\"" path)"
+  if [ "$source" = "$home" ]; then
+    printf '\n  Put Claude Code on it:  claude plugin update %s@%s\n' "$plugin" "$market" >&2
+  else
+    printf '\n  Put Claude Code on it:  claude plugin uninstall %s@%s\n' "$plugin" "$market" >&2
+    printf '                          claude plugin marketplace remove %s\n' "$market" >&2
+    printf '                          claude plugin marketplace add %s\n' "$home" >&2
+    printf '                          claude plugin install %s@%s\n' "$plugin" "$market" >&2
+  fi
+  printf '  Then restart Claude Code — skills are read at startup.\n' >&2
+  printf '\n  To stop this happening, merge the default branch into %s once.\n' "$ref" >&2
+}
+
 # Everything lives in main so a download cut short cannot execute half a script.
 main() {
   local repo="${WEBAPP_EVIDENCE_REPO:-https://github.com/TOMOSIA-VIETNAM/webapp-evidence}"
@@ -161,7 +215,10 @@ main() {
   fi
 
   say '\nRead what does the rest: %s/scripts/install-local.sh\n\n' "$home"
-  exec "$home/scripts/install-local.sh" ${pass+"${pass[@]}"}
+  local rc=0
+  "$home/scripts/install-local.sh" ${pass+"${pass[@]}"} || rc=$?
+  claude_landed "$home" "$ref"
+  exit "$rc"
 }
 
 main "$@"
