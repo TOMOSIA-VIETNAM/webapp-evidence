@@ -56,7 +56,12 @@ every timeline row and every caption out by a few hundred milliseconds.
 So the capture reports it. ffmpeg runs with `-progress pipe:1 -nostats`, and the first `frame=`
 line it prints is the instant the recording actually began. The take starts from there.
 
-Stopping writes `q` to ffmpeg's stdin rather than killing it, so the file gets its index and plays.
+Stopping asks first and escalates: `q` on ffmpeg's stdin, then an interrupt, then a kill, each
+after a couple of seconds. avfoundation answers none of the first two — the capture device holds
+ffmpeg somewhere neither reaches — so on macOS every take ends at the last one, and the file has
+to survive that. It does, because it is written in fragments that are flushed as they are made:
+an ordinary mp4 keeps its index in memory until the process exits cleanly, and a killed one has
+none at all.
 
 ### Permission
 
@@ -82,12 +87,18 @@ channel to them — and passes the flag once they agree.
 
 Then, on the machine itself:
 
-- Do Not Disturb goes on for the duration, so a notification banner cannot land inside the frame.
-  It goes back to what it was afterwards.
-- A notice appears on screen — an `osascript` dialog, which floats above every application — saying
-  a recording is about to start and asking the operator not to touch the machine. It dismisses
-  itself and is gone before the first frame.
-- A countdown follows, so there is time to move the mouse away.
+- A notice appears on screen — an `osascript` dialog, which floats above every application —
+  before the question is asked. `announce.js` is a command of its own for exactly that reason:
+  the person about to have their screen recorded is not necessarily looking at the terminal. It
+  says nothing is being recorded yet, asks for Do Not Disturb, and sends them back to the
+  terminal where the question is.
+- It waits to be pressed. A notice that dismisses itself is one they may never see, and this is
+  the one thing they have to have seen. Nobody pressing it within five minutes is nobody at the
+  machine, and nothing is recorded.
+- Do Not Disturb is asked for, not set. macOS offers no dependable way to turn it on and put it
+  back, and a take that silently left it on afterwards would be worse than one that asked.
+- A countdown follows their answer in the terminal, so there is time to take a hand off the
+  keyboard. There is no second notice: the answer is the handover.
 
 ## Redaction
 
@@ -134,7 +145,8 @@ by marking, because the step script does not know a colleague is about to call.
 The order is prevention, then review by a person:
 
 1. The crop keeps everything outside the browser window out of the frame.
-2. Do Not Disturb keeps banners out of what is left.
+2. Do Not Disturb keeps banners out of what is left — asked for in the notice, not set by the
+   runner.
 3. After the take, the recording is reviewed once with the `vision` skill, and what it finds is
    **reported to the user with timestamps**, not redacted automatically.
 
@@ -150,8 +162,8 @@ recording: {
   screenCapture: {
     framerate: 30,
     display: 0,               // which display, when there is more than one
-    countdownSeconds: 3,
-    doNotDisturb: true,
+    countdownSeconds: 3,      // between the answer in the terminal and the first frame
+    maxSeconds: 600,          // a ceiling, so a runner that dies leaves no recorder running
   },
 }
 ```
