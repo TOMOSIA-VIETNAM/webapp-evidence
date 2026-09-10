@@ -155,7 +155,12 @@ screen first and the question goes to them second, in that order:
    ```
 
    It floats above whatever they are looking at, says nothing is being recorded yet, and sends
-   them back to this terminal. It dismisses itself.
+   them back to this terminal. **It waits to be pressed** — a notice that dismisses itself is
+   one they may never see, and this is the one thing they have to have seen. The command does
+   not return until they press it, so ask afterwards, not before.
+
+   It exits non-zero if nobody presses it within five minutes. That is nobody at the machine,
+   not consent: say so and stop, rather than recording an empty chair.
 
 2. **Ask here**, with the structured question tool where the agent has one (Claude Code's
    `AskUserQuestion`), otherwise as one chat message. Ask one question with three answers, and
@@ -176,8 +181,11 @@ screen first and the question goes to them second, in that order:
 
    The runner refuses without that variable, and it cannot ask for it itself: started through a
    shell, a prompt on stdin waits forever. Passing it is the agent saying the person agreed.
-   `OPERATOR_LOCALE` is the language of the second notice, the one that goes up as the recording
-   starts.
+
+   A second notice goes up on their screen at that point, in `OPERATOR_LOCALE`, and it waits to
+   be pressed too. That press is the handover: they have turned off notifications, they are
+   looking at it, and from there the machine is the agent's. A few seconds later the first frame
+   is recorded.
 
 From the moment they answer, the machine is the agent's. Do not ask them anything else until the
 take is finished, and tell them plainly when it is.

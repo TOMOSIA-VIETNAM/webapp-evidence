@@ -35,7 +35,7 @@ case "$BASE_URL" in http://127.0.0.1:*) ;; *) fail "the demo server did not star
 printf '%s\n' "$BASE_URL"
 
 step "Recording — please leave the machine alone"
-BASE_URL="$BASE_URL" OUT_DIR="$OUT_DIR" SCREEN_CAPTURE=1 DEVTOOLS="$DEVTOOLS" \
+BASE_URL="$BASE_URL" OUT_DIR="$OUT_DIR" SCREEN_CAPTURE=1 SCREEN_CAPTURE_NOTICE=off DEVTOOLS="$DEVTOOLS" \
   EVIDENCE_CONFIG="$REPO/tests/e2e/native-capture.config.js" \
   node "$SKILL/scripts/record.js" "$REPO/tests/e2e/native-steps.js"
 

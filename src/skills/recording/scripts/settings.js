@@ -80,7 +80,16 @@ const DEFAULTS = {
     screenCapture: {
       framerate: 30,
       display: 0,             // which display, when there is more than one
-      countdownSeconds: 3,    // after the on-screen notice, before the first frame
+      countdownSeconds: 3,    // after the notice is pressed, before the first frame
+      // How long the notice waits to be pressed. It does not dismiss itself: one that did is
+      // one the person it was meant for may never see. Running out means nobody is at the
+      // machine, and nothing is recorded.
+      noticeTimeoutSeconds: 300,
+      // The handover notice can be turned off, and there is one reason to: an automated check
+      // records a screen with nobody watching, and there is nobody to press it. It does not
+      // turn off the consent — SCREEN_CAPTURE=1 is still required, and that is the agent
+      // saying a person agreed.
+      notice: true,
       // The language of whoever is sitting at the machine, which is not the language of
       // whoever reviews the merge request: recording.captions.locale is that one. The person
       // being asked to hand over their machine has to be able to read the request.
@@ -230,12 +239,12 @@ function warnRemovedPaceKeys(config) {
 const SWITCH_ON = ['1', 'on', 'true', 'yes'];
 const SWITCH_OFF = ['0', 'off', 'false', 'no'];
 
-function parseSwitch(value) {
+function parseSwitch(value, name = 'CAPTIONS') {
   const normalized = String(value).trim().toLowerCase();
   if (SWITCH_ON.includes(normalized)) return true;
   if (SWITCH_OFF.includes(normalized)) return false;
   throw new Error(
-    `CAPTIONS is invalid: ${JSON.stringify(value)}\n` +
+    `${name} is invalid: ${JSON.stringify(value)}\n` +
     `Use ${SWITCH_ON.join('/')} to turn it on, ${SWITCH_OFF.join('/')} to turn it off.`
   );
 }
@@ -310,6 +319,12 @@ function assertCapture({ capture, screenCapture }) {
     );
   }
   assertLocale(screenCapture.locale, 'recording.screenCapture.locale');
+  if (!Number.isFinite(screenCapture.noticeTimeoutSeconds) || screenCapture.noticeTimeoutSeconds < 10) {
+    throw new Error(
+      'recording.screenCapture.noticeTimeoutSeconds must be at least 10, got ' +
+      `${JSON.stringify(screenCapture.noticeTimeoutSeconds)}`
+    );
+  }
   if (!Number.isFinite(screenCapture.countdownSeconds) || screenCapture.countdownSeconds < 0) {
     throw new Error(
       `recording.screenCapture.countdownSeconds must not be negative, got ` +
@@ -348,6 +363,11 @@ function resolveSettings(config) {
   if (process.env.BROWSER_CHANNEL) settings.recording.browserChannel = process.env.BROWSER_CHANNEL;
   if (process.env.EVIDENCE_OVERWRITE === '1') settings.output.overwrite = true;
   if (process.env.CAPTURE) settings.recording.capture = process.env.CAPTURE;
+  if (process.env.SCREEN_CAPTURE_NOTICE) {
+    settings.recording.screenCapture.notice = parseSwitch(
+      process.env.SCREEN_CAPTURE_NOTICE, 'SCREEN_CAPTURE_NOTICE'
+    );
+  }
   if (process.env.OPERATOR_LOCALE) {
     settings.recording.screenCapture.locale = assertLocale(process.env.OPERATOR_LOCALE, 'OPERATOR_LOCALE');
   }

@@ -39,6 +39,9 @@ const HELP_ENV = `Environment variables:
                       both imply HEADED=1.
     SCREEN_CAPTURE=1  Required for window and screen: they record what is on someone's screen,
                       so the operator has to have agreed before the run starts.
+    SCREEN_CAPTURE_NOTICE=off
+                      Skip the notice that hands the machine over. Only for an automated check,
+                      which records with nobody there to press it. It does not skip the consent.
     OPERATOR_LOCALE   Language of the notice shown on that screen as the recording starts
                       (en | ja | vi). Not the caption language: this one is read by whoever is
                       at the machine, not by whoever reviews the merge request.`;

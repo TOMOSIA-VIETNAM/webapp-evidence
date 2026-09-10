@@ -556,7 +556,11 @@ function encodeMp4(outDir, name, webm, trimAt, video, filter) {
 // an ancillary task), but it hands over the line to add so the user only has to paste it.
 function gitTop() {
   try {
-    return execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
+    // stderr piped rather than inherited: outside a repository git says "fatal: not a git
+    // repository", and that line appearing among a recording's output reads as a failure.
+    return execFileSync('git', ['rev-parse', '--show-toplevel'], {
+      encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim();
   } catch {
     return null;
   }
@@ -564,7 +568,9 @@ function gitTop() {
 
 function isTracked(dir) {
   try {
-    const out = execFileSync('git', ['ls-files', '--', dir], { encoding: 'utf8' });
+    const out = execFileSync('git', ['ls-files', '--', dir], {
+      encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+    });
     return out.trim().length > 0;
   } catch {
     return false;

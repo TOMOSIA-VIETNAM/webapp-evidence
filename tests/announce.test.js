@@ -7,7 +7,12 @@ const { parse, KINDS } = require('../src/skills/recording/scripts/announce');
 const { noticeText, LOCALE_KEYS } = require('../src/skills/recording/scripts/captions');
 
 test('a kind and a language are enough, and the language defaults to English', () => {
-  assert.deepEqual(parse(['--kind', 'confirm']), { kind: 'confirm', locale: 'en', seconds: 6 });
+  assert.deepEqual(parse(['--kind', 'confirm']), { kind: 'confirm', locale: 'en', seconds: 300 });
+});
+
+test('the wait is long, because it is a person being waited for', () => {
+  // The notice does not dismiss itself: one that did is one they may never see
+  assert.ok(parse(['--kind', 'confirm']).seconds >= 60);
 });
 
 test('options may be written with an equals sign', () => {
@@ -22,8 +27,8 @@ test('a language the notices are not written in is refused', () => {
   assert.throws(() => parse(['--kind', 'confirm', '--locale', 'de']), /Invalid language/);
 });
 
-test('a notice that never dismisses itself is refused', () => {
-  // Nobody may be at the machine to answer it, and the recording must not wait forever
+test('a wait of no time at all is refused', () => {
+  // Zero would make it a notice nobody could press, which is the failure it exists to avoid
   assert.throws(() => parse(['--kind', 'confirm', '--seconds', '0']), /positive/);
 });
 
@@ -36,6 +41,15 @@ test('both notices exist in every language the skill claims to speak', () => {
     for (const key of Object.values(KINDS)) {
       const text = noticeText(key, locale);
       assert.ok(text.length > 20, `${key} in ${locale} is too short to say anything`);
+    }
+  }
+});
+
+test('both notices ask to be pressed, because neither dismisses itself', () => {
+  for (const locale of LOCALE_KEYS) {
+    for (const key of Object.values(KINDS)) {
+      const text = noticeText(key, locale);
+      assert.match(text, /OK/, `${key} in ${locale} does not say what to press`);
     }
   }
 });

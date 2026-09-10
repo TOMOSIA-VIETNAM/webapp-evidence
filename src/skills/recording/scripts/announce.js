@@ -8,7 +8,7 @@
 // is. The question itself is asked by the agent, in the terminal, where an answer can be given.
 //
 // Nothing is recorded by this command. It shows a sentence and exits.
-const { execFileSync } = require('child_process');
+const { spawn } = require('child_process');
 const { noticeText, LOCALE_KEYS, assertLocale } = require('./captions');
 
 const KINDS = {
@@ -26,15 +26,17 @@ function help() {
     --kind confirm    a recording has been asked for, and a question is waiting in the terminal
     --kind starting   the recording begins now, do not touch the machine
     --locale          the language the person at the machine reads (default en)
-    --seconds         how long the notice stays up before dismissing itself (default 6)
+    --seconds         how long to wait for it to be pressed before giving up (default 300)
 
-Records nothing. Shows a sentence and exits. On a machine with no windowing session it prints
-the sentence instead, and still exits 0: a notice that could not be shown is not a failure of
-the recording.`);
+Records nothing. It waits for the notice to be pressed, because a notice that dismisses itself
+is one the person it was meant for may never see.
+
+Exits 0 once it is pressed, and 0 on a machine with no windowing session, where it prints the
+sentence instead. Exits 1 if nobody pressed it: that is nobody at the machine, not consent.`);
 }
 
 function parse(argv) {
-  const options = { kind: null, locale: 'en', seconds: 6 };
+  const options = { kind: null, locale: 'en', seconds: 300 };
   const fields = { '--kind': 'kind', '--locale': 'locale', '--seconds': 'seconds' };
   for (let i = 0; i < argv.length; i += 1) {
     const [flag, inline] = argv[i].split('=');
@@ -56,39 +58,65 @@ function parse(argv) {
 }
 
 // An AppleScript dialog floats above every application, which is the whole point: the person is
-// looking at something else. It dismisses itself, so a notice nobody is at the machine to read
-// cannot stall a recording indefinitely.
-function show(message, seconds) {
-  if (process.platform !== 'darwin') return false;
-  try {
-    execFileSync('osascript', [
+// looking at something else.
+//
+// It waits to be pressed. A notice that dismisses itself after a few seconds is one the person
+// it was meant for may never see, and this is the notice that tells them their screen is about
+// to be recorded — the one thing they have to have seen.
+//
+// The wait is bounded all the same, generously, and running out is abandonment rather than
+// consent: nobody was at the machine, so nothing should be recorded of it.
+function showNotice(message, timeoutSeconds) {
+  if (process.platform !== 'darwin') return Promise.resolve('unavailable');
+
+  return new Promise((resolve) => {
+    const dialog = spawn('osascript', [
       '-e',
       `display dialog ${JSON.stringify(message)} buttons {"OK"} default button 1 `
-      + `with title "webapp-evidence" giving up after ${Math.round(seconds)}`,
+      + 'with title "webapp-evidence"',
     ], { stdio: 'ignore' });
-    return true;
-  } catch {
-    return false;   // no windowing session, or automation is not permitted
-  }
+
+    const abandon = setTimeout(() => {
+      dialog.kill('SIGTERM');
+      resolve('unanswered');
+    }, timeoutSeconds * 1000);
+
+    dialog.on('exit', (code) => {
+      clearTimeout(abandon);
+      // Killed on the timeout, or the person has no windowing session to show it in
+      if (code === 0) resolve('acknowledged');
+      else resolve(dialog.killed ? 'unanswered' : 'unavailable');
+    });
+    dialog.on('error', () => { clearTimeout(abandon); resolve('unavailable'); });
+  });
 }
 
-function main(argv) {
+async function main(argv) {
   if (argv.includes('--help') || argv.includes('-h') || !argv.length) {
     help();
     process.exit(argv.length ? 0 : 1);
   }
   const { kind, locale, seconds } = parse(argv);
   const message = noticeText(KINDS[kind], locale);
-  if (!show(message, seconds)) console.log(message);
-}
+  const outcome = await showNotice(message, seconds);
 
-if (require.main === module) {
-  try {
-    main(process.argv.slice(2));
-  } catch (error) {
-    console.error(String((error && error.message) || error));
-    process.exit(1);
+  if (outcome === 'unavailable') {
+    console.log(message);
+    return;
+  }
+  if (outcome === 'unanswered') {
+    throw new Error(
+      `Nobody pressed the notice within ${seconds}s, so nobody is at that machine.\n` +
+      'Do not record its screen: ask again when they are back.'
+    );
   }
 }
 
-module.exports = { parse, KINDS };
+if (require.main === module) {
+  main(process.argv.slice(2)).catch((error) => {
+    console.error(String((error && error.message) || error));
+    process.exit(1);
+  });
+}
+
+module.exports = { parse, showNotice, KINDS };

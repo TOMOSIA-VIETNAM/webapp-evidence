@@ -13,6 +13,7 @@ const os = require('os');
 const path = require('path');
 const { spawn, execFileSync } = require('child_process');
 const { noticeText } = require('./captions');
+const { showNotice } = require('./announce');
 
 const PAGE = 'page';
 const WINDOW = 'window';
@@ -133,26 +134,32 @@ function createProgressReader(onFirstFrame) {
   };
 }
 
-// The last thing before the first frame: the recording starts now, in the language of whoever
-// is at the machine. An AppleScript dialog floats above every application, so it is the one
-// place a notice is certain to be seen, and the countdown after it is time to move the mouse
-// away.
+// The last thing before the first frame: pressed by the person at the machine, in their own
+// language, and the countdown after it is time to move the mouse away.
 //
-// This is not where consent is given — by now it has been. announce.js puts the earlier notice
-// up, the one that sends the person back to the terminal to answer; a runner spawned through a
-// shell has nobody to answer a prompt.
-async function announce(countdownSeconds, locale) {
-  const message = noticeText('screenCaptureStarting', locale);
-  try {
-    execFileSync('osascript', [
-      '-e',
-      `display dialog ${JSON.stringify(message)} buttons {"OK"} default button 1 `
-      + 'with title "webapp-evidence" giving up after 6',
-    ], { stdio: 'ignore' });
-  } catch {
-    // No windowing session, or automation is not permitted. The recording is still the operator's
-    // own decision, already given, so a notice that could not be shown does not stop it.
+// Waiting to be pressed is what makes it worth showing. Consent was given in the terminal some
+// moments ago; this is the handover itself — they are at the machine, they have read it, and
+// from here the machine is the runner's. Left unpressed it is not consent but an empty chair,
+// and a screen with nobody at it is not one to record.
+async function announce({ countdownSeconds, locale, noticeTimeoutSeconds, notice }) {
+  if (!notice) {
+    // Turned off for an automated check, which records with nobody watching. Consent is a
+    // separate thing and is still required.
+    await new Promise((r) => setTimeout(r, countdownSeconds * 1000));
+    return;
   }
+  const outcome = await showNotice(noticeText('screenCaptureStarting', locale), noticeTimeoutSeconds);
+
+  if (outcome === 'unanswered') {
+    throw new Error(
+      `Nobody pressed the notice on that screen within ${noticeTimeoutSeconds}s.\n` +
+      'Recording a screen nobody is sitting at is not what was agreed to. Ask again when they ' +
+      'are back, or set recording.capture to "page".'
+    );
+  }
+  // 'unavailable' means no windowing session to show it in. The recording was still agreed to
+  // before the runner started, so a notice that could not be shown does not stop it.
+
   await new Promise((r) => setTimeout(r, countdownSeconds * 1000));
 }
 
@@ -357,7 +364,7 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
         return { startedAt: openedAt, trimAt: (Date.now() - openedAt) / 1000 };
       }
 
-      await announce(screen.countdownSeconds, screen.locale);
+      await announce(screen);
 
       const device = screenDeviceIndex(screen.display);
       const display = await displayMetrics(page);
