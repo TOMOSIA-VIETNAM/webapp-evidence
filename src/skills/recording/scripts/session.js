@@ -31,7 +31,14 @@ const HELP_ENV = `Environment variables:
     EVIDENCE_CONFIG   Path to the project config (default: probe upward from the step script directory)
     BASE_URL          Override the base URL of the app
     HEADED=1          Show the browser window (hidden by default, so the user cannot interact by accident)
-    BROWSER_CHANNEL   Playwright browser channel (default: chrome)`;
+    BROWSER_CHANNEL   Playwright browser channel (default: chrome)
+    CAPTURE           page (default) | window | screen — what the frame of the recording is.
+                      page records page content and runs headless. window records the browser
+                      window through ffmpeg, so what the operating system draws inside it is in
+                      the video too; screen records the whole display. Both show the window, so
+                      both imply HEADED=1.
+    SCREEN_CAPTURE=1  Required for window and screen: they record what is on someone's screen,
+                      so the operator has to have agreed before the run starts.`;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 

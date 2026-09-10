@@ -14,6 +14,7 @@ const { createTerminal, isBehindPanel } = require('./terminal');
 const {
   createRedactions, buildFilter, shiftTime, unionBox, padBox,
 } = require('./redaction');
+const { createCapture } = require('./capture');
 
 const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
@@ -706,6 +707,14 @@ async function main() {
   // the video must not leak the sign-in credentials
   const storageState = await signIn({ browser, appConfig, name: app, baseUrl, settings });
 
+  const capture = createCapture({
+    mode: settings.recording.capture,
+    outDir,
+    name,
+    settings: settings.recording,
+    viewport,
+  });
+
   const context = await browser.newContext({
     viewport,
     locale: settings.recording.locale,
@@ -714,15 +723,15 @@ async function main() {
     // An app with a strict Content-Security-Policy would block the cursor's styles; the cursor is only
     // an overlay serving the recording, not the thing being verified, so bypass CSP here.
     bypassCSP: true,
-    recordVideo: { dir: outDir, size: viewport },
+    ...capture.contextOptions(),
   });
   await context.addInitScript({ path: path.join(__dirname, 'cursor.js') });
   await context.addInitScript({ path: path.join(__dirname, 'caption.js') });
   await context.addInitScript({ path: path.join(__dirname, 'terminal-panel.js') });
   const page = await context.newPage();
+  capture.attach({ context, page });
   const problems = watchProblems(page);
 
-  const startedAt = Date.now();
   const marks = [];
   const hotkeys = [];
   const notes = [];
@@ -733,21 +742,6 @@ async function main() {
   // across every take, so the runbook keeps its promise that re-running produces this same recording.
   const human = createHuman({ pace, viewport, seed: name });
 
-  // A shell shown in the page, for the part of the evidence the browser cannot show: that the
-  // click actually reached a worker, wrote a file, moved a row. Nothing is spawned until a step
-  // script asks for it, so a take that never mentions the terminal starts no process.
-  const terminal = createTerminal({
-    page,
-    viewport,
-    config: settings.recording.terminal,
-    human,
-    pace,
-    root: ROOT,
-    since: () => (Date.now() - startedAt) / 1000,
-    secrets: accountSecrets(makeAccountStore(settings.output.accountStore).get(app)),
-  });
-
-  // The page-load wait is trimmed off the video
   await page.goto(`${baseUrl}${steps.start || '/'}`, { waitUntil: 'networkidle' });
   await sleep(pace.settleMs);
 
@@ -758,7 +752,21 @@ async function main() {
   await page.mouse.move(resting.x, resting.y);
   page.__cursor = resting;
 
-  const trimAt = (Date.now() - startedAt) / 1000;
+  // The backend decides both: Playwright has been recording since the page existed, so the load
+  // has to be trimmed off the front; a screen capture is started once the page is ready and has
+  // nothing in front to remove.
+  const { startedAt, trimAt } = await capture.start();
+
+  const terminal = createTerminal({
+    page,
+    viewport,
+    config: settings.recording.terminal,
+    human,
+    pace,
+    root: ROOT,
+    since: () => (Date.now() - startedAt) / 1000,
+    secrets: accountSecrets(makeAccountStore(settings.output.accountStore).get(app)),
+  });
 
   const ctx = buildContext({
     page, outDir, marks, hotkeys, notes, startedAt, pace, viewport, human, captions, terminal,
@@ -775,8 +783,7 @@ async function main() {
 
   await sleep(pace.tailMs);
   const total = (Date.now() - startedAt) / 1000;
-  const video = page.video();
-  await context.close();
+  const { file: recorded } = await capture.stop();
 
   // The fullPage screenshot has to be taken outside the recording context, because the scrolling would land in the video
   if (steps.fullPageShot !== false) {
@@ -788,15 +795,12 @@ async function main() {
   }
   await browser.close();
 
-  const webm = path.join(outDir, `${name}.webm`);
-  fs.renameSync(await video.path(), webm);
-
   const filter = buildFilter(redactions.all(), trimAt);
   const removed = filter?.removed ?? [];
   const cutSeconds = removed.reduce((sum, r) => sum + (r.to - r.from), 0);
   const duration = total - trimAt - cutSeconds;
 
-  const mp4 = encodeMp4(outDir, name, webm, trimAt, videoOpts, filter);
+  const mp4 = encodeMp4(outDir, name, recorded, trimAt, videoOpts, filter);
   const timeline = buildTimeline(marks, trimAt, duration, removed);
 
   // Only write the log file when there really are errors, so the evidence directory stays free of clutter

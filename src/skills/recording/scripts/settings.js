@@ -65,6 +65,19 @@ const DEFAULTS = {
       jitter: 0.18,
     },
     video: { crf: 26, preset: 'slow' },
+    // What the frame of the recording is.
+    //   'page'   Playwright records the page. Headless, no permission, runs in CI.
+    //   'window' ffmpeg records the browser window, so what the operating system draws inside it
+    //            — the file picker, a JavaScript dialog, the print sheet — is in the video too.
+    //   'screen' the whole display, and everything else that happens to be on it.
+    // Anything but 'page' records what is on someone's screen, so the runner refuses to start
+    // one without SCREEN_CAPTURE=1.
+    capture: 'page',
+    screenCapture: {
+      framerate: 30,
+      display: 0,             // which display, when there is more than one
+      countdownSeconds: 3,    // after the on-screen notice, before the first frame
+    },
     // The shell shown in the panel over the page. It runs on the machine doing the recording,
     // so a step script can prove what happened behind the browser — a job that was enqueued, a
     // file that was written — without recording the whole screen.
@@ -228,6 +241,36 @@ function assertTerminal({ terminal, viewport }) {
   });
 }
 
+const CAPTURE_MODES = ['page', 'window', 'screen'];
+
+function assertCapture({ capture, screenCapture }) {
+  if (!CAPTURE_MODES.includes(capture)) {
+    throw new Error(
+      `recording.capture is invalid: ${JSON.stringify(capture)}\n` +
+      `Use one of ${CAPTURE_MODES.join(' | ')}. 'page' records the page and runs headless; the ` +
+      'others record what is on a screen.'
+    );
+  }
+  if (!Number.isInteger(screenCapture.framerate) || screenCapture.framerate < 5 || screenCapture.framerate > 60) {
+    throw new Error(
+      `recording.screenCapture.framerate must be a whole number between 5 and 60, got ` +
+      `${JSON.stringify(screenCapture.framerate)}`
+    );
+  }
+  if (!Number.isInteger(screenCapture.display) || screenCapture.display < 0) {
+    throw new Error(
+      `recording.screenCapture.display must be a display number from 0 upwards, got ` +
+      `${JSON.stringify(screenCapture.display)}`
+    );
+  }
+  if (!Number.isFinite(screenCapture.countdownSeconds) || screenCapture.countdownSeconds < 0) {
+    throw new Error(
+      `recording.screenCapture.countdownSeconds must not be negative, got ` +
+      `${JSON.stringify(screenCapture.countdownSeconds)}`
+    );
+  }
+}
+
 function resolveSettings(config) {
   warnShadowedLegacy(config);
   warnRemovedPaceKeys(config);
@@ -257,12 +300,18 @@ function resolveSettings(config) {
   if (process.env.HEADED === '1') settings.recording.headed = true;
   if (process.env.BROWSER_CHANNEL) settings.recording.browserChannel = process.env.BROWSER_CHANNEL;
   if (process.env.EVIDENCE_OVERWRITE === '1') settings.output.overwrite = true;
+  if (process.env.CAPTURE) settings.recording.capture = process.env.CAPTURE;
   if (process.env.CAPTIONS) settings.recording.captions.enabled = parseSwitch(process.env.CAPTIONS);
   if (process.env.CAPTION_LOCALE) {
     settings.recording.captions.locale = assertLocale(process.env.CAPTION_LOCALE, 'CAPTION_LOCALE');
   }
   assertLocale(settings.recording.captions.locale, 'recording.captions.locale');
   assertTerminal(settings.recording);
+  assertCapture(settings.recording);
+
+  // A hidden window has nothing on a screen to record, so asking for one settles the other
+  // question too. Left as a contradiction it would produce a video of the desktop.
+  if (settings.recording.capture !== 'page') settings.recording.headed = true;
 
   return settings;
 }
