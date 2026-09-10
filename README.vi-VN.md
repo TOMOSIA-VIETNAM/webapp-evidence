@@ -103,9 +103,15 @@ curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/mai
 Nó hỏi bạn đang dùng nền tảng nào, rồi cho biết đã cài ở đâu. Quay cần Chrome, ffmpeg và Node —
 thiếu cái nào thì agent nói rõ và đề nghị cài giúp.
 
-Thêm `--ref main` hoặc `--ref v1.2.0` để bám một nhánh hoặc ghim một phiên bản, `--ref latest` để
-quay lại theo release; update bằng `~/.webapp-evidence/scripts/install-local.sh --update`, gỡ bằng
-`--uninstall --all`.
+Để bám theo một nhánh hoặc ghim một phiên bản:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash -s -- --ref main
+```
+
+`--ref v1.2.0` ghim một phiên bản, `--ref latest` quay lại theo release; những lần chạy sau giữ đúng
+cái được yêu cầu gần nhất. Update bằng `~/.webapp-evidence/scripts/install-local.sh --update`, gỡ
+bằng `--uninstall --all`.
 
 ## Cách dùng
 
