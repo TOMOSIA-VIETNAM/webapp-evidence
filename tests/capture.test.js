@@ -9,8 +9,8 @@ const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const {
-  assertConsent, assertReadable, assertWindowFits, parseScreenDevices, cropFor,
-  createProgressReader, stopRecorder, CONSENT_ENV,
+  assertConsent, assertPlatformCanCapture, assertReadable, assertWindowFits, parseScreenDevices,
+  cropFor, createProgressReader, stopRecorder, CONSENT_ENV,
 } = require('../src/skills/recording/scripts/capture');
 
 // ---------- consent ----------
@@ -31,6 +31,26 @@ test('the refusal says how to keep recording without a screen at all', () => {
 
 test('agreement given, it proceeds', () => {
   assert.doesNotThrow(() => assertConsent('window', { [CONSENT_ENV]: '1' }));
+});
+
+// ---------- which machines can do it ----------
+
+test('recording the page works on any platform, which is why it is the default', () => {
+  for (const platform of ['darwin', 'linux', 'win32']) {
+    assert.doesNotThrow(() => assertPlatformCanCapture('page', platform));
+  }
+});
+
+test('recording a screen is refused where it has not been implemented', () => {
+  // Each operating system numbers its capture devices, reports its pixels and answers a stop
+  // request differently. A backend that half works produces a video that looks recorded and is
+  // wrong, which is the failure this whole feature exists to avoid.
+  assert.throws(() => assertPlatformCanCapture('window', 'linux'), /only implemented for macOS/);
+  assert.throws(() => assertPlatformCanCapture('screen', 'win32'), /only implemented for macOS/);
+});
+
+test('the refusal points at the backend that does work there', () => {
+  assert.throws(() => assertPlatformCanCapture('window', 'linux'), /"page"/);
 });
 
 // ---------- which device is the screen ----------

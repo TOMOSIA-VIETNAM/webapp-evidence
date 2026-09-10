@@ -910,6 +910,13 @@ async function main() {
     shots, fixes, problems,
   });
 
+  if (settings.recording.devtools) {
+    console.log(
+      'NOTE: DevTools was open, and it takes its room out of the page area while the page still '
+      + `renders at ${viewport.width}px wide. The right-hand side of the application is cut off in `
+      + 'this take. Lower recording.viewport.width if that side matters.'
+    );
+  }
   fixes.forEach((f) => console.log(`FIXED: ${f}`));
   console.log(timeline);
   if (problemFile) {

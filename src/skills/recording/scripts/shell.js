@@ -69,6 +69,21 @@ function createFrameSplitter({ onText, onFrame }) {
   return { write };
 }
 
+// The session is a POSIX shell driven through pipes, and it stops long-running commands by
+// signalling a process group. Windows has neither, so the panel is refused there rather than
+// producing a take where every command appears to hang.
+//
+// Checked when a shell is first asked for, not when the runner starts: a take that never opens
+// a terminal has nothing to refuse.
+function assertPlatformHasShell(platform = process.platform) {
+  if (platform !== 'win32') return;
+  throw new Error(
+    'The terminal panel needs a POSIX shell and process groups, which Windows does not have, ' +
+    'so it is not implemented there.\n' +
+    'Under WSL it works as it does anywhere else. Everything else in a recording is unaffected.'
+  );
+}
+
 function createShell({
   command = 'bash',
   args = ['--norc', '--noprofile', '-s'],
@@ -80,6 +95,7 @@ function createShell({
   // what was redacted.
   scrub = (text) => text,
 } = {}) {
+  assertPlatformHasShell();
   const child = spawn(command, args, {
     cwd,
     env: {
@@ -299,4 +315,6 @@ function createShell({
   };
 }
 
-module.exports = { createShell, createFrameSplitter, FRAME, DEFAULT_TIMEOUT_MS };
+module.exports = {
+  createShell, createFrameSplitter, assertPlatformHasShell, FRAME, DEFAULT_TIMEOUT_MS,
+};

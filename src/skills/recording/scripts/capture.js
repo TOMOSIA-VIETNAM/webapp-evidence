@@ -20,6 +20,28 @@ const MODES = [PAGE, WINDOW, SCREEN];
 
 const CONSENT_ENV = 'SCREEN_CAPTURE';
 
+// Recording the page works anywhere Chrome and Node do. Recording a screen goes through whatever
+// that operating system offers ffmpeg — avfoundation here, x11grab on Linux, gdigrab on Windows
+// — and each one numbers its devices, reports its pixels and answers a stop request differently
+// enough that none of it can be assumed from another.
+//
+// Only macOS is implemented, because only macOS could be tested. The rest is refused by name
+// rather than attempted: a capture backend that half works produces a video that looks recorded
+// and is wrong, which is the failure this whole feature exists to avoid.
+const SUPPORTED_PLATFORMS = ['darwin'];
+
+function assertPlatformCanCapture(mode, platform = process.platform) {
+  if (mode === PAGE || SUPPORTED_PLATFORMS.includes(platform)) return;
+  throw new Error(
+    `recording.capture is "${mode}", which records a screen, and that is only implemented for ` +
+    `macOS — this is ${platform}.\n` +
+    'Set recording.capture to "page" to record page content, which works everywhere and runs ' +
+    'headless.\n' +
+    'What a page recording cannot show is what the operating system draws: a <select> menu, ' +
+    'the file picker, the browser\'s own dialogs. Captions stand in for those.'
+  );
+}
+
 // Recording the screen records whatever is on it, so it needs the operator's agreement — and the
 // runner cannot ask for it. It is started by an agent through a shell, where a prompt on stdin
 // waits forever. The agent holds the only channel to the person and passes this once they agree.
@@ -293,6 +315,7 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
   if (!MODES.includes(mode)) {
     throw new Error(`recording.capture is invalid: ${JSON.stringify(mode)}\nUse one of ${MODES.join(' | ')}.`);
   }
+  assertPlatformCanCapture(mode);
   assertConsent(mode);
 
   const screen = settings.screenCapture;
@@ -447,7 +470,8 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
 }
 
 module.exports = {
-  createCapture, assertConsent, assertReadable, assertWindowFits, parseScreenDevices, cropFor,
+  createCapture, assertConsent, assertPlatformCanCapture, assertReadable, assertWindowFits,
+  parseScreenDevices, cropFor,
   createProgressReader, stopRecorder,
   MODES, PAGE, WINDOW, SCREEN, CONSENT_ENV,
 };
