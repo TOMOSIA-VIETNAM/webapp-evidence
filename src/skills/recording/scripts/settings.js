@@ -77,6 +77,9 @@ const DEFAULTS = {
       framerate: 30,
       display: 0,             // which display, when there is more than one
       countdownSeconds: 3,    // after the on-screen notice, before the first frame
+      // A ceiling on the recording itself. A runner that dies partway cannot then leave a screen
+      // recorder running until the disk fills; a take that needs longer says so and raises it.
+      maxSeconds: 600,
     },
     // The shell shown in the panel over the page. It runs on the machine doing the recording,
     // so a step script can prove what happened behind the browser — a job that was enqueued, a
@@ -261,6 +264,12 @@ function assertCapture({ capture, screenCapture }) {
     throw new Error(
       `recording.screenCapture.display must be a display number from 0 upwards, got ` +
       `${JSON.stringify(screenCapture.display)}`
+    );
+  }
+  if (!Number.isFinite(screenCapture.maxSeconds) || screenCapture.maxSeconds < 10) {
+    throw new Error(
+      `recording.screenCapture.maxSeconds must be at least 10, got ` +
+      `${JSON.stringify(screenCapture.maxSeconds)}`
     );
   }
   if (!Number.isFinite(screenCapture.countdownSeconds) || screenCapture.countdownSeconds < 0) {

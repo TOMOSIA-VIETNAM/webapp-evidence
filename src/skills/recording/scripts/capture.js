@@ -72,15 +72,22 @@ function screenDeviceIndex(display) {
 // window — and nobody notices until the video is watched.
 //
 // h264 in yuv420p needs even dimensions, and an odd offset puts the chroma planes half a pixel
-// out, so all four numbers are rounded to even.
-function cropFor(rect, scale) {
-  const even = (value) => Math.max(0, Math.round(value / 2) * 2);
-  return {
-    x: even(rect.x * scale),
-    y: even(rect.y * scale),
-    width: even(rect.width * scale),
-    height: even(rect.height * scale),
-  };
+// out, so all four numbers are made even. Downwards, never up: a rectangle rounded outwards can
+// end a pixel past the edge of the captured frame, and ffmpeg refuses a crop that does — after
+// the take has already been recorded. `bounds`, the size of the display, clamps the same way.
+function cropFor(rect, scale, bounds) {
+  const down = (value) => Math.max(0, Math.floor(value / 2) * 2);
+  const limit = bounds && { width: down(bounds.width * scale), height: down(bounds.height * scale) };
+
+  const x = down(rect.x * scale);
+  const y = down(rect.y * scale);
+  let width = down(rect.width * scale);
+  let height = down(rect.height * scale);
+  if (limit) {
+    width = Math.min(width, down(limit.width - x));
+    height = Math.min(height, down(limit.height - y));
+  }
+  return { x, y, width, height };
 }
 
 // ffmpeg does not start recording when it is spawned: it opens the device, negotiates a format,
@@ -137,7 +144,53 @@ async function windowRect(page) {
     height: window.outerHeight,
     chromeHeight: window.outerHeight - window.innerHeight,
     scale: window.devicePixelRatio,
+    screen: { width: window.screen.width, height: window.screen.height },
   }));
+}
+
+// Stopping a recorder, with an escalation rather than a single hopeful signal.
+//
+// `q` is the polite way and normally works, but a capture device can leave ffmpeg somewhere it
+// does not read its own input from, and then a plain `await exit` never returns: the take is
+// finished, the runner is idle, and the screen carries on being recorded until somebody notices.
+// The waits are what make that impossible.
+//
+// Which one worked matters. SIGINT still writes the index, so the file plays; SIGKILL does not,
+// and the caller has to say so rather than hand over a file that will not open.
+const STOP_QUIET_MS = 4000;
+const STOP_TERM_MS = 3000;
+
+function stopRecorder(child, { quietMs = STOP_QUIET_MS, termMs = STOP_TERM_MS } = {}) {
+  return new Promise((resolve) => {
+    let settled = false;
+    let by = 'q';
+    const timers = [];
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      timers.forEach(clearTimeout);
+      resolve(by);
+    };
+
+    child.removeAllListeners('exit');
+    child.on('exit', finish);
+
+    try {
+      child.stdin.write('q');
+    } catch {
+      by = 'interrupt';
+      try { child.kill('SIGINT'); } catch { finish(); }
+    }
+
+    timers.push(setTimeout(() => {
+      by = 'interrupt';
+      try { child.kill('SIGINT'); } catch { finish(); }
+    }, quietMs));
+    timers.push(setTimeout(() => {
+      by = 'kill';
+      try { child.kill('SIGKILL'); } catch { finish(); }
+    }, quietMs + termMs));
+  });
 }
 
 function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
@@ -151,6 +204,7 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
   let context = null;
   let ffmpeg = null;
   let rect = null;
+  let endedEarly = false;
   // What the capture writes is not what is handed over: the encode reads it, applies whatever
   // was redacted and the configured quality, and deletes it.
   const file = path.join(outDir, mode === PAGE ? `${name}.webm` : `${name}.raw.mp4`);
@@ -189,7 +243,7 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
       rect = mode === WINDOW
         ? { x: geometry.x, y: geometry.y, width: geometry.width, height: geometry.height }
         : null;
-      const crop = rect ? cropFor(rect, geometry.scale) : null;
+      const crop = rect ? cropFor(rect, geometry.scale, geometry.screen) : null;
       const device = screenDeviceIndex(screen.display);
 
       const args = [
@@ -205,6 +259,9 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
         // Captured in real time, so the encoder must never be the bottleneck; the take is
         // re-encoded to the configured quality afterwards, along with any redactions.
         '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '18', '-pix_fmt', 'yuv420p',
+        // A cap on the whole recording, so a runner that dies partway cannot leave a screen
+        // recorder running until the disk fills.
+        '-t', String(screen.maxSeconds),
         '-progress', 'pipe:1', '-nostats',
         file,
       ];
@@ -217,6 +274,10 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
         ffmpeg.stdout.on('data', (d) => read(String(d)));
         ffmpeg.stderr.on('data', (d) => { stderr += String(d); });
         ffmpeg.on('exit', (code) => {
+          // Before the first frame this is a failure to start. After it, the recorder hit its own
+          // time limit while the take was still running, which stop() turns into an error rather
+          // than handing over a video that ends in the middle of the flow.
+          endedEarly = true;
           ffmpeg = null;
           reject(new Error(
             `The screen capture stopped before it recorded a frame (exit ${code}).\n${stderr.trim()}`
@@ -237,21 +298,29 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
 
       const running = ffmpeg;
       ffmpeg = null;
-      await new Promise((resolve) => {
-        if (!running) { resolve(); return; }
-        running.removeAllListeners('exit');
-        running.on('exit', resolve);
-        // `q` lets ffmpeg write the index; killing it leaves a file that will not seek and may
-        // not play at all.
-        try { running.stdin.write('q'); } catch { running.kill('SIGINT'); }
-      });
+      const stoppedBy = running ? await stopRecorder(running) : 'q';
       await context.close();
+
+      if (stoppedBy === 'kill') {
+        throw new Error(
+          'The screen recorder ignored both a stop request and an interrupt, so it had to be ' +
+          'killed and the video it was writing has no index — it will not play.\n' +
+          `The unfinished capture is at ${file}; \`ffmpeg -i\` may still recover part of it.`
+        );
+      }
+      if (endedEarly) {
+        throw new Error(
+          `The screen recording stopped on its own after recording.screenCapture.maxSeconds ` +
+          `(${screen.maxSeconds}s), so the take is cut short.\n` +
+          'Raise that limit for a longer take, or shorten the step script.'
+        );
+      }
       return { file };
     },
   };
 }
 
 module.exports = {
-  createCapture, assertConsent, parseScreenDevices, cropFor, createProgressReader,
+  createCapture, assertConsent, parseScreenDevices, cropFor, createProgressReader, stopRecorder,
   MODES, PAGE, WINDOW, SCREEN, CONSENT_ENV,
 };

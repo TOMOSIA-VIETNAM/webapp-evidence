@@ -2,3 +2,6 @@
 src/skills/recording/scripts/node_modules/
 
 .DS_Store
+
+# Another session's git worktrees live here; they are repositories of their own
+.claude/worktrees/

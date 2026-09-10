@@ -3,8 +3,9 @@
 // display's scale still encodes — into a video showing a quarter of the window.
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const { EventEmitter } = require('node:events');
 const {
-  assertConsent, parseScreenDevices, cropFor, createProgressReader, CONSENT_ENV,
+  assertConsent, parseScreenDevices, cropFor, createProgressReader, stopRecorder, CONSENT_ENV,
 } = require('../src/skills/recording/scripts/capture');
 
 // ---------- consent ----------
@@ -79,6 +80,50 @@ test('a rectangle never starts off the screen', () => {
   const crop = cropFor({ x: -3, y: -1, width: 100, height: 100 }, 1);
   assert.equal(crop.x, 0);
   assert.equal(crop.y, 0);
+});
+
+test('an odd size rounds down, never past the edge of what was captured', () => {
+  // Rounding a width of 1281 up to 1282 asks for a pixel that is not there, and ffmpeg refuses
+  // the crop — after the take has already been recorded.
+  const crop = cropFor({ x: 0, y: 0, width: 1281, height: 921 }, 1, { width: 1281, height: 921 });
+  assert.equal(crop.width, 1280);
+  assert.equal(crop.height, 920);
+});
+
+test('a window hanging off the edge of the display is clamped to it', () => {
+  const crop = cropFor({ x: 900, y: 0, width: 1280, height: 800 }, 1, { width: 1440, height: 900 });
+  assert.equal(crop.x + crop.width, 1440);
+  assert.ok(crop.height <= 900);
+});
+
+// ---------- stopping the recorder ----------
+
+// The real waits are seconds long, which is right for a recorder and wrong for a test suite
+const FAST = { quietMs: 20, termMs: 20 };
+
+function fakeRecorder({ respondsTo }) {
+  const child = new EventEmitter();
+  const stop = (by) => setTimeout(() => child.emit('exit', 0), 5);
+  child.stdin = { write: () => { if (respondsTo === 'q') stop('q'); } };
+  child.kill = (signal) => {
+    if (respondsTo === 'interrupt' && signal === 'SIGINT') stop('interrupt');
+    if (signal === 'SIGKILL') stop('kill');
+  };
+  return child;
+}
+
+test('a recorder that takes the stop request is left to finish its file', async () => {
+  assert.equal(await stopRecorder(fakeRecorder({ respondsTo: 'q' })), 'q');
+});
+
+test('one that ignores it is interrupted, which still writes a file that plays', async () => {
+  // Without this the take is over, the runner is idle, and the screen carries on being recorded
+  const stopped = await stopRecorder(fakeRecorder({ respondsTo: 'interrupt' }), FAST);
+  assert.equal(stopped, 'interrupt');
+});
+
+test('one that ignores everything is killed, and the caller is told which happened', async () => {
+  assert.equal(await stopRecorder(fakeRecorder({ respondsTo: 'nothing' }), FAST), 'kill');
 });
 
 // ---------- when the recording actually began ----------
