@@ -131,6 +131,7 @@ What you can ask for:
 | The same recording again | `/webapp-evidence:recording record that again` — the runbook keeps the command, old takes are never overwritten |
 | A slower recording | `/webapp-evidence:recording record it slower` |
 | Captions in another language | `/webapp-evidence:recording captions in Japanese` — remembered per project |
+| Proof the click reached the backend — a job ran, a file was written | `/webapp-evidence:recording show the worker log after clicking Run sync` |
 | A project set up once, so recordings start signed in | `/webapp-evidence:recording set up the evidence config for this project` |
 
 Write the steps in whatever language you use, and the agent replies in that language. There's no
@@ -164,6 +165,10 @@ Here are the sheets it produced from the recording above:
 It records the page, not your screen. OS-drawn UI stays out of the video: `<select>` dropdowns, the
 file picker, `confirm`/`alert` dialogs. Those get a caption of what was chosen, plus a screenshot
 of the state right after. Modals, date pickers, and JS dropdowns record normally.
+
+When the proof is not on the page at all — a job that ran, a file that was written — a step can
+open a terminal panel over the page and put the real command and its real output in the same
+video. Line-oriented output only: `vim`, `less` and `htop` are out.
 
 Recording only runs against local dev or a site you name — never staging or production.
 

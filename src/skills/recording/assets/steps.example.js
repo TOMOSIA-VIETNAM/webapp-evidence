@@ -13,7 +13,7 @@ module.exports = {
 
   // Only act through the helpers (click/type/select/upload). Calling locator.click() or
   // locator.setInputFiles() directly leaves the cursor where it was, and the video loses its thread.
-  async run({ page, mark, click, type, select, upload, hotkey, note, shot, sleep }) {
+  async run({ page, mark, click, type, select, upload, hotkey, note, shot, sleep, term }) {
     mark('一覧画面を開く');
     await sleep(1400);
     await shot('list');
@@ -56,5 +56,22 @@ module.exports = {
     // see which button was pressed. Use hotkey() only when the shortcut itself is what the MR has
     // to prove, or when the UI has no button for it.
     await click(page.getByRole('button', { name: 'Close' }).first(), { pause: 2000 });
+
+    // term is a real shell on this machine, shown in a panel over the page. It is for the half of
+    // the evidence the browser cannot show: that the click reached a worker, wrote a file, moved a
+    // row. Everything before this point is the browser; nothing here is a mock.
+    //
+    // The panel covers the bottom of the frame while it is open, and click() refuses to operate on
+    // anything behind it — finish with the page, or call term.close(), before going back to it.
+    mark('バックグラウンドジョブが動いたことを確認');
+    await term.open();
+    // start() is for a command that does not end on its own; run() waits for one that does.
+    await term.start('tail -f log/development.log');
+    // This is the assertion the evidence rests on, and it is the line the runbook quotes.
+    await term.waitFor(/ImportJob .* performed/, { timeout: 30000 });
+    await shot('job-done');
+    await term.interrupt();
+    await term.run('ls -l tmp/imports');
+    await term.close();
   },
 };

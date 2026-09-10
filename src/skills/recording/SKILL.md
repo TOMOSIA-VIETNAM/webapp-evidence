@@ -84,6 +84,7 @@ not write it to `accountStore` unless there is a project config that says where 
 |---|---|
 | A static screen, display-only change, one or two actions | Screenshots are enough |
 | A multi-step flow — filling fields, submitting, modals, moving between screens | Video plus screenshots at the main moments |
+| The change's result is not on the page — a job enqueued, a file written, rows imported | Video plus the terminal panel, so the command and its output land in the same take |
 | Recording is impossible for a technical reason | Screenshots at minimum, and say plainly in the report why there is no video |
 
 ### Probing the screen before writing anything
@@ -102,6 +103,17 @@ for them to agree, then do it with whatever the machine already uses. Their mach
 
 It prints buttons, inputs, selects (with their real option lists) and links, one usable selector per
 line. Shared navigation chrome is filtered out; `--all` shows everything.
+
+### When the proof is not on the page
+
+A button that enqueues a job, a form that writes a file, an import that moves rows: the click is
+visible and the result is not. A step script can open a terminal panel over the page and read the
+log, run the command, check the file — a real shell on the machine doing the recording, in the same
+video and the same runbook.
+
+Reach for it when the MR's claim is about something behind the browser. It is line-oriented output
+only, so a full-screen program (`vim`, `less`, `htop`) is out; the helpers and their limits are in
+`references/writing-step-scripts.md`.
 
 ### Settling the captions
 
