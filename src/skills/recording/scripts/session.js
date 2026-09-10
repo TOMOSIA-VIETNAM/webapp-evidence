@@ -39,9 +39,8 @@ const HELP_ENV = `Environment variables:
                       both imply HEADED=1.
     SCREEN_CAPTURE=1  Required for window and screen: they record what is on someone's screen,
                       so the operator has to have agreed before the run starts.
-    OPERATOR_LOCALE   Language for announce.js, the notice shown to whoever is at the machine
-                      before they are asked (en | ja | vi). Not the caption language: that one
-                      is read by whoever reviews the merge request.`;
+                      The notice shown to that person before they are asked is a separate
+                      command: see scripts/announce.js --help.`;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 

@@ -55,15 +55,18 @@ The person at that machine has to agree, and has to stop using it. They are prob
 at the terminal — they may not know a recording was asked for at all. So the notice goes to the
 screen first and the question goes to them second, in that order:
 
-1. **Put the notice up**, in the language *they* write in — not the language of the runbook:
+1. **Put the notice up**, and write it yourself, in the language they write in:
 
    ```bash
-   node scripts/announce.js --kind confirm --locale vi
+   node scripts/announce.js --message "<what it says>"
    ```
 
+   `--help` says what the sentence has to cover — nothing is being recorded yet, turn on Do Not
+   Disturb, press OK and come back here — and shows an example. Nothing here holds a list of
+   languages: you are already talking to this person, so write it the way you have been.
+
    It floats above whatever they are looking at, and it is the only thing that appears on that
-   screen: nothing is being recorded yet, turn on Do Not Disturb, press OK, come back here and
-   answer. **It waits to be pressed** — a notice that dismisses itself is one they may never
+   screen. **It waits to be pressed** — a notice that dismisses itself is one they may never
    see, and this is the one thing they have to have seen. The command does not return until
    they press it, so ask afterwards, not before.
 
@@ -102,20 +105,13 @@ report what you find with timestamps. It holds whatever was on that screen.
 
 ## Configuration
 
-Everything here is `recording.*` in `evidence.config.js`; `references/project-setup.md` has the
-file itself.
+`recording.capture` picks the backend, and `recording.screenCapture` holds the rest — the frame
+rate, which display, the seconds before the first frame, and a ceiling on the recording so a
+runner that dies cannot leave one going. `assets/evidence.config.example.js` has them written
+out with what each one is for, and `scripts/record.js --help` lists the environment variables
+that override them for a single run.
 
-| key | |
-|---|---|
-| `capture` | `'page'` (default), `'window'`, `'screen'` |
-| `screenCapture.display` | which display, when there is more than one. Only the one the browser is on is implemented |
-| `screenCapture.framerate` | 30 by default |
-| `screenCapture.countdownSeconds` | between the answer in the terminal and the first frame |
-| `screenCapture.locale` | the language of the notice, read by whoever is at the machine |
-| `screenCapture.maxSeconds` | a ceiling on the recording, so a runner that dies cannot leave one going |
-| `devtools` | open DevTools alongside the page. Only visible to a window capture |
-
-`scripts/record.js --help` lists the environment variables that override these for one run.
+`recording.devtools` opens DevTools alongside the page. Only a window capture can see it.
 
 ## What is not implemented
 

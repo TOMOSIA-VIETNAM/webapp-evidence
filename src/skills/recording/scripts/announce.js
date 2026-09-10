@@ -1,42 +1,53 @@
 #!/usr/bin/env node
-// Puts a notice on the screen of whoever is sitting at the machine.
+// Puts a notice on the screen of whoever is sitting at this machine, and waits for them to
+// press it.
 //
 // It exists as its own command because of the order the consent has to happen in. The person
-// who is about to have their screen recorded is not necessarily looking at the terminal the
-// agent is running in — they may not even know a recording was asked for. So the notice comes
-// first, on top of whatever they are actually looking at, and it tells them where the question
-// is. The question itself is asked by the agent, in the terminal, where an answer can be given.
+// about to have their screen recorded is not necessarily looking at the terminal the agent is
+// running in — they may not know a recording was asked for at all. So the notice comes first,
+// on top of whatever they are actually looking at, and it tells them where the question is.
+// The question itself is asked by the agent, in the terminal, where an answer can be given.
 //
-// Nothing is recorded by this command. It shows a sentence and exits.
+// The sentence is written by the caller rather than chosen from a list here. The agent is
+// already talking to this person in their own language, whatever it is; a list would have
+// offered three, and the one person who has to understand this would be the one it was written
+// past.
+//
+// Nothing is recorded by this command. It shows a sentence, waits, and exits.
 const { spawn } = require('child_process');
-const { noticeText, LOCALE_KEYS, assertLocale } = require('./captions');
 
-// One notice, shown before the question is asked. There is deliberately no second one after
-// the answer: the answer is the handover, and another dialog would send the person back to a
-// screen they had already left.
-const KINDS = {
-  confirm: 'screenCaptureConfirm',
-};
+const DEFAULT_WAIT_SECONDS = 300;
 
 function help() {
-  console.log(`Show a notice on the screen of whoever is at this machine.
+  console.log(`Show a notice on the screen of whoever is at this machine, and wait for it.
 
-  node announce.js --kind confirm [--locale ${LOCALE_KEYS.join('|')}] [--seconds N]
+  node announce.js --message <text> [--seconds N]
 
-    --kind confirm    a recording has been asked for, and a question is waiting in the terminal
-    --locale          the language the person at the machine reads (default en)
-    --seconds         how long to wait for it to be pressed before giving up (default 300)
+    --message   what it says. Write it in the language the person reads.
+    --seconds   how long to wait for it to be pressed (default ${DEFAULT_WAIT_SECONDS})
 
-Records nothing. It waits for the notice to be pressed, because a notice that dismisses itself
-is one the person it was meant for may never see.
+Say three things, or the notice does not do its job:
+
+  1. nothing is being recorded yet, and nothing will be until they agree
+  2. turn on Do Not Disturb, so a notification cannot appear in the video
+  3. press OK and go back to the terminal, where the question is waiting
+
+For example:
+
+  node announce.js --message "Có yêu cầu quay màn hình này. Chưa quay gì cả, và sẽ không quay
+  cho tới khi bạn đồng ý. Hãy bật Do Not Disturb để thông báo không lọt vào video, rồi bấm OK
+  và quay lại cửa sổ terminal — câu hỏi đang chờ ở đó."
+
+It waits to be pressed, because a notice that dismisses itself is one the person it was meant
+for may never see.
 
 Exits 0 once it is pressed, and 0 on a machine with no windowing session, where it prints the
 sentence instead. Exits 1 if nobody pressed it: that is nobody at the machine, not consent.`);
 }
 
 function parse(argv) {
-  const options = { kind: null, locale: 'en', seconds: 300 };
-  const fields = { '--kind': 'kind', '--locale': 'locale', '--seconds': 'seconds' };
+  const options = { message: null, seconds: DEFAULT_WAIT_SECONDS };
+  const fields = { '--message': 'message', '--seconds': 'seconds' };
   for (let i = 0; i < argv.length; i += 1) {
     const [flag, inline] = argv[i].split('=');
     const field = fields[flag];
@@ -46,10 +57,9 @@ function parse(argv) {
     const value = inline ?? argv[++i];
     options[field] = field === 'seconds' ? Number(value) : value;
   }
-  if (!KINDS[options.kind]) {
-    throw new Error(`--kind must be one of ${Object.keys(KINDS).join(' | ')}, got ${JSON.stringify(options.kind)}`);
+  if (!options.message || !String(options.message).trim()) {
+    throw new Error('--message is required: write what the notice should say.\nRun with --help.');
   }
-  assertLocale(options.locale, '--locale');
   if (!Number.isFinite(options.seconds) || options.seconds <= 0) {
     throw new Error(`--seconds must be a positive number, got ${JSON.stringify(options.seconds)}`);
   }
@@ -58,10 +68,6 @@ function parse(argv) {
 
 // An AppleScript dialog floats above every application, which is the whole point: the person is
 // looking at something else.
-//
-// It waits to be pressed. A notice that dismisses itself after a few seconds is one the person
-// it was meant for may never see, and this is the notice that tells them their screen is about
-// to be recorded — the one thing they have to have seen.
 //
 // The wait is bounded all the same, generously, and running out is abandonment rather than
 // consent: nobody was at the machine, so nothing should be recorded of it.
@@ -82,7 +88,7 @@ function showNotice(message, timeoutSeconds) {
 
     dialog.on('exit', (code) => {
       clearTimeout(abandon);
-      // Killed on the timeout, or the person has no windowing session to show it in
+      // Killed on the timeout, or there is no windowing session to show it in
       if (code === 0) resolve('acknowledged');
       else resolve(dialog.killed ? 'unanswered' : 'unavailable');
     });
@@ -95,8 +101,7 @@ async function main(argv) {
     help();
     process.exit(argv.length ? 0 : 1);
   }
-  const { kind, locale, seconds } = parse(argv);
-  const message = noticeText(KINDS[kind], locale);
+  const { message, seconds } = parse(argv);
   const outcome = await showNotice(message, seconds);
 
   if (outcome === 'unavailable') {
@@ -118,4 +123,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { parse, showNotice, KINDS };
+module.exports = { parse, showNotice, DEFAULT_WAIT_SECONDS };
