@@ -15,7 +15,8 @@ process.env.PROJECT_ROOT = PROJECT;
 
 const {
   fmt, keyCaps, resolvePause, readingTime, buildTimeline, buildHotkeySection, buildNoteSection,
-  buildCommandSection, ignoreHints, runArtifacts, archivePreviousRun,
+  buildCommandSection, buildRedactionSection, buildRemovedSection, placeAt,
+  ignoreHints, runArtifacts, archivePreviousRun,
 } = require('../src/skills/recording/scripts/record');
 const { DEFAULTS } = require('../src/skills/recording/scripts/settings');
 
@@ -229,4 +230,76 @@ test('each kind of terminal step says what became of it', () => {
 test('command timestamps are relative to the trimmed start, like every other section', () => {
   const section = buildCommandSection([{ at: 65, kind: 'run', text: 'true', exitCode: 0 }], 5);
   assert.match(section, /01:00/);
+});
+
+// ---------- what a removed stretch does to every other section ----------
+
+const CUT = [{ from: 10, to: 20 }];   // ten seconds taken out, in finished-video time
+
+test('a moment before a cut keeps its place, and one after it moves up', () => {
+  assert.equal(placeAt(5, 0, CUT), 5);
+  assert.equal(placeAt(25, 0, CUT), 15);
+});
+
+test('a moment inside a cut has nowhere to point', () => {
+  assert.equal(placeAt(12, 0, CUT), null);
+});
+
+test('the timeline drops a mark that was cut and renumbers the rest', () => {
+  const marks = [
+    { at: 2, label: 'Before' },
+    { at: 12, label: 'Cut out' },
+    { at: 25, label: 'After' },
+  ];
+  const rows = buildTimeline(marks, 0, 30, CUT).split('\n');
+  assert.equal(rows.length, 2);
+  assert.match(rows[0], /^00:02 - 00:15 {2}Before$/);
+  assert.match(rows[1], /^00:15 - 00:30 {2}After$/);
+});
+
+test('hotkeys, captions and commands are renumbered the same way', () => {
+  assert.match(buildHotkeySection([{ at: 25, keys: 'Escape' }], 0, CUT), /00:15/);
+  assert.match(buildNoteSection([{ at: 25, text: 'Later' }], 0, CUT), /00:15/);
+  assert.match(
+    buildCommandSection([{ at: 25, kind: 'run', text: 'true', exitCode: 0 }], 0, CUT),
+    /00:15/,
+  );
+});
+
+test('a row that fell inside a cut is dropped rather than pointing at the wrong second', () => {
+  assert.equal(buildHotkeySection([{ at: 12, keys: 'Escape' }], 0, CUT), '');
+  assert.equal(buildNoteSection([{ at: 12, text: 'Gone' }], 0, CUT), '');
+  assert.equal(buildCommandSection([{ at: 12, kind: 'run', text: 'true', exitCode: 0 }], 0, CUT), '');
+});
+
+// ---------- what the runbook says about the redactions ----------
+
+test('a take with nothing covered gains no sections', () => {
+  assert.equal(buildRedactionSection([], 0, []), '');
+  assert.equal(buildRemovedSection([]), '');
+});
+
+test('a covered region is listed with when and where, so it does not read as a rendering fault', () => {
+  const section = buildRedactionSection(
+    [{ mode: 'box', box: { x: 40, y: 318, width: 200, height: 24 }, from: 12, to: 17 }], 2, [],
+  );
+  assert.match(section, /00:10 - 00:15/);
+  assert.match(section, /solid block/);
+  assert.match(section, /200x24 at 40,318/);
+});
+
+test('a blurred whole frame says so instead of printing a rectangle', () => {
+  const section = buildRedactionSection([{ mode: 'blur', box: null, from: 1, to: 2 }], 0, []);
+  assert.match(section, /blurred/);
+  assert.match(section, /whole frame/);
+});
+
+test('a removed stretch is not listed as covered — it is not in the video to point at', () => {
+  assert.equal(buildRedactionSection([{ mode: 'cut', box: null, from: 1, to: 4 }], 0, []), '');
+});
+
+test('the reader is told the video is shorter than what was recorded', () => {
+  const section = buildRemovedSection([{ from: 3, to: 6 }, { from: 10, to: 12 }]);
+  assert.match(section, /2 stretches/);
+  assert.match(section, /5\.0s/);
 });
