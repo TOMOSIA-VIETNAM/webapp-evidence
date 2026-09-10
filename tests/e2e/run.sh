@@ -38,6 +38,11 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# The demo app's "Run sync" button writes here, and the recording reads it back in the terminal
+# panel — the one claim in this take that the browser cannot make on its own.
+export DEMO_LOG="$OUT_DIR/worker.log"
+: >"$DEMO_LOG"
+
 step "Serving the demo app"
 # The port is chosen by the OS, so two runs at once do not collide.
 SERVER_OUT="$OUT_DIR/.server"
@@ -76,11 +81,23 @@ SHOTS=$(find "$OUT_DIR" -maxdepth 1 -name '[0-9][0-9]-*.png' | wc -l | tr -d ' '
 [ "$SHOTS" -ge 4 ] || fail "expected at least 4 screenshots, found $SHOTS"
 
 [ -f "$RUNBOOK" ] || fail "no runbook at $RUNBOOK"
-for phrase in 'Run the search' 'Open a row' 'Select all' 'demo fixture' 'BASE_URL'; do
+for phrase in 'Run the search' 'Open a row' 'Select all' 'demo fixture' 'BASE_URL' \
+              'Commands run in the terminal' 'tail -f' 'wc -l' 'SyncJob'; do
   grep -qF -- "$phrase" "$RUNBOOK" || fail "the runbook never mentions '$phrase'"
 done
 grep -qE '^[0-9]{2}:[0-9]{2} - [0-9]{2}:[0-9]{2}' "$RUNBOOK" \
   || fail "the runbook has no timeline rows"
+
+# The runbook can carry the command section while the panel never actually drew: the value of the
+# terminal is that a reviewer SEES the log. The panel fills the bottom 300px of the frame with a
+# near-black background, so the average brightness there says whether it rendered.
+PANEL_SHOT="$(find "$OUT_DIR" -maxdepth 1 -name '*-worker-finished.png' | head -1)"
+[ -n "$PANEL_SHOT" ] || fail "no screenshot was taken while the terminal panel was open"
+PANEL_LUMA="$(ffprobe -v error -f lavfi \
+  -i "movie=${PANEL_SHOT},crop=iw:300:0:ih-300,signalstats" \
+  -show_entries frame_tags=lavfi.signalstats.YAVG -of csv=p=0)"
+awk -v y="$PANEL_LUMA" 'BEGIN { exit (y < 70) ? 0 : 1 }' \
+  || fail "the bottom of $PANEL_SHOT has brightness $PANEL_LUMA, so the terminal panel did not draw"
 
 # A console log is written only when the page misbehaved. The demo app is meant to be quiet.
 [ -f "$OUT_DIR/$NAME-console.log" ] \
@@ -90,4 +107,5 @@ printf '\nPASSED\n'
 printf '  video     %s (%s bytes, %.1fs)\n' "$VIDEO" "$SIZE" "$DURATION"
 printf '  runbook   %s\n' "$RUNBOOK"
 printf '  screenshots %s\n' "$SHOTS"
+printf '  panel     drawn (brightness %s under the fold)\n' "$PANEL_LUMA"
 [ "$KEEP" = yes ] || printf '\nRe-run with --keep to watch the video.\n'
