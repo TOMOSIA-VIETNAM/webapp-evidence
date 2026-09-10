@@ -178,35 +178,38 @@ test('a capture that plays passes, however it was stopped', () => {
 // ---------- does the window fit on the display ----------
 
 const geometry = (over = {}) => ({
-  x: 0, y: 44, width: 1280, height: 920, chromeHeight: 120, scale: 1,
-  screen: { width: 1280, height: 800 },
-  usable: { x: 0, y: 25, width: 1280, height: 775 },
-  ...over,
+  x: 0, y: 44, width: 1280, height: 920, chromeHeight: 120, ...over,
 });
+const USABLE = { x: 0, y: 25, width: 1280, height: 775 };
 
 test('a window that fits is recorded without comment', () => {
-  assert.doesNotThrow(() => assertWindowFits(
-    geometry({ height: 700, usable: { x: 0, y: 25, width: 1280, height: 775 } }),
-    { width: 1280, height: 580 },
-  ));
+  assert.doesNotThrow(() => assertWindowFits(geometry({ height: 700 }), USABLE));
 });
 
 test('a window taller than the display is refused before anything is recorded', () => {
   // macOS places it anyway, with the bottom off the screen, and the capture records what is
   // left: a video of a clipped application that looks like the application is clipped.
-  assert.throws(() => assertWindowFits(geometry(), { width: 1280, height: 800 }), /does not fit/);
+  assert.throws(() => assertWindowFits(geometry(), USABLE), /does not fit/);
 });
 
 test('the refusal names the size that would fit, and why it is smaller than the display', () => {
   assert.throws(
-    () => assertWindowFits(geometry(), { width: 1280, height: 800 }),
+    () => assertWindowFits(geometry(), USABLE),
     (e) => /1280x655/.test(e.message) && /120px/.test(e.message),
   );
 });
 
 test('a window hanging off the right edge is refused too', () => {
-  assert.throws(
-    () => assertWindowFits(geometry({ width: 1600, height: 600 }), { width: 1600, height: 480 }),
-    /does not fit/,
-  );
+  assert.throws(() => assertWindowFits(geometry({ width: 1600, height: 600 }), USABLE), /does not fit/);
+});
+
+test('the crop is measured against the display the device hands over, not the emulated one', () => {
+  // A Retina display reports 1800 points and captures 3600 pixels. Cropping a 900pt window with
+  // the devicePixelRatio the recording context pins to 1 records a quarter of it — and every
+  // assertion that only looks at the middle of the frame still passes.
+  const scale = 3600 / 1800;
+  const crop = cropFor({ x: 0, y: 44, width: 902, height: 680 }, scale, { width: 1800, height: 1169 });
+  assert.equal(crop.width, 1804);
+  assert.equal(crop.height, 1360);
+  assert.equal(crop.y, 88);
 });

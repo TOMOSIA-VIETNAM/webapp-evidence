@@ -698,6 +698,8 @@ app: ${meta.app}
 base_url: ${meta.baseUrl}
 start_path: ${meta.start}
 captions: ${meta.captions}
+capture: ${meta.capture}${meta.captureFrame ? `
+capture_frame: ${meta.captureFrame.width}x${meta.captureFrame.height} at ${meta.captureFrame.x},${meta.captureFrame.y}, ${meta.captureFrame.scale}x` : ''}
 config: ${meta.configFile ? rel(meta.configFile) : `(none — recorded with BASE_URL=${meta.baseUrl})`}
 steps: ${rel(meta.stepsFile)}
 video: ${rel(meta.video)}
@@ -892,6 +894,12 @@ async function main() {
   const runbook = writeRunbook(outDir, name, {
     app, baseUrl, start: steps.start || '/', configFile, stepsFile, video: mp4,
     captions: captions.enabled ? captions.locale : 'off',
+    capture: capture.mode,
+    // What was recorded and at how many pixels to the point. A window capture can be wrong in a
+    // way that looks right — a crop of part of the window fills the frame just as well as the
+    // whole of it — so the numbers it used are written down where they can be measured against
+    // the video itself.
+    captureFrame: capture.frame(),
     duration, recordedAt: new Date().toISOString(),
     runner: __filename, timeline, hotkeySection: buildHotkeySection(hotkeys, trimAt, removed),
     noteSection: buildNoteSection(notes, trimAt, removed),

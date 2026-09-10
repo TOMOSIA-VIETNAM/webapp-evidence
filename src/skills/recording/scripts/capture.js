@@ -9,6 +9,7 @@
 // through ffmpeg, and cropping to the window rather than the display is what makes it usable:
 // it catches everything a page recording misses and cannot catch the rest of somebody's desktop.
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { spawn, execFileSync } = require('child_process');
 
@@ -140,8 +141,8 @@ async function announce(countdownSeconds) {
 //
 // The viewport is part of the evidence — two takes are compared against each other — so this
 // refuses rather than quietly choosing a smaller one, and says which number to change.
-function assertWindowFits(geometry, viewport) {
-  const { usable, chromeHeight } = geometry;
+function assertWindowFits(geometry, usable) {
+  const { chromeHeight } = geometry;
   const overflowsRight = geometry.x + geometry.width > usable.x + usable.width + 1;
   const overflowsBottom = geometry.y + geometry.height > usable.y + usable.height + 1;
   if (!overflowsRight && !overflowsBottom) return;
@@ -159,8 +160,8 @@ function assertWindowFits(geometry, viewport) {
   );
 }
 
-// The rectangle to record, read from the browser rather than assumed. The window is placed at a
-// known position, but the height of the browser's own chrome is not something the runner decides.
+// Where the window is, in the units the page uses. These four are real: Playwright does not
+// touch the size or position of the window it opened.
 async function windowRect(page) {
   return page.evaluate(() => ({
     x: window.screenX,
@@ -168,17 +169,62 @@ async function windowRect(page) {
     width: window.outerWidth,
     height: window.outerHeight,
     chromeHeight: window.outerHeight - window.innerHeight,
-    scale: window.devicePixelRatio,
-    screen: { width: window.screen.width, height: window.screen.height },
-    // What is left of the display once the menu bar and the Dock have taken their share. A
-    // window is placed inside this, not inside the display.
-    usable: {
-      x: window.screen.availLeft ?? 0,
-      y: window.screen.availTop ?? 0,
-      width: window.screen.availWidth,
-      height: window.screen.availHeight,
-    },
   }));
+}
+
+// The display, which the recorded page cannot be asked about.
+//
+// A context with a viewport emulates `window.screen` to match it, and `devicePixelRatio` is
+// pinned to 1 by the recording context, so both come back describing the recording rather than
+// the machine. Read together they are wrong in a way that looks right: on this repository's own
+// check they produced a crop of the top-left quarter of the window that passed every assertion.
+//
+// A context with no viewport emulates nothing, so its page reports the display.
+async function displayMetrics(page) {
+  const context = await page.context().browser().newContext({ viewport: null });
+  try {
+    const probe = await context.newPage();
+    return await probe.evaluate(() => ({
+      width: window.screen.width,
+      height: window.screen.height,
+      usable: {
+        x: window.screen.availLeft ?? 0,
+        y: window.screen.availTop ?? 0,
+        width: window.screen.availWidth,
+        height: window.screen.availHeight,
+      },
+    }));
+  } finally {
+    await context.close();
+  }
+}
+
+// One frame from the device, which settles two questions at once: how many physical pixels the
+// display actually has — the scale follows from that, rather than from a devicePixelRatio the
+// recording context has already overwritten — and whether this machine will hand over a screen
+// capture at all.
+function probeDevice(device) {
+  const probe = path.join(os.tmpdir(), `evidence-capture-probe-${process.pid}.png`);
+  try {
+    execFileSync('ffmpeg', [
+      '-y', '-v', 'error', '-f', 'avfoundation', '-capture_cursor', '0',
+      '-framerate', '30', '-i', `${device}:none`, '-frames:v', '1', probe,
+    ], { stdio: ['ignore', 'ignore', 'pipe'] });
+    const size = execFileSync('ffprobe', [
+      '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height',
+      '-of', 'csv=p=0', probe,
+    ], { encoding: 'utf8' }).trim().split(',').map(Number);
+    return { width: size[0], height: size[1] };
+  } catch (error) {
+    throw new Error(
+      'This machine did not hand over a screen capture.\n' +
+      `${String(error.stderr || error.message).trim()}\n\n` +
+      'On macOS this is usually Screen Recording permission: System Settings > Privacy & ' +
+      'Security > Screen Recording, for the application running this command, then start it again.'
+    );
+  } finally {
+    try { fs.unlinkSync(probe); } catch { /* nothing to clean up */ }
+  }
 }
 
 // Stopping a recorder, with an escalation rather than a single hopeful signal.
@@ -254,6 +300,7 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
   let context = null;
   let ffmpeg = null;
   let rect = null;
+  let scale = 1;
   let endedEarly = false;
   // What the capture writes is not what is handed over: the encode reads it, applies whatever
   // was redacted and the configured quality, and deletes it.
@@ -274,9 +321,10 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
       openedAt = Date.now();
     },
 
-    // The rectangle of the frame in page coordinates, so the runner knows what a screenshot
-    // shares with the video. Null until the capture has started.
-    rect: () => rect,
+    // What was recorded, in the page's own units, and how many physical pixels there are to each
+    // of them. Null until the capture has started. The runbook carries both: they are what
+    // someone checking the video can measure it against.
+    frame: () => (rect ? { ...rect, scale } : null),
 
     // Returns the origin every timestamp in the take is measured from, and how much of the front
     // to cut off. They differ by backend: Playwright has been recording since the page existed,
@@ -289,13 +337,23 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
 
       await announce(screen.countdownSeconds);
 
+      const device = screenDeviceIndex(screen.display);
+      const display = await displayMetrics(page);
+      const captured = probeDevice(device);
+
+      // Not devicePixelRatio: the recording context pins that to 1. The only honest ratio is
+      // between what the device hands over and what the display measures.
+      scale = captured.width / display.width;
+
       const geometry = await windowRect(page);
-      if (mode === WINDOW) assertWindowFits(geometry, viewport);
+      if (mode === WINDOW) assertWindowFits(geometry, display.usable);
       rect = mode === WINDOW
         ? { x: geometry.x, y: geometry.y, width: geometry.width, height: geometry.height }
-        : null;
-      const crop = rect ? cropFor(rect, geometry.scale, geometry.screen) : null;
-      const device = screenDeviceIndex(screen.display);
+        : { x: 0, y: 0, width: display.width, height: display.height };
+      const crop = mode === WINDOW ? cropFor(rect, scale, display) : null;
+
+      // The second window opened to measure the display took the focus with it
+      await page.bringToFront();
 
       const args = [
         '-y', '-v', 'error',
@@ -307,6 +365,12 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
         '-framerate', String(screen.framerate),
         '-i', `${device}:none`,
         ...(crop ? ['-vf', `crop=${crop.width}:${crop.height}:${crop.x}:${crop.y}`] : []),
+        // avfoundation timestamps every frame off a microsecond clock and ignores the framerate
+        // asked of it, so without this the output claims a million frames a second: a take that
+        // ran for twenty seconds becomes a file seven milliseconds long, which no player and no
+        // timeline in the runbook can make sense of. Resampling to a constant rate on the way
+        // out is what gives the file a duration that matches the wall clock.
+        '-fps_mode', 'cfr', '-r', String(screen.framerate),
         // Captured in real time, so the encoder must never be the bottleneck; the take is
         // re-encoded to the configured quality afterwards, along with any redactions.
         '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '18', '-pix_fmt', 'yuv420p',
