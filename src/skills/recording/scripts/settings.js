@@ -80,16 +80,10 @@ const DEFAULTS = {
     screenCapture: {
       framerate: 30,
       display: 0,             // which display, when there is more than one
-      countdownSeconds: 3,    // after the notice is pressed, before the first frame
-      // How long the notice waits to be pressed. It does not dismiss itself: one that did is
-      // one the person it was meant for may never see. Running out means nobody is at the
-      // machine, and nothing is recorded.
-      noticeTimeoutSeconds: 300,
-      // The handover notice can be turned off, and there is one reason to: an automated check
-      // records a screen with nobody watching, and there is nobody to press it. It does not
-      // turn off the consent — SCREEN_CAPTURE=1 is still required, and that is the agent
-      // saying a person agreed.
-      notice: true,
+      // Between the answer given in the terminal and the first frame: time to take a hand off
+      // the keyboard. The notice that asks for that answer is shown by announce.js, before the
+      // question, so by the time a recording starts it has already been read and dismissed.
+      countdownSeconds: 3,
       // The language of whoever is sitting at the machine, which is not the language of
       // whoever reviews the merge request: recording.captions.locale is that one. The person
       // being asked to hand over their machine has to be able to read the request.
@@ -319,12 +313,6 @@ function assertCapture({ capture, screenCapture }) {
     );
   }
   assertLocale(screenCapture.locale, 'recording.screenCapture.locale');
-  if (!Number.isFinite(screenCapture.noticeTimeoutSeconds) || screenCapture.noticeTimeoutSeconds < 10) {
-    throw new Error(
-      'recording.screenCapture.noticeTimeoutSeconds must be at least 10, got ' +
-      `${JSON.stringify(screenCapture.noticeTimeoutSeconds)}`
-    );
-  }
   if (!Number.isFinite(screenCapture.countdownSeconds) || screenCapture.countdownSeconds < 0) {
     throw new Error(
       `recording.screenCapture.countdownSeconds must not be negative, got ` +
@@ -363,11 +351,6 @@ function resolveSettings(config) {
   if (process.env.BROWSER_CHANNEL) settings.recording.browserChannel = process.env.BROWSER_CHANNEL;
   if (process.env.EVIDENCE_OVERWRITE === '1') settings.output.overwrite = true;
   if (process.env.CAPTURE) settings.recording.capture = process.env.CAPTURE;
-  if (process.env.SCREEN_CAPTURE_NOTICE) {
-    settings.recording.screenCapture.notice = parseSwitch(
-      process.env.SCREEN_CAPTURE_NOTICE, 'SCREEN_CAPTURE_NOTICE'
-    );
-  }
   if (process.env.OPERATOR_LOCALE) {
     settings.recording.screenCapture.locale = assertLocale(process.env.OPERATOR_LOCALE, 'OPERATOR_LOCALE');
   }

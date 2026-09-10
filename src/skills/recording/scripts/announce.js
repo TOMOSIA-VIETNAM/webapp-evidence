@@ -11,20 +11,19 @@
 const { spawn } = require('child_process');
 const { noticeText, LOCALE_KEYS, assertLocale } = require('./captions');
 
+// One notice, shown before the question is asked. There is deliberately no second one after
+// the answer: the answer is the handover, and another dialog would send the person back to a
+// screen they had already left.
 const KINDS = {
-  // Shown before anything is asked: the recording has been requested and needs an answer
   confirm: 'screenCaptureConfirm',
-  // Shown once the answer is yes, immediately before the first frame
-  starting: 'screenCaptureStarting',
 };
 
 function help() {
   console.log(`Show a notice on the screen of whoever is at this machine.
 
-  node announce.js --kind confirm|starting [--locale ${LOCALE_KEYS.join('|')}] [--seconds N]
+  node announce.js --kind confirm [--locale ${LOCALE_KEYS.join('|')}] [--seconds N]
 
     --kind confirm    a recording has been asked for, and a question is waiting in the terminal
-    --kind starting   the recording begins now, do not touch the machine
     --locale          the language the person at the machine reads (default en)
     --seconds         how long to wait for it to be pressed before giving up (default 300)
 

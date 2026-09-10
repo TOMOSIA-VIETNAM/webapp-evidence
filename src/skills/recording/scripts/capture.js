@@ -12,8 +12,6 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawn, execFileSync } = require('child_process');
-const { noticeText } = require('./captions');
-const { showNotice } = require('./announce');
 
 const PAGE = 'page';
 const WINDOW = 'window';
@@ -134,34 +132,17 @@ function createProgressReader(onFirstFrame) {
   };
 }
 
-// The last thing before the first frame: pressed by the person at the machine, in their own
-// language, and the countdown after it is time to move the mouse away.
+// The last thing before the first frame is a wait, and nothing else.
 //
-// Waiting to be pressed is what makes it worth showing. Consent was given in the terminal some
-// moments ago; this is the handover itself — they are at the machine, they have read it, and
-// from here the machine is the runner's. Left unpressed it is not consent but an empty chair,
-// and a screen with nobody at it is not one to record.
-async function announce({ countdownSeconds, locale, noticeTimeoutSeconds, notice }) {
-  if (!notice) {
-    // Turned off for an automated check, which records with nobody watching. Consent is a
-    // separate thing and is still required.
-    await new Promise((r) => setTimeout(r, countdownSeconds * 1000));
-    return;
-  }
-  const outcome = await showNotice(noticeText('screenCaptureStarting', locale), noticeTimeoutSeconds);
-
-  if (outcome === 'unanswered') {
-    throw new Error(
-      `Nobody pressed the notice on that screen within ${noticeTimeoutSeconds}s.\n` +
-      'Recording a screen nobody is sitting at is not what was agreed to. Ask again when they ' +
-      'are back, or set recording.capture to "page".'
-    );
-  }
-  // 'unavailable' means no windowing session to show it in. The recording was still agreed to
-  // before the runner started, so a notice that could not be shown does not stop it.
-
-  await new Promise((r) => setTimeout(r, countdownSeconds * 1000));
-}
+// There used to be a second notice here. It was one trip too many: the person had already read
+// the first one, turned off notifications, pressed it and walked to the terminal to answer —
+// putting another dialog on their screen sent them back again for something they had already
+// agreed to. Worse, the answer they gave in the terminal is the handover, so a notice after it
+// asks a question that has been answered.
+//
+// What is left is the few seconds between their answer and the first frame, which is time to
+// take a hand off the keyboard.
+const settle = (countdownSeconds) => new Promise((r) => setTimeout(r, countdownSeconds * 1000));
 
 // A window taller than the display is not an error anyone sees: macOS places it anyway, with the
 // bottom of it off the screen, and the capture records what is left. The result is a video of a
@@ -411,7 +392,7 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
       // Checked before anyone is asked to hand over their machine, not after
       if (mode === WINDOW) assertWindowFits(geometry, display.usable);
 
-      await announce(screen);
+      await settle(screen.countdownSeconds);
 
       // How far the page content sits inside the window. A redaction is measured in page
       // coordinates, and here the video is the whole window in physical pixels, so a rectangle

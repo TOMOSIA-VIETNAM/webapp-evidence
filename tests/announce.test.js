@@ -16,11 +16,11 @@ test('the wait is long, because it is a person being waited for', () => {
 });
 
 test('options may be written with an equals sign', () => {
-  assert.equal(parse(['--kind=starting', '--locale=vi']).locale, 'vi');
+  assert.equal(parse(['--kind=confirm', '--locale=vi']).locale, 'vi');
 });
 
-test('a kind that is not one of the two is refused by name', () => {
-  assert.throws(() => parse(['--kind', 'warn']), /confirm \| starting/);
+test('a kind that is not the one it shows is refused by name', () => {
+  assert.throws(() => parse(['--kind', 'warn']), /confirm/);
 });
 
 test('a language the notices are not written in is refused', () => {
@@ -54,13 +54,11 @@ test('both notices ask to be pressed, because neither dismisses itself', () => {
   }
 });
 
-test('the notice that asks for consent says that nothing is being recorded yet', () => {
-  // It goes up before the answer, and a notice that reads as "recording now" would be a lie
-  // to the one person who has to decide.
+test('the one notice carries everything the person has to do before answering', () => {
+  // It is the only thing they see on that screen: turn off notifications, press it, go and
+  // answer. A second notice after the answer would send them back for what they already agreed.
   for (const locale of LOCALE_KEYS) {
-    assert.notEqual(
-      noticeText('screenCaptureConfirm', locale),
-      noticeText('screenCaptureStarting', locale),
-    );
+    const text = noticeText('screenCaptureConfirm', locale);
+    assert.ok(text.length > 120, `the notice in ${locale} is too short to say all of it`);
   }
 });

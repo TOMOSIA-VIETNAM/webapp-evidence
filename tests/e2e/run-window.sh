@@ -42,7 +42,7 @@ case "$BASE_URL" in http://127.0.0.1:*) ;; *) fail "the demo server did not star
 printf '%s\n' "$BASE_URL"
 
 step "Recording the browser window — please leave the machine alone"
-BASE_URL="$BASE_URL" OUT_DIR="$OUT_DIR" SCREEN_CAPTURE=1 SCREEN_CAPTURE_NOTICE=off \
+BASE_URL="$BASE_URL" OUT_DIR="$OUT_DIR" SCREEN_CAPTURE=1 \
   EVIDENCE_CONFIG="$REPO/tests/e2e/window-capture.config.js" \
   node "$SKILL/scripts/record.js" "$REPO/tests/e2e/window-steps.js"
 

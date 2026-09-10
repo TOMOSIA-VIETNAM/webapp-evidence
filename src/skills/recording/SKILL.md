@@ -177,10 +177,13 @@ screen first and the question goes to them second, in that order:
    node scripts/announce.js --kind confirm --locale vi
    ```
 
-   It floats above whatever they are looking at, says nothing is being recorded yet, and sends
-   them back to this terminal. **It waits to be pressed** — a notice that dismisses itself is
-   one they may never see, and this is the one thing they have to have seen. The command does
-   not return until they press it, so ask afterwards, not before.
+   The language is theirs, not the runbook's. Nothing else in a recording is shown to them.
+
+   It floats above whatever they are looking at, and it is the only thing that appears on that
+   screen: nothing is being recorded yet, turn on Do Not Disturb, press OK, come back here and
+   answer. **It waits to be pressed** — a notice that dismisses itself is one they may never
+   see, and this is the one thing they have to have seen. The command does not return until
+   they press it, so ask afterwards, not before.
 
    It exits non-zero if nobody presses it within five minutes. That is nobody at the machine,
    not consent: say so and stop, rather than recording an empty chair.
@@ -198,17 +201,16 @@ screen first and the question goes to them second, in that order:
 3. **Only on the first answer**, record with `SCREEN_CAPTURE=1`:
 
    ```bash
-   OUT_DIR=<the evidence directory> SCREEN_CAPTURE=1 OPERATOR_LOCALE=vi \
+   OUT_DIR=<the evidence directory> SCREEN_CAPTURE=1 \
      node scripts/record.js <path to steps.js>
    ```
 
    The runner refuses without that variable, and it cannot ask for it itself: started through a
    shell, a prompt on stdin waits forever. Passing it is the agent saying the person agreed.
 
-   A second notice goes up on their screen at that point, in `OPERATOR_LOCALE`, and it waits to
-   be pressed too. That press is the handover: they have turned off notifications, they are
-   looking at it, and from there the machine is the agent's. A few seconds later the first frame
-   is recorded.
+   Their answer here is the handover — nothing else appears on their screen, because by then
+   they have read the notice, turned off notifications and walked back to this terminal. A few
+   seconds after they answer, the first frame is recorded.
 
 From the moment they answer, the machine is the agent's. Do not ask them anything else until the
 take is finished, and tell them plainly when it is.
