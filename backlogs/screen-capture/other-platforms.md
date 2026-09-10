@@ -98,3 +98,47 @@ It matters less than it sounds. A window capture crops to the browser window, so
 it is already out of frame whichever desktop it is on; the notice's advice about Do Not Disturb
 covers the one thing that can still arrive on top. A clean desktop is worth asking for only for
 a `screen` capture, which is the backend that records everything.
+
+# Chrome's other window modes, and why none of them is adopted
+
+Asked whether a screen recording should put the browser in full screen, in `--app` mode, or in
+`--kiosk`. Measured against what they would each buy, none earns its place, and the reasoning is
+here so it does not have to be had again.
+
+| Mode | What it gives | What it costs |
+|---|---|---|
+| `--start-fullscreen` | on macOS a Space of its own, no Dock, no menu bar | the toolbar auto-hides, so the URL is not in the video |
+| `--app=<url>` | a window with no tab strip and no address bar | the same loss, deliberately |
+| `--kiosk` | full screen, no browser UI, some shortcuts blocked | the same loss, and it blocks nothing the operator's keyboard can still do |
+
+The reason all three fall down is the same. They are being considered to keep other things out
+of the frame, and a window capture already does that by construction: it crops to the browser
+window, so the desktop behind it is out whatever mode the window is in. What the three actually
+change is how much of the browser is in the frame, and the answer they all give is "less" —
+starting with the address bar, which is often the part that proves which environment was
+recorded.
+
+Full screen looks like the exception, because `screen` records everything and full screen leaves
+nothing else to record. But `screen` exists for what escapes the browser window, and full screen
+makes the window the whole display, so `window` would have covered it. The two cancel out.
+
+Where one of these would genuinely earn its place is a different request: evidence that has to
+show the application with no browser around it at all — a kiosk build, a presentation, a
+screenshot for a design review. That is `--app`, it is worth a `recording.chromeless` setting
+when someone asks for it, and it should be announced before a take so nobody is surprised by a
+video with no address bar in it.
+
+None of it blocks the one thing that really can spoil a take: the operator typing. Nothing short
+of an OS-level input block does, and there is no dependable one to reach for.
+
+# Recording a window that the application opened
+
+A popup, a `target="_blank"`, an OAuth window. The page backend records each page separately, so
+a second window becomes a second video nobody asked for; the window backend crops to the window
+it measured at the start, so a new one opens outside the frame.
+
+Neither is right, and the fix differs by backend: the page backend would have to record every
+page in the context and say which is which, and the window backend would have to follow the
+frontmost window or widen the crop to hold both. Worth deciding once, with a take that opens one
+to check against — including on Windows, where the whole capture backend is unimplemented and
+this would be part of proving it.
