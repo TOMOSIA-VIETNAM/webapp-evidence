@@ -30,6 +30,18 @@ module.exports = {
     // headed: false,
     // video: { crf: 26, preset: 'slow' },
 
+    // The terminal panel shown over the page, for proving what happened behind the browser: a
+    // job that was enqueued, a file that was written. Only the step scripts that ask for it get
+    // one, so leaving this out costs nothing.
+    // terminal: {
+    //   height: 300,             // the bottom strip of the frame it occupies
+    //   cwd: 'apps/api',         // where commands run; the project root by default
+    //   env: { RAILS_ENV: 'development' },
+    //   // Blacked out of the panel, the runbook and the screenshots. The password of the
+    //   // account used to sign in is covered already; add what your own commands print.
+    //   scrub: [/ghp_[A-Za-z0-9]{20,}/g],
+    // },
+
     // To tune individual kinds of action (the wait after a click, the typing speed…) declare `pace`.
     // The list of keys and their default values lives in scripts/settings.js. Most of the time the
     // `speed` above is all you need and there is no reason to touch this.

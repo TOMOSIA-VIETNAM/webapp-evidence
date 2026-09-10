@@ -133,6 +133,7 @@ Những thứ bạn có thể yêu cầu:
 | Quay lại đúng bản cũ | `/webapp-evidence:recording quay lại bản đó` — runbook giữ sẵn lệnh, bản cũ không bị ghi đè |
 | Quay chậm hơn | `/webapp-evidence:recording quay chậm lại` |
 | Chú thích bằng tiếng khác | `/webapp-evidence:recording chú thích tiếng Nhật` — nhớ theo từng dự án |
+| Bằng chứng là cú click đã chạm tới backend — job đã chạy, file đã được ghi | `/webapp-evidence:recording mở log worker sau khi bấm Run sync` |
 | Cấu hình dự án một lần, để lần sau quay là đã đăng nhập sẵn | `/webapp-evidence:recording set up the evidence config for this project` |
 
 Viết các bước bằng ngôn ngữ nào cũng được, agent trả lời đúng ngôn ngữ đó. Cũng chẳng có cú pháp nào
@@ -165,6 +166,10 @@ việc chụp: layout vỡ giữa lúc chuyển cảnh, banner loé lên rồi b
 Nó quay trang web, không quay màn hình máy bạn. Thứ do OS vẽ sẽ không vào video: dropdown `<select>`,
 hộp thoại chọn file, `confirm`/`alert`. Những chỗ đó được thay bằng phụ đề nói đã chọn gì, kèm
 screenshot ngay sau đó. Modal, date picker và dropdown viết bằng JS thì quay bình thường.
+
+Khi bằng chứng không nằm trên trang — một job đã chạy, một file đã được ghi — một bước có thể mở
+panel terminal đè lên trang, đưa lệnh thật và output thật vào cùng video. Chỉ nhận output theo
+dòng: `vim`, `less`, `htop` không dùng được.
 
 Quay chỉ chạy trên site bạn chỉ định, không gì khác.
 

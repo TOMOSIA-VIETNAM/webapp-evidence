@@ -136,6 +136,7 @@ curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/mai
 | 同じ内容をもう一度 | `/webapp-evidence:recording もう一度録って` — コマンドはランブックにあり、前の録画も残ります |
 | もっとゆっくり録る | `/webapp-evidence:recording もう少しゆっくり録って` |
 | 字幕を別の言語で | `/webapp-evidence:recording 字幕は英語で` — プロジェクトごとに覚えます |
+| クリックがバックエンドまで届いた証拠 — ジョブが動いた、ファイルが書かれた | `/webapp-evidence:recording Run sync を押したあとワーカーのログを見せて` |
 | 最初に一度だけ設定して、以降はログイン済みで録る | `/webapp-evidence:recording set up the evidence config for this project` |
 
 手順は自分が使っている言語で書いてかまいません。エージェントも同じ言語で答えます。覚える構文も
@@ -169,6 +170,10 @@ curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/mai
 `<select>` のドロップダウン、ファイル選択ダイアログ、`confirm`/`alert` ダイアログ。これらの
 場面には、何を選んだかを示す字幕と、直後の状態のスクリーンショットが付きます。JS で作られた
 モーダル、日付ピッカー、ドロップダウンは普通に録画されます。
+
+証拠がページ上にまったく現れない場合 — ジョブが動いた、ファイルが書かれた — 手順の中で
+ページの上にターミナルパネルを開き、実際のコマンドと実際の出力を同じ動画に収められます。
+行単位の出力だけが対象で、`vim`、`less`、`htop` は使えません。
 
 録画は指定したサイトだけを対象にします。
 

@@ -15,7 +15,7 @@ process.env.PROJECT_ROOT = PROJECT;
 
 const {
   fmt, keyCaps, resolvePause, readingTime, buildTimeline, buildHotkeySection, buildNoteSection,
-  ignoreHints, runArtifacts, archivePreviousRun,
+  buildCommandSection, ignoreHints, runArtifacts, archivePreviousRun,
 } = require('../src/skills/recording/scripts/record');
 const { DEFAULTS } = require('../src/skills/recording/scripts/settings');
 
@@ -50,11 +50,17 @@ test('an empty segment in a hotkey string is rejected rather than drawn as a bla
 
 test('pause levels map to the configured durations, shortest to longest', () => {
   assert.equal(resolvePause('quick', PACE), PACE.afterClickQuickMs);
-  assert.equal(resolvePause(undefined, PACE), PACE.afterClickMs);
   assert.equal(resolvePause('normal', PACE), PACE.afterClickMs);
   assert.equal(resolvePause('observe', PACE), PACE.afterClickObserveMs);
   assert.ok(PACE.afterClickQuickMs < PACE.afterClickMs);
   assert.ok(PACE.afterClickMs < PACE.afterClickObserveMs);
+});
+
+test('with no level given, the caller decides what the default is', () => {
+  // A click and a command finishing are not the same beat, so the fallback belongs to whichever
+  // helper is asking rather than being baked into the vocabulary they share.
+  assert.equal(resolvePause(undefined, PACE, PACE.afterClickMs), PACE.afterClickMs);
+  assert.equal(resolvePause(undefined, PACE, PACE.afterCommandMs), PACE.afterCommandMs);
 });
 
 test('an explicit number of milliseconds is passed through untouched', () => {
@@ -196,3 +202,31 @@ test('a first run has nothing to archive', () => {
 });
 
 test.after(() => fs.rmSync(PROJECT, { recursive: true, force: true }));
+
+// ---------- the commands section of the runbook ----------
+
+test('a take that never opened the terminal adds no section to the runbook', () => {
+  assert.equal(buildCommandSection([], 0), '');
+});
+
+test('each kind of terminal step says what became of it', () => {
+  const section = buildCommandSection([
+    { at: 5, kind: 'run', text: 'bin/rails db:seed', exitCode: 0 },
+    { at: 9, kind: 'start', text: 'tail -f log/worker.log' },
+    { at: 14, kind: 'wait', text: '/SyncJob .* finished/', matched: 'SyncJob 12 finished' },
+    { at: 18, kind: 'interrupt', text: 'tail -f log/worker.log' },
+    { at: 22, kind: 'run', text: 'ls tmp/exports', exitCode: 2 },
+  ], 2);
+
+  assert.match(section, /exit 0/);
+  assert.match(section, /started, left running/);
+  assert.match(section, /interrupted/);
+  assert.match(section, /exit 2/);
+  // The waitFor row is the assertion the take rests on, so it carries what actually matched
+  assert.match(section, /SyncJob 12 finished/);
+});
+
+test('command timestamps are relative to the trimmed start, like every other section', () => {
+  const section = buildCommandSection([{ at: 65, kind: 'run', text: 'true', exitCode: 0 }], 5);
+  assert.match(section, /01:00/);
+});

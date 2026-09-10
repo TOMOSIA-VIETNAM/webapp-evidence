@@ -46,7 +46,8 @@
     <label for="import_file">Attach a list</label>
     <input type="file" id="import_file" name="import_file">
     <div class="file-row" id="file_name">No file chosen</div>
-    <p><button id="search" type="button">Search</button></p>
+    <p><button id="search" type="button">Search</button>
+       <button id="sync" class="secondary" type="button">Run sync</button></p>
   </fieldset>
 
   <div id="empty">No search has run yet.</div>
@@ -109,6 +110,17 @@
 
   document.getElementById('close_detail').addEventListener('click', () => {
     document.getElementById('detail').close();
+  });
+</script>
+<script>
+  // The one thing a recording of the browser cannot prove on its own: this button's real work
+  // happens somewhere else. The server appends to a log file, and the take reads that log in the
+  // terminal panel.
+  document.getElementById('sync').addEventListener('click', async () => {
+    const button = document.getElementById('sync');
+    button.disabled = true;
+    button.textContent = 'Sync queued';
+    await fetch('/trigger', { method: 'POST' });
   });
 </script>
 </body>

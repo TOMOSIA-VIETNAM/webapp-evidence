@@ -128,6 +128,7 @@ curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/mai
 | 再录一遍同样的内容 | `/webapp-evidence:recording 再录一遍` —— 命令在 runbook 里，旧的录制不会被覆盖 |
 | 录慢一点 | `/webapp-evidence:recording 录慢一点` |
 | 换一种语言的字幕 | `/webapp-evidence:recording 字幕用日文` —— 按项目记住 |
+| 证明这次点击真的到了后端——任务跑了、文件写了 | `/webapp-evidence:recording 点击 Run sync 之后展示 worker 日志` |
 | 给项目配一次，以后录制都已登录 | `/webapp-evidence:recording set up the evidence config for this project` |
 
 步骤用你平时用的那种语言写就行，代理也用同一种语言回你。也没有语法要记——说“给我刚修好的那个
@@ -158,6 +159,9 @@ runbook 对上的时刻。它还能发现没人想到要截图的东西：过渡
 它录的是页面，不是你的屏幕。操作系统画的东西进不了视频：`<select>` 下拉菜单、文件选择框、
 `confirm`/`alert` 对话框。这些时刻会配一条字幕说明选了什么，再加一张之后状态的截图。用 JS 做的
 模态框、日期选择器和下拉菜单都能正常录进去。
+
+如果证据根本不在页面上——任务跑过了、文件写好了——某一步可以在页面上方打开一个终端面板，
+把真实的命令和真实的输出录进同一个视频。只支持按行输出的命令：`vim`、`less`、`htop` 不行。
 
 录制只针对你指定的站点，不碰别的。
 
