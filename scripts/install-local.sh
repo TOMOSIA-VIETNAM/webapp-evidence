@@ -196,6 +196,12 @@ MARKET="$(manifest_name "$REPO/.claude-plugin/marketplace.json")"
 [ -n "$MARKET" ] || {
   printf 'install-local.sh: no marketplace name in .claude-plugin/marketplace.json\n' >&2; exit 1; }
 
+# `owner/repo`, which is what Claude Code takes for the published catalog. Read from the manifest
+# rather than from this clone's origin, so a clone made from a path or a fork still names the place
+# releases actually come from. Empty if the manifest names no GitHub repository.
+SLUG="$(sed -n 's|.*"repository"[[:space:]]*:[[:space:]]*"[^"]*github\.com/\([^"?#]*\)".*|\1|p' \
+        "$REPO/src/.claude-plugin/plugin.json" | sed 's|/*$||; s|\.git$||' | head -1)"
+
 SKILL_DIRS=()
 SKILL_NAMES=()
 for dir in "$REPO"/src/skills/*/; do
@@ -390,6 +396,19 @@ install_one() {
     if [ -n "$head" ] && [ -n "$got" ] && [ "${head#"$got"}" = "$head" ]; then
       say 'warning Claude Code holds commit %s, this clone is on %s. Run this again after restarting it.\n' \
         "$got" "$(git -C "$REPO" rev-parse --short=12 HEAD)"
+    fi
+    # Installed this way, Claude Code is reading a clone that only this installer moves — which is
+    # what makes a branch or a pinned tag possible, and also means no update arrives on its own.
+    # Someone who installed once to try a branch would otherwise sit on that commit for good,
+    # with nothing on screen to say so.
+    say '\nUpdates are not automatic this way — nothing but this installer moves the clone:\n'
+    say '  newer commits on the same ref:  %s/scripts/install-local.sh --update\n' "$REPO"
+    if [ -n "$SLUG" ]; then
+      say '  the released version, read from GitHub instead of from here:\n'
+      say '    claude plugin uninstall %s@%s\n' "$PLUGIN" "$MARKET"
+      say '    claude plugin marketplace remove %s\n' "$MARKET"
+      say '    claude plugin marketplace add %s\n' "$SLUG"
+      say '    claude plugin install %s@%s\n' "$PLUGIN" "$MARKET"
     fi
     return 0
   fi
