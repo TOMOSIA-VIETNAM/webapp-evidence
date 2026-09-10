@@ -61,9 +61,14 @@ Stopping writes `q` to ffmpeg's stdin rather than killing it, so the file gets i
 ### Permission
 
 Without Screen Recording permission macOS does not fail — it hands back a picture of the desktop
-wallpaper, and the take looks like it worked until someone watches it. Before the take, the runner
-captures a fraction of a second and checks the frame is not a flat colour. A flat frame means the
-permission is missing, and the message says which setting to open, for which application.
+wallpaper, and the take looks like it worked until someone watches it.
+
+Before the take the runner captures a single frame, which settles what it can: whether the device
+hands over anything at all, and at what size. Missing permission is not among the things it can
+settle, because a wallpaper is a picture like any other — it is not flat, and nothing about it
+distinguishes it from an application that happens to be showing one. What catches that is the
+end-to-end check measuring the content of the frame against what the page should be showing, and
+that is a check run by hand on a machine with a screen, not a gate inside the runner.
 
 ## Consent
 

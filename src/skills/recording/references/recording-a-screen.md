@@ -101,7 +101,9 @@ From the moment they answer, the machine is the agent's. Do not ask them anythin
 take is finished, and tell them plainly when it is.
 
 Afterwards, look at the recording once with the `vision` skill before handing it over, and
-report what you find with timestamps. It holds whatever was on that screen.
+report what you find with timestamps. It holds whatever was on that screen. This is a last look
+for the user to act on, not a filter: say what you saw and let them decide, rather than
+declaring the video clean.
 
 ## Configuration
 

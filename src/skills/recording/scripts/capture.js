@@ -299,6 +299,23 @@ function assertReadable(file, stoppedBy) {
   }
 }
 
+// Where the page content sits inside the recorded frame, which is not the same question for the
+// two backends. A window capture has already cropped to the window, so the page is offset only by
+// the browser's own chrome. A screen capture starts at the display's origin, so where the window
+// sits on that display is part of the offset too — and macOS puts a window below the menu bar
+// whatever `--window-position` asks for, so that is never zero there.
+//
+// Getting it wrong is silent: a redaction lands the height of a menu bar above what it was meant
+// to cover, and the video ships with the value still legible.
+function contentOffsetFor(geometry, mode, scale) {
+  const origin = mode === WINDOW ? { x: 0, y: 0 } : { x: geometry.x, y: geometry.y };
+  return {
+    x: origin.x + Math.max(0, (geometry.width - geometry.innerWidth) / 2),
+    y: origin.y + geometry.chromeHeight,
+    scale,
+  };
+}
+
 // A rectangle measured on the page, moved into the frame the video actually holds.
 //
 // For a page recording they are the same thing. For a window recording the frame is the whole
@@ -394,14 +411,7 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
 
       await settle(screen.countdownSeconds);
 
-      // How far the page content sits inside the window. A redaction is measured in page
-      // coordinates, and here the video is the whole window in physical pixels, so a rectangle
-      // drawn without these two lands on the browser's toolbar.
-      contentOffset = {
-        x: Math.max(0, (geometry.width - geometry.innerWidth) / 2),
-        y: geometry.chromeHeight,
-        scale,
-      };
+      contentOffset = contentOffsetFor(geometry, mode, scale);
 
       rect = mode === WINDOW
         ? { x: geometry.x, y: geometry.y, width: geometry.width, height: geometry.height }
@@ -504,7 +514,7 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
 
 module.exports = {
   createCapture, assertConsent, assertPlatformCanCapture, assertReadable, assertWindowFits,
-  parseScreenDevices, cropFor, frameRect,
+  parseScreenDevices, cropFor, frameRect, contentOffsetFor,
   createProgressReader, stopRecorder,
   MODES, PAGE, WINDOW, SCREEN, CONSENT_ENV,
 };

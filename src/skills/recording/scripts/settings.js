@@ -229,7 +229,7 @@ function warnRemovedPaceKeys(config) {
 const SWITCH_ON = ['1', 'on', 'true', 'yes'];
 const SWITCH_OFF = ['0', 'off', 'false', 'no'];
 
-function parseSwitch(value, name = 'CAPTIONS') {
+function parseSwitch(value, name) {
   const normalized = String(value).trim().toLowerCase();
   if (SWITCH_ON.includes(normalized)) return true;
   if (SWITCH_OFF.includes(normalized)) return false;
@@ -346,7 +346,9 @@ function resolveSettings(config) {
   if (process.env.BROWSER_CHANNEL) settings.recording.browserChannel = process.env.BROWSER_CHANNEL;
   if (process.env.EVIDENCE_OVERWRITE === '1') settings.output.overwrite = true;
   if (process.env.CAPTURE) settings.recording.capture = process.env.CAPTURE;
-  if (process.env.CAPTIONS) settings.recording.captions.enabled = parseSwitch(process.env.CAPTIONS);
+  if (process.env.CAPTIONS) {
+    settings.recording.captions.enabled = parseSwitch(process.env.CAPTIONS, 'CAPTIONS');
+  }
   if (process.env.CAPTION_LOCALE) {
     settings.recording.captions.locale = assertLocale(process.env.CAPTION_LOCALE, 'CAPTION_LOCALE');
   }

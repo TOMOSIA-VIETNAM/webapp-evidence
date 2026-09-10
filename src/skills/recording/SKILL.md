@@ -197,10 +197,8 @@ fine and the errors are expected, add nothing.
 When the user is outside the codebase — a URL and a description, a hand-off, a report — just hand
 over the files. A code fix they cannot apply is noise.
 
-**A take that recorded a screen gets one more look before it is handed over** — with the `vision`
-skill, reporting what you find with timestamps. It holds whatever was on that screen. This is a
-last look for the user to act on, not a filter: say what you saw and let them decide, rather than
-declaring the video clean.
+**A take that recorded a screen gets one more look before it is handed over** — see
+`references/recording-a-screen.md`.
 
 ### Another format
 

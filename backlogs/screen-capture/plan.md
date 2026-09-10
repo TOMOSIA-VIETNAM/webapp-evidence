@@ -50,9 +50,9 @@ start() -> { startedAt }      stop() -> { file }
   logical rectangle into physical pixels. `readProgress(chunk)` parses `-progress pipe:1` and
   reports the instant the first frame was written, which is the take's t=0.
 - Stopping writes `q` to ffmpeg's stdin so the file is finalised rather than truncated.
-- Before the take: refuse without `SCREEN_CAPTURE=1`; probe permission by capturing a fraction of
-  a second and rejecting a flat frame, naming the setting to open; turn Do Not Disturb on and put
-  it back afterwards; show the on-screen notice and count down.
+- Before the take: refuse without `SCREEN_CAPTURE=1`; capture one frame to learn the device's size
+  and prove it hands anything over at all, naming the setting to open when it does not; show the
+  on-screen notice and count down.
 
 **Done when** the unit tests cover the crop arithmetic at 1x and 2x and off the origin, the
 progress parser including a line split across two reads, and the consent refusal; and a real

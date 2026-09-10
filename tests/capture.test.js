@@ -10,7 +10,7 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const {
   assertConsent, assertPlatformCanCapture, assertReadable, assertWindowFits, parseScreenDevices,
-  cropFor, frameRect, createProgressReader, stopRecorder, CONSENT_ENV,
+  cropFor, frameRect, contentOffsetFor, createProgressReader, stopRecorder, CONSENT_ENV,
 } = require('../src/skills/recording/scripts/capture');
 
 // ---------- consent ----------
@@ -256,4 +256,45 @@ test('on an ordinary display only the chrome moves it', () => {
     frameRect(BOX, { x: 0, y: 80, scale: 1 }),
     { x: 40, y: 140, width: 200, height: 30 },
   );
+});
+
+// ---------- where the page sits inside the recorded frame ----------
+
+// A 1280x800 page in a window 80px taller and 2px wider, placed below the menu bar
+const WINDOW_GEOMETRY = {
+  x: 0, y: 44, width: 1282, height: 880, chromeHeight: 80, innerWidth: 1280,
+};
+
+test('a window capture offsets the page by the browser chrome alone', () => {
+  // The crop has already taken the window's position out
+  assert.deepEqual(
+    contentOffsetFor(WINDOW_GEOMETRY, 'window', 2),
+    { x: 1, y: 80, scale: 2 },
+  );
+});
+
+test('a screen capture offsets it by where the window is as well', () => {
+  // The frame starts at the display's origin, and macOS puts the window below the menu bar
+  // whatever --window-position asks for. Without this a redaction lands 44 points — 88 pixels
+  // on a 2x display — above what it was meant to cover, and the video ships still legible.
+  assert.deepEqual(
+    contentOffsetFor(WINDOW_GEOMETRY, 'screen', 2),
+    { x: 1, y: 124, scale: 2 },
+  );
+});
+
+test('a window flush against the display origin makes the two agree', () => {
+  const flush = { ...WINDOW_GEOMETRY, x: 0, y: 0 };
+  assert.deepEqual(
+    contentOffsetFor(flush, 'screen', 1),
+    contentOffsetFor(flush, 'window', 1),
+  );
+});
+
+test('a rectangle redacted in a screen capture clears the browser chrome', () => {
+  const offset = contentOffsetFor(WINDOW_GEOMETRY, 'screen', 2);
+  const onPage = { x: 40, y: 10, width: 200, height: 24 };
+  const inFrame = frameRect(onPage, offset);
+  // The top of the page content, in frame pixels: below the menu bar and the browser's chrome
+  assert.equal(inFrame.y, (44 + 80 + 10) * 2);
 });

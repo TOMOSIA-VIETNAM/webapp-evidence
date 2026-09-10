@@ -38,6 +38,10 @@ module.exports = {
     // Anything but 'page' records what is on a screen, so the runner refuses to start without
     // SCREEN_CAPTURE=1 and shows the window rather than hiding it.
     // capture: 'page',
+    // Open DevTools alongside the page. Only a window capture can see it: DevTools is browser
+    // UI, so a recording of page content cannot contain it either way. Docked, it takes its
+    // room out of the page area, so lower viewport.width if the right-hand side matters.
+    // devtools: false,
     // screenCapture: {
     //   framerate: 30,
     //   display: 0,             // which display, when there is more than one

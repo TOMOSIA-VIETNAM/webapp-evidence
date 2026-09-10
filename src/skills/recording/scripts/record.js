@@ -294,10 +294,11 @@ function buildContext({
     }
 
     let onDialog;
+    let expiry;
     const appeared = new Promise((resolve, reject) => {
       onDialog = resolve;
       page.once('dialog', resolve);
-      setTimeout(() => reject(new Error(
+      expiry = setTimeout(() => reject(new Error(
         `No browser dialog appeared within ${timeout}ms.\n` +
         'dialog() is for alert, confirm, prompt and beforeunload. A modal drawn by the ' +
         'application itself is ordinary page content — click it like anything else.'
@@ -312,6 +313,9 @@ function buildContext({
     try {
       opened = await appeared;
     } finally {
+      // Node runs until its timers do. Left pending, this one holds the process open for the
+      // rest of its timeout after the runbook has been written and the output printed.
+      clearTimeout(expiry);
       page.off('dialog', onDialog);
     }
 
