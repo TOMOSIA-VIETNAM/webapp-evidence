@@ -9,8 +9,8 @@ const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const {
-  assertConsent, assertReadable, parseScreenDevices, cropFor, createProgressReader, stopRecorder,
-  CONSENT_ENV,
+  assertConsent, assertReadable, assertWindowFits, parseScreenDevices, cropFor,
+  createProgressReader, stopRecorder, CONSENT_ENV,
 } = require('../src/skills/recording/scripts/capture');
 
 // ---------- consent ----------
@@ -173,4 +173,40 @@ test('a capture that plays passes, however it was stopped', () => {
   execFileSync('ffmpeg', ['-y', '-v', 'error', '-f', 'lavfi',
     '-i', 'testsrc=size=64x64:rate=10:duration=0.5', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', good]);
   assert.doesNotThrow(() => assertReadable(good, 'kill'));
+});
+
+// ---------- does the window fit on the display ----------
+
+const geometry = (over = {}) => ({
+  x: 0, y: 44, width: 1280, height: 920, chromeHeight: 120, scale: 1,
+  screen: { width: 1280, height: 800 },
+  usable: { x: 0, y: 25, width: 1280, height: 775 },
+  ...over,
+});
+
+test('a window that fits is recorded without comment', () => {
+  assert.doesNotThrow(() => assertWindowFits(
+    geometry({ height: 700, usable: { x: 0, y: 25, width: 1280, height: 775 } }),
+    { width: 1280, height: 580 },
+  ));
+});
+
+test('a window taller than the display is refused before anything is recorded', () => {
+  // macOS places it anyway, with the bottom off the screen, and the capture records what is
+  // left: a video of a clipped application that looks like the application is clipped.
+  assert.throws(() => assertWindowFits(geometry(), { width: 1280, height: 800 }), /does not fit/);
+});
+
+test('the refusal names the size that would fit, and why it is smaller than the display', () => {
+  assert.throws(
+    () => assertWindowFits(geometry(), { width: 1280, height: 800 }),
+    (e) => /1280x655/.test(e.message) && /120px/.test(e.message),
+  );
+});
+
+test('a window hanging off the right edge is refused too', () => {
+  assert.throws(
+    () => assertWindowFits(geometry({ width: 1600, height: 600 }), { width: 1600, height: 480 }),
+    /does not fit/,
+  );
 });

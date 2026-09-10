@@ -134,6 +134,31 @@ async function announce(countdownSeconds) {
   await new Promise((r) => setTimeout(r, countdownSeconds * 1000));
 }
 
+// A window taller than the display is not an error anyone sees: macOS places it anyway, with the
+// bottom of it off the screen, and the capture records what is left. The result is a video of a
+// clipped application that looks like the application is clipped.
+//
+// The viewport is part of the evidence — two takes are compared against each other — so this
+// refuses rather than quietly choosing a smaller one, and says which number to change.
+function assertWindowFits(geometry, viewport) {
+  const { usable, chromeHeight } = geometry;
+  const overflowsRight = geometry.x + geometry.width > usable.x + usable.width + 1;
+  const overflowsBottom = geometry.y + geometry.height > usable.y + usable.height + 1;
+  if (!overflowsRight && !overflowsBottom) return;
+
+  const fitsHeight = Math.floor(usable.height - chromeHeight);
+  const fitsWidth = Math.floor(usable.width);
+  throw new Error(
+    'The browser window does not fit on this display, so a window capture would record a ' +
+    'clipped one.\n'
+    + `  the window needs   ${Math.round(geometry.width)}x${Math.round(geometry.height)} `
+    + `at ${Math.round(geometry.x)},${Math.round(geometry.y)}\n`
+    + `  the display offers ${usable.width}x${usable.height} at ${usable.x},${usable.y}\n`
+    + `Set recording.viewport to ${fitsWidth}x${fitsHeight} or smaller — the browser's own `
+    + `chrome adds ${Math.round(chromeHeight)}px on top of it — or record on a larger display.`
+  );
+}
+
 // The rectangle to record, read from the browser rather than assumed. The window is placed at a
 // known position, but the height of the browser's own chrome is not something the runner decides.
 async function windowRect(page) {
@@ -145,6 +170,14 @@ async function windowRect(page) {
     chromeHeight: window.outerHeight - window.innerHeight,
     scale: window.devicePixelRatio,
     screen: { width: window.screen.width, height: window.screen.height },
+    // What is left of the display once the menu bar and the Dock have taken their share. A
+    // window is placed inside this, not inside the display.
+    usable: {
+      x: window.screen.availLeft ?? 0,
+      y: window.screen.availTop ?? 0,
+      width: window.screen.availWidth,
+      height: window.screen.availHeight,
+    },
   }));
 }
 
@@ -257,6 +290,7 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
       await announce(screen.countdownSeconds);
 
       const geometry = await windowRect(page);
+      if (mode === WINDOW) assertWindowFits(geometry, viewport);
       rect = mode === WINDOW
         ? { x: geometry.x, y: geometry.y, width: geometry.width, height: geometry.height }
         : null;
@@ -349,7 +383,7 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
 }
 
 module.exports = {
-  createCapture, assertConsent, assertReadable, parseScreenDevices, cropFor,
+  createCapture, assertConsent, assertReadable, assertWindowFits, parseScreenDevices, cropFor,
   createProgressReader, stopRecorder,
   MODES, PAGE, WINDOW, SCREEN, CONSENT_ENV,
 };

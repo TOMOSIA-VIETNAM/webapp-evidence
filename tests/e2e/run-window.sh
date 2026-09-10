@@ -42,7 +42,8 @@ case "$BASE_URL" in http://127.0.0.1:*) ;; *) fail "the demo server did not star
 printf '%s\n' "$BASE_URL"
 
 step "Recording the browser window — please leave the machine alone"
-BASE_URL="$BASE_URL" OUT_DIR="$OUT_DIR" CAPTURE=window SCREEN_CAPTURE=1 CAPTIONS=off \
+BASE_URL="$BASE_URL" OUT_DIR="$OUT_DIR" SCREEN_CAPTURE=1 \
+  EVIDENCE_CONFIG="$REPO/tests/e2e/window-capture.config.js" \
   node "$SKILL/scripts/record.js" "$REPO/tests/e2e/window-steps.js"
 
 step "Checking what landed"
@@ -53,10 +54,11 @@ read -r W H <<EOF
 $(ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 "$VIDEO" | tr ',' ' ')
 EOF
 
-# The page is 1280x800. A window capture is the whole window, so it is taller by the height of
-# the browser's own chrome — which is the entire claim this backend makes.
-[ "$W" = 1280 ] || fail "the frame is ${W}px wide, not the 1280px of the window (the display scale was not applied?)"
-[ "$H" -gt 840 ] || fail "the frame is ${H}px tall, so it is the page and not the window"
+# The viewport in window-capture.config.js is 900x600. A window capture is the whole window, so
+# it is taller than the page by the height of the browser's own chrome — which is the entire
+# claim this backend makes.
+[ "$W" = 900 ] || fail "the frame is ${W}px wide, not the 900px of the window (was the display scale applied?)"
+[ "$H" -gt 640 ] || fail "the frame is ${H}px tall, so it is the page (600px) and not the window"
 
 # And the window really is what was recorded. Without Screen Recording permission macOS hands
 # back a picture of the desktop, which is neither flat nor this green.
@@ -64,7 +66,7 @@ DURATION=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$VIDEO")
 SAMPLE_T=$(awk -v d="$DURATION" 'BEGIN { printf "%.1f", (d > 2) ? d - 1.2 : d / 2 }')
 BAND_Y=$(( H / 2 ))
 GREEN="$(ffprobe -v error -f lavfi \
-  -i "movie=${VIDEO},select='gte(t\,${SAMPLE_T})',crop=600:80:340:${BAND_Y},signalstats" \
+  -i "movie=${VIDEO},select='gte(t\,${SAMPLE_T})',crop=400:80:250:${BAND_Y},signalstats" \
   -show_entries frame_tags=lavfi.signalstats.UAVG,lavfi.signalstats.VAVG -of csv=p=0 | awk 'NR==1')"
 # #00b050 is strongly negative on both chroma axes; the desktop and the browser chrome are not.
 awk -F, -v c="$GREEN" 'BEGIN { split(c, v, ","); exit (v[1] < 110 && v[2] < 110) ? 0 : 1 }' \
@@ -75,6 +77,6 @@ awk -F, -v c="$GREEN" 'BEGIN { split(c, v, ","); exit (v[1] < 110 && v[2] < 110)
 
 printf '\nPASSED\n'
 printf '  video   %s (%sx%s, %.1fs)\n' "$VIDEO" "$W" "$H" "$DURATION"
-printf '  frame   the browser window: %spx taller than the %spx page\n' "$(( H - 800 ))" 800
+printf '  frame   the browser window: %spx taller than the %spx page\n' "$(( H - 600 ))" 600
 printf '  content the demo page is in the frame (chroma %s)\n' "$GREEN"
 [ "$KEEP" = yes ] || printf '\nRe-run with --keep to watch the video.\n'
