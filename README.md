@@ -107,9 +107,15 @@ curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/mai
 It asks which platform you use and tells you where things landed. Recording needs Chrome, ffmpeg and
 Node — if one is missing, the agent names it and offers to install it.
 
-Add `--ref main` or `--ref v1.2.0` to follow a branch or pin a version; `--ref latest` goes back to
-releases. Update with `~/.webapp-evidence/scripts/install-local.sh --update`, remove it with
-`--uninstall --all`.
+To follow a branch or pin a version:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash -s -- --ref main
+```
+
+`--ref v1.2.0` pins a version and `--ref latest` goes back to releases; every later run stays on
+whichever was asked for last. Update with `~/.webapp-evidence/scripts/install-local.sh --update`,
+remove it with `--uninstall --all`.
 
 ## Using it
 

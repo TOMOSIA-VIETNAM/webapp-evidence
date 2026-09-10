@@ -99,9 +99,14 @@ curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/mai
 它会问你用哪个平台，然后告诉你装到了哪里。录制需要 Chrome、ffmpeg 和 Node——缺哪个，代理会说
 清楚，并提出帮你装上。
 
-加上 `--ref main` 或 `--ref v1.2.0` 就能跟着某个分支走或钉在某个版本，`--ref latest` 回到跟随
-发布版本；更新用 `~/.webapp-evidence/scripts/install-local.sh --update`，卸载用
-`--uninstall --all`。
+要跟着某个分支走或钉在某个版本：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash -s -- --ref main
+```
+
+`--ref v1.2.0` 钉在某个版本，`--ref latest` 回到跟随发布版本；之后每次运行都保持最后一次指定的
+那个。更新用 `~/.webapp-evidence/scripts/install-local.sh --update`，卸载用 `--uninstall --all`。
 
 ## 使用方式
 

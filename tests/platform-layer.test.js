@@ -330,6 +330,20 @@ test('a translation keeps the commands and the demo the English one shows', () =
   }
 });
 
+test('every page that names a flag shows the form that reaches the installer', () => {
+  // Piped into a shell, a flag has to be handed over explicitly: `| bash --ref main` is bash
+  // reading `--ref` as one of its own options and answering `bash: --ref: invalid option`, so the
+  // installer never runs. A page that names the flag without `-s --` in front of it hands the
+  // reader that error instead of an install.
+  for (const file of ['README.md', 'README.vi-VN.md', 'README.ja-JP.md', 'README.zh-Hans.md']) {
+    const body = read(file);
+    if (!body.includes('--ref')) continue;
+    assert.ok(body.includes('| bash -s -- --ref'), `${file} names --ref without the -s -- form`);
+  }
+  // The same holds for the way out install.sh prints when the ref it follows is gone.
+  assert.match(read('install.sh'), /\| bash -s -- --ref latest/);
+});
+
 test('the version in gemini-extension.json keeps up with the published releases', () => {
   // Gemini CLI reads this manifest, and a git tag cannot be moved once someone has installed from
   // it — so a tag placed over a stale version ships that number permanently. Release notes come
