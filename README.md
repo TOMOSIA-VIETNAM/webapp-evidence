@@ -107,9 +107,15 @@ curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/mai
 It asks which platform you use and tells you where things landed. Recording needs Chrome, ffmpeg and
 Node — if one is missing, the agent names it and offers to install it.
 
-Add `--ref main` or `--ref v1.2.0` to follow a branch or pin a version; `--ref latest` goes back to
-releases. Update with `~/.webapp-evidence/scripts/install-local.sh --update`, remove it with
-`--uninstall --all`.
+To follow a branch or pin a version:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash -s -- --ref main
+```
+
+`--ref v1.2.0` pins a version and `--ref latest` goes back to releases; every later run stays on
+whichever was asked for last. Update with `~/.webapp-evidence/scripts/install-local.sh --update`,
+remove it with `--uninstall --all`.
 
 ## Using it
 
@@ -170,7 +176,7 @@ When the proof is not on the page at all — a job that ran, a file that was wri
 open a terminal panel over the page and put the real command and its real output in the same
 video. Line-oriented output only: `vim`, `less` and `htop` are out.
 
-Recording only runs against local dev or a site you name — never staging or production.
+Recording runs against the site you name, and nothing else.
 
 Videos and screenshots are not committed to Git. Attaching them to a ticket, MR/PR, or report is up
 to you.

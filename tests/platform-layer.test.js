@@ -30,7 +30,7 @@ const skillDirs = () => fs.readdirSync(SKILLS, { withFileTypes: true })
 // Claude Code prefixes the plugin name onto the skill's own name, so `/webapp-evidence:recording`
 // comes from a skill called `recording`. The other four platforms have no prefix, so the installer
 // joins the plugin name to it there. One name is written down; the other is derived.
-const MARKETPLACE = 'webapp-evidence';   // the repository, which is what a user adds
+const MARKETPLACE = 'webapp-evidence';   // the catalog a user adds, under that name either way
 const PLUGIN = 'webapp-evidence';        // the namespace Claude Code prefixes onto the skill
 const SKILL_DIR = 'recording';           // the directory and the SKILL.md name
 const SKILL_NAME = 'webapp-evidence-recording'; // derived for the platforms with no namespace
@@ -204,10 +204,71 @@ test('the installer derives the unprefixed platforms\' name from the plugin name
   assert.match(script, /ln -s -- "\$REPO\/src\/skills\/\$\{SKILL_DIRS\[\$i\]\}"/);
 });
 
-test('the installer installs the plugin under the identifier the manifests declare', () => {
+test('the installer takes the plugin id from the manifests rather than repeating it', () => {
+  // `plugin@marketplace` is what Claude Code installs. Both halves are declared in a manifest
+  // already, and a third copy in the installer is the one that gets forgotten when a name changes.
   const script = read('scripts/install-local.sh');
-  assert.ok(script.includes(`${PLUGIN}@${MARKETPLACE}`), 'installer uses a different plugin id');
-  assert.ok(script.includes(`TOMOSIA-VIETNAM/${MARKETPLACE}`), 'installer adds a different marketplace');
+  assert.match(script, /PLUGIN="\$\(manifest_name "\$REPO\/src\/\.claude-plugin\/plugin\.json"\)"/);
+  assert.match(script, /MARKET="\$\(manifest_name "\$REPO\/\.claude-plugin\/marketplace\.json"\)"/);
+  assert.ok(script.includes('"$PLUGIN@$MARKET"'), 'installer writes the plugin id out by hand');
+  assert.ok(!script.includes(`${PLUGIN}@${MARKETPLACE}`), 'installer hardcodes the plugin id');
+});
+
+test('Claude Code is pointed at this clone, so a --ref install reaches it as well', () => {
+  // install.sh checks the clone out at the release tag or the --ref it was given. A marketplace
+  // registered as a GitHub repository clones the default branch for itself instead, which leaves
+  // the requested ref installed on every platform except the one it was requested for.
+  const script = read('scripts/install-local.sh');
+  assert.match(script, /claude plugin marketplace add "\$REPO"/);
+  assert.ok(!script.includes(`TOMOSIA-VIETNAM/${MARKETPLACE}`),
+    'the installer registers the repository by name, not the clone that follows the ref');
+  // `marketplace add` on a name already registered keeps the source that is there, so an entry
+  // pointing anywhere else has to be removed before this clone can take the name.
+  assert.match(script, /claude plugin marketplace remove "\$MARKET"/);
+  assert.match(script, /claude_marketplace_path/);
+});
+
+test('what installing into Claude Code registers, uninstalling removes', () => {
+  // A left-behind marketplace entry is invisible and makes the next install a silent no-op: it
+  // still holds the name, so `marketplace add` from a new clone changes nothing.
+  const script = read('scripts/install-local.sh');
+  const uninstall = script.slice(script.indexOf('\nuninstall_one()'), script.indexOf('\ninstall_one()'));
+  assert.match(uninstall, /claude plugin uninstall "\$PLUGIN@\$MARKET"/);
+  assert.match(uninstall, /claude plugin marketplace remove "\$MARKET"/);
+});
+
+test('a clone that moved to another ref is copied into Claude Code again', () => {
+  // Claude Code copies a directory marketplace into its own cache at install time, in a directory
+  // named for the commit, and installing over a copy already there does nothing. Without the
+  // update, a second --ref install registers the right clone and still loads the older commit.
+  const script = read('scripts/install-local.sh');
+  assert.match(script, /claude plugin update "\$PLUGIN@\$MARKET"/);
+  // And the copy is checked against the clone, because everything above is silent when it fails.
+  assert.match(script, /claude_installed_commit/);
+  assert.match(script, /rev-parse HEAD/);
+});
+
+test('installing into Claude Code says that updates are not automatic', () => {
+  // Reading the clone is what makes a branch or a pinned tag possible, and is also why no update
+  // arrives on its own. Someone who installed once to try a branch would sit on that commit for
+  // good, with nothing on screen saying so — and the published catalog, which Claude Code fetches
+  // itself, is the thing they would have wanted.
+  const script = read('scripts/install-local.sh');
+  assert.match(script, /Updates are not automatic/);
+  assert.match(script, /--update/);
+  // The owner/repo for that catalog comes from the manifest, not from a copy in here.
+  assert.match(script, /SLUG=[\s\S]{0,300}?plugin\.json/);
+  assert.ok(!script.includes(`add ${MARKETPLACE}`), 'the installer hardcodes the published catalog');
+  assert.match(readJson('src/.claude-plugin/plugin.json').repository, /github\.com\/[^/]+\/[^/]+$/);
+});
+
+test('installing into Claude Code says which ref it installed', () => {
+  // Claude Code reports a plugin name and nothing about where the code came from. Without this the
+  // gap between the ref someone asked for and the code that arrived shows up at first use.
+  const script = read('scripts/install-local.sh');
+  assert.match(script, /clone_ref\(\) \{/);
+  assert.match(script, /config --get webapp-evidence\.ref/);
+  assert.match(script, /Installed into Claude Code[^\n]*clone_ref/);
 });
 
 test('the installer looks for the skill where the skill actually is', () => {
@@ -281,6 +342,41 @@ test('a translation keeps the commands and the demo the English one shows', () =
     assert.ok(body.includes('./docs/demo/saucedemo.gif'), `${file} lost the demo recording`);
     assert.ok(body.includes('/webapp-evidence:recording'), `${file} lost the invocation`);
   }
+});
+
+test('every page that names a flag shows the form that reaches the installer', () => {
+  // Piped into a shell, a flag has to be handed over explicitly: `| bash --ref main` is bash
+  // reading `--ref` as one of its own options and answering `bash: --ref: invalid option`, so the
+  // installer never runs. A page that names the flag without `-s --` in front of it hands the
+  // reader that error instead of an install.
+  for (const file of ['README.md', 'README.vi-VN.md', 'README.ja-JP.md', 'README.zh-Hans.md']) {
+    const body = read(file);
+    if (!body.includes('--ref')) continue;
+    assert.ok(body.includes('| bash -s -- --ref'), `${file} names --ref without the -s -- form`);
+  }
+  // The same holds for the way out install.sh prints when the ref it follows is gone.
+  assert.match(read('install.sh'), /\| bash -s -- --ref latest/);
+});
+
+test('install.sh says so when the ref never reached Claude Code', () => {
+  // The requested ref supplies its own installer, so a ref cut before Claude Code was pointed at
+  // the clone installs Claude Code from the repository name there — the default branch — and
+  // reports success. install.sh is fetched fresh on every run, which makes it the only part that
+  // can still tell the user, so it has to stay around after the installer instead of exec'ing it.
+  const script = read('install.sh');
+  assert.ok(!/exec "\$home\/scripts\/install-local\.sh"/.test(script),
+    'install.sh hands off with exec, so nothing of it runs afterwards');
+  assert.match(script, /claude_landed "\$home"/);
+  assert.match(script, /\|\| rc=\$\?/, 'the installer\'s exit status is dropped');
+  assert.match(script, /exit "\$rc"/);
+  // What it compares, and what it offers when they differ.
+  assert.match(script, /rev-parse HEAD/);
+  assert.match(script, /claude plugin update %s@%s/);
+  assert.match(script, /claude plugin marketplace add %s/);
+  // The plugin id comes from the clone's own manifests, not from a copy written down here.
+  assert.match(script, /manifest_name "\$home\/src\/\.claude-plugin\/plugin\.json"/);
+  assert.match(script, /manifest_name "\$home\/\.claude-plugin\/marketplace\.json"/);
+  assert.ok(!script.includes(`${PLUGIN}@${MARKETPLACE}`), 'install.sh hardcodes the plugin id');
 });
 
 test('the version in gemini-extension.json keeps up with the published releases', () => {

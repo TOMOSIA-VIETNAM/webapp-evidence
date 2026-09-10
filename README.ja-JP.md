@@ -106,8 +106,14 @@ curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/mai
 ffmpeg、Node が必要です。足りないものがあれば、エージェントが名前を挙げてインストールを提案
 します。
 
-ブランチを追うなら `--ref main`、バージョンを固定するなら `--ref v1.2.0` を付けてください。
-`--ref latest` でリリース追従に戻ります。更新は
+ブランチを追う、またはバージョンを固定する場合:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash -s -- --ref main
+```
+
+`--ref v1.2.0` はバージョンの固定、`--ref latest` はリリース追従に戻ります。以降の実行は、最後に
+指定されたものをそのまま追い続けます。更新は
 `~/.webapp-evidence/scripts/install-local.sh --update`、削除は `--uninstall --all` です。
 
 ## 使い方
@@ -169,7 +175,7 @@ ffmpeg、Node が必要です。足りないものがあれば、エージェン
 ページの上にターミナルパネルを開き、実際のコマンドと実際の出力を同じ動画に収められます。
 行単位の出力だけが対象で、`vim`、`less`、`htop` は使えません。
 
-録画はローカルの開発環境か、指定したサイトだけを対象にします。ステージングや本番は対象外です。
+録画は指定したサイトだけを対象にします。
 
 動画とスクリーンショットは Git に入りません。チケット、MR/PR、報告書のどこに添付するかは自分で
 決めてください。
