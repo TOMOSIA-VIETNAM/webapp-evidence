@@ -197,6 +197,9 @@ async function launchBrowser(settings) {
     channel: browserChannel,
     args: headed
       ? [
+        // Top-left, deliberately. A window capture crops to the window, so nothing outside it
+        // can reach the video — and notification banners arrive at the top RIGHT of the
+        // display. A window that does not reach that corner cannot have one land in it.
         '--window-position=0,0',
         `--window-size=${viewport.width},${viewport.height + 120}`,
         // DevTools is browser UI, so it only reaches a video that records the window. Docked, it

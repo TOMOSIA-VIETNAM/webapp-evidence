@@ -142,6 +142,29 @@ right-hand side; lower `recording.viewport.width` if that side matters.
 Recording a screen is implemented for macOS only. Elsewhere the runner refuses and says so —
 record the page instead, and let a caption stand in for what the operating system drew.
 
+### What actually reaches the video
+
+Worth knowing before deciding how much to worry, because the two backends are not the same risk.
+
+`window` crops to the browser window, so nothing outside it can be in the frame — not another
+application, not the desktop, not the Dock. The window is opened at the top left, and
+notification banners arrive at the top right, so on any display wider than the window one cannot
+land in it either. The window is not made smaller to achieve this and there is no reason to
+shrink it: the crop is what excludes things, not the size.
+
+`screen` records the display, all of it. Everything on it is in the video. If that is what the
+evidence needs, say so plainly when asking, and it is worth suggesting they move the browser to
+an empty desktop first — a new Space on macOS, a new virtual desktop on Windows. Neither can be
+created from a script, so it is a request, not a step.
+
+Neither backend can keep out something drawn *on top of* the browser: a notification that lands
+there, another application brought to the front. That is what the Do Not Disturb line in the
+notice is for, and why the machine has to be left alone.
+
+Recording one display while the operator keeps working on another is the best answer to all of
+this, and it is not implemented — `backlogs/screen-capture/other-platforms.md` says what it
+needs. Today the browser is always on the primary display and that is the one recorded.
+
 ### Asking before recording a screen
 
 The person at that machine has to agree, and has to stop using it. They are probably not looking
