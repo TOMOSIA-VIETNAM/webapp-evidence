@@ -546,7 +546,12 @@ function runArtifacts(outDir, name) {
   return fs.readdirSync(outDir).filter((f) => (
     /^\d{2}-.*\.png$/.test(f)
     || f === '99-full-page.png'
-    || [`${name}.mp4`, `${name}.webm`, `${name}-runbook.md`, `${name}-console.log`].includes(f)
+    // .webm and .raw.mp4 are what a backend captures before the encode reads it and deletes it.
+    // They are only ever left behind by a run that died partway, and they are large.
+    || [
+      `${name}.mp4`, `${name}.webm`, `${name}.raw.mp4`,
+      `${name}-runbook.md`, `${name}-console.log`,
+    ].includes(f)
   ));
 }
 

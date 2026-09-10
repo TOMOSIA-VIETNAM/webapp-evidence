@@ -166,6 +166,12 @@ test('previous run artifacts are recognised, project files are not', () => {
   ]);
 });
 
+test('what a crashed run left behind counts as a previous take, not as a project file', () => {
+  // Both are large, and both are only ever there because a run died before the encode read them
+  const dir = outDir(['user-search.webm', 'user-search.raw.mp4', 'steps.js']);
+  assert.deepEqual(runArtifacts(dir, 'user-search').sort(), ['user-search.raw.mp4', 'user-search.webm']);
+});
+
 test('artifacts of a differently named recording are left alone', () => {
   const dir = outDir(['other-flow.mp4', 'user-search.mp4']);
   assert.deepEqual(runArtifacts(dir, 'user-search'), ['user-search.mp4']);
