@@ -13,13 +13,13 @@ process.env.PROJECT_ROOT = fs.mkdtempSync(path.join(os.tmpdir(), 'evidence-sessi
 
 const { NO_BROWSER_POPUPS } = require('../src/skills/recording/scripts/session');
 
-test('the browser is told not to offer a translation', () => {
-  // A page in another language than the browser's raises a bubble over the page itself, so it
-  // reaches a recording of page content as well as one of the window. It turned up in a real take.
-  assert.ok(NO_BROWSER_POPUPS.some((arg) => /Translate/.test(arg)));
+test('nothing here sets --disable-features', () => {
+  // Chrome takes the last value for a repeated switch, so one of these would replace the long
+  // list Playwright relies on for a stable automated browser instead of adding to it.
+  assert.ok(!NO_BROWSER_POPUPS.some((arg) => arg.startsWith('--disable-features')));
 });
 
-test('nor to offer to save a password after a sign-in', () => {
+test('the browser is told not to offer to save a password after a sign-in', () => {
   assert.ok(NO_BROWSER_POPUPS.some((arg) => /save-password/.test(arg)));
 });
 

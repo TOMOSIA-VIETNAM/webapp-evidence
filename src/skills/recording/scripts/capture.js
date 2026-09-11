@@ -241,7 +241,9 @@ function probeDevice(device) {
           'the screen for one.\n'
         : `${String(error.stderr || error.message).trim()}\n`) +
       '\nGrant it in System Settings > Privacy & Security > Screen Recording, for the ' +
-      'application running this command, then start it again.'
+      'application running this command, then start it again.\n' +
+      'The entry there is named after that application, which may read as a version number ' +
+      'rather than a name — it is the one to switch on, not one to remove.'
     );
   } finally {
     try { fs.unlinkSync(probe); } catch { /* nothing to clean up */ }

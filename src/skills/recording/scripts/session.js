@@ -186,17 +186,21 @@ function resolveApp(config, app) {
   return { name, appConfig, baseUrl: process.env.BASE_URL || appConfig.baseUrl };
 }
 
-// Chrome decides on its own to put things in front of the page: a translate bubble on a page
-// whose language is not the browser's, an offer to save a password after a sign-in, an infobar.
-// None of them is part of the application, and a window capture records all of them — the
-// translate bubble is the one that turned up in a real take.
+// Chrome puts things in front of the page on its own — an offer to save a password after a
+// sign-in, a first-run panel, a search-engine chooser — and a window capture records all of
+// them. None is part of the application being recorded.
 //
-// Off for every recording, not only a window one: the bubble overlaps the page it is offering to
-// translate, so it reaches a page recording too.
+// Every switch here ADDS. Nothing sets `--disable-features`: Chrome takes the last value for a
+// repeated switch, so passing one replaces the long list Playwright relies on for a stable
+// automated browser rather than adding to it.
+//
+// That is also why the translate bubble is not here. It was the one that turned up in a real
+// take, and `--disable-features=Translate` does not stop it — measured, with the bubble still
+// on screen and the switch confirmed present on Chrome's own command line. What does stop it is
+// giving the browser the page's own language: `recording.locale`. Chrome offers a translation
+// when the page is in a language the browser is not set to, and offers nothing when they match.
 const NO_BROWSER_POPUPS = [
-  '--disable-features=Translate,TranslateUI,AutofillServerCommunication',
   '--disable-save-password-bubble',
-  '--disable-infobars',
   '--no-default-browser-check',
   '--no-first-run',
   '--disable-search-engine-choice-screen',

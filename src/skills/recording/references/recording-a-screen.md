@@ -41,6 +41,25 @@ evidence needs, say so plainly when asking, and it is worth suggesting they move
 an empty desktop first — a new Space on macOS, a new virtual desktop on Windows. Neither can be
 created from a script, so it is a request, not a step.
 
+### The browser's own offers
+
+Chrome raises things of its own over the page: an offer to translate, an offer to save a
+password, a first-run panel. They are turned off at launch where a switch does it.
+
+The translate bubble is the exception, and it is worth knowing before a take rather than after.
+`--disable-features=Translate` does not stop it — measured, with the switch confirmed on
+Chrome's own command line and the bubble still on screen. What stops it is giving the browser
+the page's own language: set `recording.locale` to it, because Chrome offers a translation when
+the page is in a language the browser is not set to and offers nothing when they match.
+
+### Permission, and what the entry is called
+
+macOS asks for Screen Recording permission per application, and the entry it creates carries
+the name of whichever application the request is attributed to — which is the agent's host, not
+this skill. It can read as a version number rather than a name, and a version number in a
+privacy setting is a thing people turn off. Say what it is when asking, and say that turning it
+off stops every window capture.
+
 Neither backend can keep out something drawn *on top of* the browser: a notification that lands
 there, another application brought to the front. That is what the Do Not Disturb line in the
 notice is for, and why the machine has to be left alone.

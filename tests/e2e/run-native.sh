@@ -70,8 +70,12 @@ px() { awk -v v="$1" -v s="$FSCALE" 'BEGIN { printf "%d", int(v * s / 2) * 2 }';
 
 # The viewport the configuration asks for. Everything else about the frame is measured, but this
 # is the one number the runner was told rather than found, so it is read from the same file.
+#
+# `process.stdout.write(String(...))`, not `console.log(<number>)`: that one goes through
+# util.inspect, which wraps a number in colour escapes when the environment says colour is
+# supported, and shell arithmetic cannot read those.
 VIEWPORT_H=$(node -e 'process.env.BASE_URL="http://x";
-  console.log(require(process.argv[1]).recording.viewport.height)' \
+  process.stdout.write(String(require(process.argv[1]).recording.viewport.height))' \
   "$REPO/tests/e2e/native-capture.config.js")
 
 step "Checking the dropdown a <select> opens"
@@ -87,7 +91,7 @@ GEOMETRY="$OUT_DIR/geometry.json"
 [ -f "$GEOMETRY" ] || fail "the step script did not record where the Status field is"
 read -r SX SY SW SH <<EOF
 $(node -e 'const g = require(process.argv[1]).statusField;
-  console.log(Math.round(g.x), Math.round(g.y), Math.round(g.width), Math.round(g.height))' "$GEOMETRY")
+  process.stdout.write([g.x, g.y, g.width, g.height].map(Math.round).join(" "))' "$GEOMETRY")
 EOF
 
 # Page coordinates into frame coordinates: past the browser chrome, then onto physical pixels.
