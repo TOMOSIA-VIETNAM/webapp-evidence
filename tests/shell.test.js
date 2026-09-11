@@ -3,7 +3,18 @@ const assert = require('node:assert');
 const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
-const { createShell, createFrameSplitter, FRAME } = require('../src/skills/recording/scripts/shell.js');
+const {
+  createShell, createFrameSplitter, assertPlatformHasShell, FRAME,
+} = require('../src/skills/recording/scripts/shell.js');
+
+test('the panel is refused on a platform with no POSIX shell, and says where it does work', () => {
+  // Refused when a shell is first asked for rather than when the runner starts, so a take that
+  // never opens a terminal is not stopped by it.
+  assert.throws(() => assertPlatformHasShell('win32'), /WSL/);
+  for (const platform of ['darwin', 'linux']) {
+    assert.doesNotThrow(() => assertPlatformHasShell(platform));
+  }
+});
 
 // ---------- the frame splitter: pure, and where the subtle cases are ----------
 

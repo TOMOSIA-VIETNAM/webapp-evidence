@@ -9,6 +9,10 @@
 # Needs Google Chrome, ffmpeg and Node. Exits non-zero on the first failed check.
 set -euo pipefail
 
+# `awk 'NR==1'` rather than `head -1` throughout: head closes the pipe once it has its line, the
+# process feeding it dies of SIGPIPE, and `pipefail` turns that into the whole check exiting with
+# no message. awk reads to the end.
+
 REPO="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 SKILL="$REPO/src/skills/recording"
 KEEP=no
@@ -88,10 +92,44 @@ done
 grep -qE '^[0-9]{2}:[0-9]{2} - [0-9]{2}:[0-9]{2}' "$RUNBOOK" \
   || fail "the runbook has no timeline rows"
 
+# Redaction has to hold in both places a frame ends up: the video and the screenshot taken while
+# the value was on screen. The runbook says where it was covered, so the check reads the rectangle
+# from there rather than guessing it or opening a second browser to measure it.
+step "Checking the redaction"
+grep -q '## Kept out of the video' "$RUNBOOK" || fail "the runbook does not record what was covered"
+RECT="$(sed -n 's/.*covered with a solid block (\([0-9]*\)x\([0-9]*\) at \([0-9]*\),\([0-9]*\)).*/\1 \2 \3 \4/p' "$RUNBOOK" | awk 'NR==1')"
+[ -n "$RECT" ] || fail "the runbook does not say where the API key was covered"
+set -- $RECT
+KW=$1 KH=$2 KX=$3 KY=$4
+
+KEY_SHOT="$(find "$OUT_DIR" -maxdepth 1 -name '*-key-masked.png' | awk 'NR==1')"
+[ -n "$KEY_SHOT" ] || fail "no screenshot was taken while the key was on screen"
+
+# Playwright paints its own mask over the element: magenta, which is strongly positive on both
+# chroma axes and matches nothing else in this black-on-white demo app.
+SHOT_CHROMA="$(ffprobe -v error -f lavfi \
+  -i "movie=${KEY_SHOT},crop=${KW}:${KH}:${KX}:${KY},signalstats" \
+  -show_entries frame_tags=lavfi.signalstats.UAVG,lavfi.signalstats.VAVG -of csv=p=0)"
+awk -F, -v h="$SHOT_CHROMA" 'BEGIN { split(h, c, ","); exit (c[1] > 150 && c[2] > 150) ? 0 : 1 }' \
+  || fail "the API key is not masked in $KEY_SHOT (chroma $SHOT_CHROMA)"
+
+# And in the video the same rectangle is filled black for the stretch it was on screen. The
+# timestamp comes from the runbook too, taken a second in so the check does not land on the edge.
+COVER_AT="$(sed -n 's/^- \([0-9]*\):\([0-9]*\) - .*covered with a solid block.*/\1 \2/p' "$RUNBOOK" | awk 'NR==1')"
+set -- $COVER_AT
+COVER_T=$(( 10#$1 * 60 + 10#$2 + 1 ))
+# The frame is selected inside the graph rather than by seeking: ffprobe cannot seek a `movie=`
+# input, and asking it to fails the whole check on something unrelated to the redaction.
+COVER_LUMA="$(ffprobe -v error -f lavfi \
+  -i "movie=${VIDEO},select='gte(t\,${COVER_T})',crop=${KW}:${KH}:${KX}:${KY},signalstats" \
+  -show_entries frame_tags=lavfi.signalstats.YAVG -of csv=p=0 | awk 'NR==1')"
+awk -v y="$COVER_LUMA" 'BEGIN { exit (y < 40) ? 0 : 1 }' \
+  || fail "at ${COVER_T}s the API key region has brightness $COVER_LUMA, so it was not covered"
+
 # The runbook can carry the command section while the panel never actually drew: the value of the
 # terminal is that a reviewer SEES the log. The panel fills the bottom 300px of the frame with a
 # near-black background, so the average brightness there says whether it rendered.
-PANEL_SHOT="$(find "$OUT_DIR" -maxdepth 1 -name '*-worker-finished.png' | head -1)"
+PANEL_SHOT="$(find "$OUT_DIR" -maxdepth 1 -name '*-worker-finished.png' | awk 'NR==1')"
 [ -n "$PANEL_SHOT" ] || fail "no screenshot was taken while the terminal panel was open"
 PANEL_LUMA="$(ffprobe -v error -f lavfi \
   -i "movie=${PANEL_SHOT},crop=iw:300:0:ih-300,signalstats" \
@@ -108,4 +146,5 @@ printf '  video     %s (%s bytes, %.1fs)\n' "$VIDEO" "$SIZE" "$DURATION"
 printf '  runbook   %s\n' "$RUNBOOK"
 printf '  screenshots %s\n' "$SHOTS"
 printf '  panel     drawn (brightness %s under the fold)\n' "$PANEL_LUMA"
+printf '  redaction video %s, screenshot chroma %s\n' "$COVER_LUMA" "$SHOT_CHROMA"
 [ "$KEEP" = yes ] || printf '\nRe-run with --keep to watch the video.\n'

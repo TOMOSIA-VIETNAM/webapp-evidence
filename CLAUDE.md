@@ -37,7 +37,18 @@ Never write the derived name into a SKILL.md; `plugin.json` already holds that h
 npm install --prefix src/skills/recording/scripts --no-audit --no-fund   # first time
 node --test 'tests/*.test.js'     # no browser needed
 ./tests/e2e/run.sh                # records the demo app in real Chrome
+./tests/e2e/run-window.sh         # records the browser WINDOW — needs a screen and permission
+./tests/e2e/run-native.sh         # the <select> menu, the browser's dialogs, optionally DevTools
 ```
+
+The last two cannot run headless or in CI: they record what is on a screen, so they need Screen
+Recording permission and the machine left alone for half a minute. `run.sh` covers everything
+else, and both screen checks are macOS only — see `backlogs/screen-capture/other-platforms.md`.
+
+Run `run-window.sh` when the capture backend or the crop arithmetic changes. It measures the
+video against the rectangle the runner recorded, which is the only assertion that tells the whole
+window from a piece of it: three earlier versions of that check passed on a crop of the top-left
+quarter.
 
 Assertions target behaviour, not message wording — that is what let the whole runner be translated
 without touching the suite.

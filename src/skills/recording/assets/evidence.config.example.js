@@ -30,6 +30,24 @@ module.exports = {
     // headed: false,
     // video: { crf: 26, preset: 'slow' },
 
+    // What the frame of the recording is.
+    //   'page'   (default) Playwright records page content. Headless, no permission, runs in CI.
+    //   'window' ffmpeg records the browser window, so what the operating system draws inside
+    //            it — the file picker, a JavaScript dialog, the print sheet — is in the video.
+    //   'screen' the whole display, and everything else that happens to be on it.
+    // Anything but 'page' records what is on a screen, so the runner refuses to start without
+    // SCREEN_CAPTURE=1 and shows the window rather than hiding it.
+    // capture: 'page',
+    // Open DevTools alongside the page. Only a window capture can see it: DevTools is browser
+    // UI, so a recording of page content cannot contain it either way. Docked, it takes its
+    // room out of the page area, so lower viewport.width if the right-hand side matters.
+    // devtools: false,
+    // screenCapture: {
+    //   framerate: 30,
+    //   display: 0,             // which display, when there is more than one
+    //   countdownSeconds: 3,    // between the answer given in the terminal and the first frame
+    // },
+
     // The terminal panel shown over the page, for proving what happened behind the browser: a
     // job that was enqueued, a file that was written. Only the step scripts that ask for it get
     // one, so leaving this out costs nothing.

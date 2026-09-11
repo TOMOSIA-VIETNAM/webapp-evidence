@@ -15,7 +15,8 @@ process.env.PROJECT_ROOT = PROJECT;
 
 const {
   fmt, keyCaps, resolvePause, readingTime, buildTimeline, buildHotkeySection, buildNoteSection,
-  buildCommandSection, ignoreHints, runArtifacts, archivePreviousRun,
+  buildCommandSection, buildRedactionSection, buildRemovedSection, placeAt,
+  ignoreHints, runArtifacts, archivePreviousRun,
 } = require('../src/skills/recording/scripts/record');
 const { DEFAULTS } = require('../src/skills/recording/scripts/settings');
 
@@ -73,15 +74,19 @@ test('an unknown pause level fails loudly instead of falling back to the default
 });
 
 test('a caption stays up in proportion to how much there is to read', () => {
-  // A fixed hold fits one sentence length and no other. The complaint that produced this was a
-  // caption of 124 characters shown for 2.2 seconds.
   const short = readingTime('Chosen.', PACE);
   const long = readingTime(
     'Selected "Price (low to high)". The dropdown menu is drawn by the operating system, '
     + 'so it does not appear in this recording.', PACE,
   );
   assert.ok(long > short, `${long} is not longer than ${short}`);
-  assert.ok(long >= 5000, `124 characters get only ${long}ms`);
+});
+
+test('no caption holds the take long enough to be read twice', () => {
+  // It is a hint, not the evidence, and it is paid for in how long the video runs and how
+  // large the file is. Anyone who wants every word of a long one pauses.
+  const longest = readingTime('x'.repeat(500), PACE);
+  assert.ok(longest <= 3500, `a caption can hold the take for ${longest}ms`);
 });
 
 test('even the shortest caption is shown long enough to notice', () => {
@@ -165,6 +170,12 @@ test('previous run artifacts are recognised, project files are not', () => {
   ]);
 });
 
+test('what a crashed run left behind counts as a previous take, not as a project file', () => {
+  // Both are large, and both are only ever there because a run died before the encode read them
+  const dir = outDir(['user-search.webm', 'user-search.raw.mp4', 'steps.js']);
+  assert.deepEqual(runArtifacts(dir, 'user-search').sort(), ['user-search.raw.mp4', 'user-search.webm']);
+});
+
 test('artifacts of a differently named recording are left alone', () => {
   const dir = outDir(['other-flow.mp4', 'user-search.mp4']);
   assert.deepEqual(runArtifacts(dir, 'user-search'), ['user-search.mp4']);
@@ -229,4 +240,76 @@ test('each kind of terminal step says what became of it', () => {
 test('command timestamps are relative to the trimmed start, like every other section', () => {
   const section = buildCommandSection([{ at: 65, kind: 'run', text: 'true', exitCode: 0 }], 5);
   assert.match(section, /01:00/);
+});
+
+// ---------- what a removed stretch does to every other section ----------
+
+const CUT = [{ from: 10, to: 20 }];   // ten seconds taken out, in finished-video time
+
+test('a moment before a cut keeps its place, and one after it moves up', () => {
+  assert.equal(placeAt(5, 0, CUT), 5);
+  assert.equal(placeAt(25, 0, CUT), 15);
+});
+
+test('a moment inside a cut has nowhere to point', () => {
+  assert.equal(placeAt(12, 0, CUT), null);
+});
+
+test('the timeline drops a mark that was cut and renumbers the rest', () => {
+  const marks = [
+    { at: 2, label: 'Before' },
+    { at: 12, label: 'Cut out' },
+    { at: 25, label: 'After' },
+  ];
+  const rows = buildTimeline(marks, 0, 30, CUT).split('\n');
+  assert.equal(rows.length, 2);
+  assert.match(rows[0], /^00:02 - 00:15 {2}Before$/);
+  assert.match(rows[1], /^00:15 - 00:30 {2}After$/);
+});
+
+test('hotkeys, captions and commands are renumbered the same way', () => {
+  assert.match(buildHotkeySection([{ at: 25, keys: 'Escape' }], 0, CUT), /00:15/);
+  assert.match(buildNoteSection([{ at: 25, text: 'Later' }], 0, CUT), /00:15/);
+  assert.match(
+    buildCommandSection([{ at: 25, kind: 'run', text: 'true', exitCode: 0 }], 0, CUT),
+    /00:15/,
+  );
+});
+
+test('a row that fell inside a cut is dropped rather than pointing at the wrong second', () => {
+  assert.equal(buildHotkeySection([{ at: 12, keys: 'Escape' }], 0, CUT), '');
+  assert.equal(buildNoteSection([{ at: 12, text: 'Gone' }], 0, CUT), '');
+  assert.equal(buildCommandSection([{ at: 12, kind: 'run', text: 'true', exitCode: 0 }], 0, CUT), '');
+});
+
+// ---------- what the runbook says about the redactions ----------
+
+test('a take with nothing covered gains no sections', () => {
+  assert.equal(buildRedactionSection([], 0, []), '');
+  assert.equal(buildRemovedSection([]), '');
+});
+
+test('a covered region is listed with when and where, so it does not read as a rendering fault', () => {
+  const section = buildRedactionSection(
+    [{ mode: 'box', box: { x: 40, y: 318, width: 200, height: 24 }, from: 12, to: 17 }], 2, [],
+  );
+  assert.match(section, /00:10 - 00:15/);
+  assert.match(section, /solid block/);
+  assert.match(section, /200x24 at 40,318/);
+});
+
+test('a blurred whole frame says so instead of printing a rectangle', () => {
+  const section = buildRedactionSection([{ mode: 'blur', box: null, from: 1, to: 2 }], 0, []);
+  assert.match(section, /blurred/);
+  assert.match(section, /whole frame/);
+});
+
+test('a removed stretch is not listed as covered — it is not in the video to point at', () => {
+  assert.equal(buildRedactionSection([{ mode: 'cut', box: null, from: 1, to: 4 }], 0, []), '');
+});
+
+test('the reader is told the video is shorter than what was recorded', () => {
+  const section = buildRemovedSection([{ from: 3, to: 6 }, { from: 10, to: 12 }]);
+  assert.match(section, /2 stretches/);
+  assert.match(section, /5\.0s/);
 });

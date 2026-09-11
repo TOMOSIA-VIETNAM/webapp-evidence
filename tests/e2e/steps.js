@@ -11,7 +11,7 @@ module.exports = {
   name: 'e2e-user-search',
   start: '/',
 
-  async run({ page, mark, click, type, select, upload, hotkey, note, shot, sleep, term }) {
+  async run({ page, mark, click, type, select, upload, hotkey, note, shot, sleep, term, redact }) {
     if (!process.env.DEMO_LOG) throw new Error('DEMO_LOG must point at the demo app\'s log file');
 
     mark('Open the search screen');
@@ -37,6 +37,25 @@ module.exports = {
     await click(page.getByRole('button', { name: 'Detail' }).first(), { pause: 2600 });
     await shot('detail');
     await click(page.getByRole('button', { name: 'Close' }), { pause: 1200 });
+
+    // Chrome raises its offer to translate over the page, and no launch switch stops it. The
+    // page says it itself, and this is where that can be checked without a screen — the
+    // headless take carries the same init script as a window one.
+    const noTranslate = await page.evaluate(() => ({
+      meta: Boolean(document.querySelector('meta[name="google"][content~="notranslate"]')),
+      attribute: document.documentElement.getAttribute('translate'),
+    }));
+    if (!noTranslate.meta || noTranslate.attribute !== 'no') {
+      throw new Error(`The page was not marked notranslate: ${JSON.stringify(noTranslate)}`);
+    }
+
+    mark('Reveal a value that must not survive into the evidence');
+    // The element does not exist on screen until the button is pressed, so the rectangle can only
+    // be measured on the way out — which is the case worth exercising here.
+    await redact(page.locator('#api_key'), async () => {
+      await click(page.getByRole('button', { name: 'Reveal API key' }), { pause: 'observe' });
+      await shot('key-masked');
+    }, { mode: 'box' });
 
     mark('Trigger the sync, whose work happens on the server');
     await click(page.getByRole('button', { name: 'Run sync' }), { pause: 'observe' });

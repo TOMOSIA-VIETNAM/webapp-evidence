@@ -142,3 +142,46 @@ test('resolveSettings does not mutate the shared defaults', () => {
   assert.equal(DEFAULTS.recording.pace.afterClickMs, 800);
   assert.equal(DEFAULTS.output.overwrite, false);
 });
+
+// ---------- the defaults are not written to ----------
+
+test('resolving twice gives the same answer, whatever the first run derived', () => {
+  // The settings object is written to after it is built — an environment variable overriding a
+  // value, a derived one filled in — and a shallow copy would leave those writes landing in the
+  // module's own defaults. The second run would then read what the first one decided.
+  const tall = resolveSettings({ recording: { viewport: { width: 900, height: 800 } } });
+  const short = resolveSettings({ recording: { viewport: { width: 900, height: 480 } } });
+  const tallAgain = resolveSettings({ recording: { viewport: { width: 900, height: 800 } } });
+
+  assert.equal(tallAgain.recording.terminal.height, tall.recording.terminal.height);
+  assert.ok(short.recording.terminal.height < tall.recording.terminal.height);
+  assert.equal(DEFAULTS.recording.terminal.height, null);
+});
+
+test('a project override does not reach into the defaults either', () => {
+  resolveSettings({ recording: { speed: 'slowest', captions: { enabled: false, locale: 'ja' } } });
+  assert.equal(DEFAULTS.recording.captions.enabled, true);
+  assert.equal(DEFAULTS.recording.captions.locale, 'en');
+});
+
+test('a regular expression survives being merged, rather than becoming a plain object', () => {
+  const settings = resolveSettings({ recording: { terminal: { scrub: [/ghp_[A-Za-z0-9]{4,}/g] } } });
+  assert.ok(settings.recording.terminal.scrub[0] instanceof RegExp);
+});
+
+// ---------- the panel height follows the frame ----------
+
+test('the terminal panel is a share of the frame, not a fixed number of pixels', () => {
+  // A fixed 300px default made a 480px frame refuse to record at all, even for a take that
+  // never opens a terminal.
+  const small = resolveSettings({ recording: { viewport: { width: 800, height: 480 } } });
+  assert.ok(small.recording.terminal.height < 300);
+  assert.ok(small.recording.terminal.height > 0);
+});
+
+test('a height written down by the project is still checked against the frame', () => {
+  assert.throws(
+    () => resolveSettings({ recording: { viewport: { width: 800, height: 480 }, terminal: { height: 400 } } }),
+    /480px frame/,
+  );
+});

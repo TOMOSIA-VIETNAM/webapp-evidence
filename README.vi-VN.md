@@ -134,6 +134,7 @@ Những thứ bạn có thể yêu cầu:
 | Quay chậm hơn | `/webapp-evidence:recording quay chậm lại` |
 | Chú thích bằng tiếng khác | `/webapp-evidence:recording chú thích tiếng Nhật` — nhớ theo từng dự án |
 | Bằng chứng là cú click đã chạm tới backend — job đã chạy, file đã được ghi | `/webapp-evidence:recording mở log worker sau khi bấm Run sync` |
+| Giữ một thông tin nhạy cảm ra khỏi bản quay | `/webapp-evidence:recording làm mờ API key khi nó hiện ra` |
 | Cấu hình dự án một lần, để lần sau quay là đã đăng nhập sẵn | `/webapp-evidence:recording set up the evidence config for this project` |
 
 Viết các bước bằng ngôn ngữ nào cũng được, agent trả lời đúng ngôn ngữ đó. Cũng chẳng có cú pháp nào
@@ -166,6 +167,14 @@ việc chụp: layout vỡ giữa lúc chuyển cảnh, banner loé lên rồi b
 Nó quay trang web, không quay màn hình máy bạn. Thứ do OS vẽ sẽ không vào video: dropdown `<select>`,
 hộp thoại chọn file, `confirm`/`alert`. Những chỗ đó được thay bằng phụ đề nói đã chọn gì, kèm
 screenshot ngay sau đó. Modal, date picker và dropdown viết bằng JS thì quay bình thường.
+
+Khi chính hộp thoại đó là thứ cần chứng minh, nó quay được cửa sổ trình duyệt thay vì trang, và lúc
+đó chúng nằm trong video. Cách này cần màn hình, cần quyền, và cần bạn không đụng máy suốt lượt
+quay — nên không phải mặc định. Agent sẽ hỏi bạn trước, và một thông báo hiện lên màn hình chỉ bạn
+chỗ có câu hỏi.
+
+Thông tin nhạy cảm hiện trên màn có thể làm mờ, che kín hoặc cắt khỏi bản quay — nói ra khi bạn mô
+tả luồng, và nó cũng được giữ khỏi ảnh chụp.
 
 Khi bằng chứng không nằm trên trang — một job đã chạy, một file đã được ghi — một bước có thể mở
 panel terminal đè lên trang, đưa lệnh thật và output thật vào cùng video. Chỉ nhận output theo

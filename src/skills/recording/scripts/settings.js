@@ -20,6 +20,9 @@ const DEFAULTS = {
     captions: { enabled: true, locale: 'en' },
     browserChannel: 'chrome',
     headed: false,
+    // Open DevTools with the browser. Only meaningful alongside a window capture — it is
+    // browser UI, so a recording of page content cannot contain it either way.
+    devtools: false,
     // How fast the actions run in the video. Accepts a preset name ('slowest' | 'slow' | 'normal'
     // | 'fast') or a number read like a video player's playback rate: 1 = normal, 0.5 = half
     // speed, 1.5 = one and a half times faster. A bigger number is always faster, exactly as the
@@ -47,16 +50,21 @@ const DEFAULTS = {
       afterSelectMs: 900,
       afterUploadMs: 1200,    // hold so the file name has time to appear
       afterCommandMs: 1600,   // hold after a command finishes, so its output can be read
+      dialogHoldMs: 2600,     // how long a browser dialog stays up before it is answered
       beforeHotkeyMs: 450,    // the key hint overlay appears first, then the keys are pressed
       hotkeyHoldMs: 1400,     // keep the overlay up after the press, long enough to read both the keys and the result
       afterHotkeyMs: 900,     // pause after the overlay goes away
-      // A caption stays up long enough to read, which depends on how much there is to read: the
-      // floor below, plus reading time for the sentence, capped so one long caption cannot stall
-      // the take. See readingTime() in record.js.
-      noteHoldMs: 1800,       // the shortest a caption is ever shown, however short the sentence
-      noteHoldMaxMs: 6500,    // and the longest, however long it is
-      noteCharsPerSec: 18,    // reading speed for an alphabetic script
-      noteCjkCharsPerSec: 9,  // Japanese and Chinese carry more meaning per character, so fewer per second
+      // A caption is a hint, not the evidence, and it is paid for twice: in how long the video
+      // runs and in how large the file is. Long enough to take in, not long enough to read
+      // twice — anyone who wants every word of a long one pauses, which they cannot do with
+      // the seconds a take spends holding still.
+      //
+      // Still proportional to the length, so a short caption does not sit there after it has
+      // been read. See readingTime() in record.js.
+      noteHoldMs: 1200,        // the shortest a caption is ever shown, however short the sentence
+      noteHoldMaxMs: 3200,     // and the longest, however long it is
+      noteCharsPerSec: 26,     // reading speed for an alphabetic script
+      noteCjkCharsPerSec: 13,  // Japanese and Chinese carry more meaning per character, so fewer per second
       settleMs: 600,          // wait after the page finishes loading, before the clock starts
       tailMs: 900,            // extra hold at the end so the last frame is not cut short
       // Every wait above is jittered around its declared value by this ratio. Machine-even pacing
@@ -65,11 +73,33 @@ const DEFAULTS = {
       jitter: 0.18,
     },
     video: { crf: 26, preset: 'slow' },
+    // What the frame of the recording is.
+    //   'page'   Playwright records the page. Headless, no permission, runs in CI.
+    //   'window' ffmpeg records the browser window, so what the operating system draws inside it
+    //            — the file picker, a JavaScript dialog, the print sheet — is in the video too.
+    //   'screen' the whole display, and everything else that happens to be on it.
+    // Anything but 'page' records what is on someone's screen, so the runner refuses to start
+    // one without SCREEN_CAPTURE=1.
+    capture: 'page',
+    screenCapture: {
+      framerate: 30,
+      display: 0,             // which display, when there is more than one
+      // Between the answer given in the terminal and the first frame: time to take a hand off
+      // the keyboard. The notice that asks for that answer is shown by announce.js, before the
+      // question, so by the time a recording starts it has already been read and dismissed.
+      countdownSeconds: 3,
+      // A ceiling on the recording itself. A runner that dies partway cannot then leave a screen
+      // recorder running until the disk fills; a take that needs longer says so and raises it.
+      maxSeconds: 600,
+    },
     // The shell shown in the panel over the page. It runs on the machine doing the recording,
     // so a step script can prove what happened behind the browser — a job that was enqueued, a
     // file that was written — without recording the whole screen.
     terminal: {
-      height: 300,           // the bottom strip of the frame the panel occupies, in pixels
+      // The bottom strip of the frame the panel occupies. null derives it from the viewport, so
+      // a small frame does not have to override a number it never asked for — and a take that
+      // never opens a terminal is never stopped by one.
+      height: null,
       fontSize: 13,
       // --norc keeps the take independent of whoever's dotfiles are on the machine. The
       // environment is still inherited, so a PATH set up by rbenv, nvm or asdf applies.
@@ -97,6 +127,23 @@ const SPEED_PRESETS = { slowest: 0.5, slow: 0.67, normal: 1, fast: 1.67 };
 const SPEED_RANGE = { min: 0.2, max: 5 };
 
 const isObject = (v) => v && typeof v === 'object' && !Array.isArray(v);
+
+// A plain object is one worth merging into and copying. A RegExp (recording.terminal.scrub) and
+// a Date are objects too, and copying them field by field would quietly turn them into something
+// that is no longer either.
+const isPlain = (v) => isObject(v)
+  && (Object.getPrototypeOf(v) === Object.prototype || Object.getPrototypeOf(v) === null);
+
+// DEFAULTS is a module-level object, and the settings handed back are written to afterwards —
+// an environment variable overrides a value, a derived one is filled in. A shallow copy leaves
+// every nested scope pointing at DEFAULTS itself, so the first run writes into the defaults and
+// the second run reads what the first one decided. That is a bug that only shows up in the
+// second run, which in practice means only ever in the tests.
+function clone(value) {
+  if (Array.isArray(value)) return value.map(clone);
+  if (!isPlain(value)) return value;
+  return Object.fromEntries(Object.entries(value).map(([key, inner]) => [key, clone(inner)]));
+}
 
 // speed scales every duration in pace. The interpolation step count stays as it is, because it
 // decides whether the cursor path looks smooth, not whether it is fast or slow.
@@ -134,10 +181,10 @@ function applySpeed(pace, speed) {
 }
 
 function merge(base, override) {
-  const out = { ...base };
+  const out = clone(base);
   for (const [key, value] of Object.entries(override || {})) {
     if (value === undefined) continue;
-    out[key] = isObject(value) && isObject(base[key]) ? merge(base[key], value) : value;
+    out[key] = isPlain(value) && isPlain(base[key]) ? merge(base[key], value) : clone(value);
   }
   return out;
 }
@@ -186,12 +233,12 @@ function warnRemovedPaceKeys(config) {
 const SWITCH_ON = ['1', 'on', 'true', 'yes'];
 const SWITCH_OFF = ['0', 'off', 'false', 'no'];
 
-function parseSwitch(value) {
+function parseSwitch(value, name) {
   const normalized = String(value).trim().toLowerCase();
   if (SWITCH_ON.includes(normalized)) return true;
   if (SWITCH_OFF.includes(normalized)) return false;
   throw new Error(
-    `CAPTIONS is invalid: ${JSON.stringify(value)}\n` +
+    `${name} is invalid: ${JSON.stringify(value)}\n` +
     `Use ${SWITCH_ON.join('/')} to turn it on, ${SWITCH_OFF.join('/')} to turn it off.`
   );
 }
@@ -201,10 +248,19 @@ function parseSwitch(value) {
 const MIN_PANEL_ROWS_HEIGHT = 120;
 const MAX_PANEL_SHARE = 0.6;
 
-function assertTerminal({ terminal, viewport }) {
+function resolveTerminal({ terminal, viewport }) {
   const fail = (key, message) => {
     throw new Error(`recording.terminal.${key} ${message}`);
   };
+
+  // Derived rather than fixed: the panel should be a share of the frame, and the fixed default
+  // it used to have made a 480px frame refuse to record at all.
+  if (terminal.height === null || terminal.height === undefined) {
+    terminal.height = Math.max(
+      MIN_PANEL_ROWS_HEIGHT,
+      Math.min(300, Math.round(viewport.height * 0.4)),
+    );
+  }
 
   if (!Number.isFinite(terminal.height) || terminal.height < MIN_PANEL_ROWS_HEIGHT) {
     fail('height', `must be at least ${MIN_PANEL_ROWS_HEIGHT}px, got ${JSON.stringify(terminal.height)}`);
@@ -226,6 +282,42 @@ function assertTerminal({ terminal, viewport }) {
       fail(`scrub[${index}]`, `must be a regular expression, got ${typeof pattern}`);
     }
   });
+}
+
+const CAPTURE_MODES = ['page', 'window', 'screen'];
+
+function assertCapture({ capture, screenCapture }) {
+  if (!CAPTURE_MODES.includes(capture)) {
+    throw new Error(
+      `recording.capture is invalid: ${JSON.stringify(capture)}\n` +
+      `Use one of ${CAPTURE_MODES.join(' | ')}. 'page' records the page and runs headless; the ` +
+      'others record what is on a screen.'
+    );
+  }
+  if (!Number.isInteger(screenCapture.framerate) || screenCapture.framerate < 5 || screenCapture.framerate > 60) {
+    throw new Error(
+      `recording.screenCapture.framerate must be a whole number between 5 and 60, got ` +
+      `${JSON.stringify(screenCapture.framerate)}`
+    );
+  }
+  if (!Number.isInteger(screenCapture.display) || screenCapture.display < 0) {
+    throw new Error(
+      `recording.screenCapture.display must be a display number from 0 upwards, got ` +
+      `${JSON.stringify(screenCapture.display)}`
+    );
+  }
+  if (!Number.isFinite(screenCapture.maxSeconds) || screenCapture.maxSeconds < 10) {
+    throw new Error(
+      `recording.screenCapture.maxSeconds must be at least 10, got ` +
+      `${JSON.stringify(screenCapture.maxSeconds)}`
+    );
+  }
+  if (!Number.isFinite(screenCapture.countdownSeconds) || screenCapture.countdownSeconds < 0) {
+    throw new Error(
+      `recording.screenCapture.countdownSeconds must not be negative, got ` +
+      `${JSON.stringify(screenCapture.countdownSeconds)}`
+    );
+  }
 }
 
 function resolveSettings(config) {
@@ -257,12 +349,20 @@ function resolveSettings(config) {
   if (process.env.HEADED === '1') settings.recording.headed = true;
   if (process.env.BROWSER_CHANNEL) settings.recording.browserChannel = process.env.BROWSER_CHANNEL;
   if (process.env.EVIDENCE_OVERWRITE === '1') settings.output.overwrite = true;
-  if (process.env.CAPTIONS) settings.recording.captions.enabled = parseSwitch(process.env.CAPTIONS);
+  if (process.env.CAPTURE) settings.recording.capture = process.env.CAPTURE;
+  if (process.env.CAPTIONS) {
+    settings.recording.captions.enabled = parseSwitch(process.env.CAPTIONS, 'CAPTIONS');
+  }
   if (process.env.CAPTION_LOCALE) {
     settings.recording.captions.locale = assertLocale(process.env.CAPTION_LOCALE, 'CAPTION_LOCALE');
   }
   assertLocale(settings.recording.captions.locale, 'recording.captions.locale');
-  assertTerminal(settings.recording);
+  resolveTerminal(settings.recording);
+  assertCapture(settings.recording);
+
+  // A hidden window has nothing on a screen to record, so asking for one settles the other
+  // question too. Left as a contradiction it would produce a video of the desktop.
+  if (settings.recording.capture !== 'page') settings.recording.headed = true;
 
   return settings;
 }

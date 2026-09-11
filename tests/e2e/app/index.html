@@ -47,7 +47,12 @@
     <input type="file" id="import_file" name="import_file">
     <div class="file-row" id="file_name">No file chosen</div>
     <p><button id="search" type="button">Search</button>
-       <button id="sync" class="secondary" type="button">Run sync</button></p>
+       <button id="sync" class="secondary" type="button">Run sync</button>
+       <button id="reveal_key" class="secondary" type="button">Reveal API key</button></p>
+    <p><button id="ask" class="secondary" type="button">Delete selected</button>
+       <button id="notify" class="secondary" type="button">Send notice</button>
+       <span id="ask_result"></span></p>
+    <p><code id="api_key" hidden>demo_key_not_a_real_secret_0000</code></p>
   </fieldset>
 
   <div id="empty">No search has run yet.</div>
@@ -116,6 +121,25 @@
   // The one thing a recording of the browser cannot prove on its own: this button's real work
   // happens somewhere else. The server appends to a log file, and the take reads that log in the
   // terminal panel.
+  // A value that must not survive into the evidence, so the take can prove it did not
+  document.getElementById('reveal_key').addEventListener('click', () => {
+    document.getElementById('api_key').hidden = false;
+  });
+
+  // The browser's own dialogs. Chrome draws these itself, so a recording of page content cannot
+  // contain them and a recording of the window can.
+  document.getElementById('ask').addEventListener('click', () => {
+    const result = document.getElementById('ask_result');
+    result.textContent = confirm('Delete 3 selected users? This cannot be undone.')
+      ? 'Deleted 3 users.'
+      : 'Nothing was deleted.';
+  });
+
+  // A second button, so each dialog is triggered by one click and can be driven on its own
+  document.getElementById('notify').addEventListener('click', () => {
+    alert('A notice was sent to 3 users.');
+  });
+
   document.getElementById('sync').addEventListener('click', async () => {
     const button = document.getElementById('sync');
     button.disabled = true;

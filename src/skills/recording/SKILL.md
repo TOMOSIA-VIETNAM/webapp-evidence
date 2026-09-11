@@ -36,12 +36,15 @@ and runner labels inside it stay verbatim, because those are what they will copy
 
 1. **Work out the context**: which app, which issue (it names the output directory), which screen,
    which flow the MR needs to prove.
-2. **Pick the evidence type**: screenshots alone, or video plus screenshots.
+2. **Pick the evidence type**: screenshots alone, or video plus screenshots — and what the
+   recording has to contain, which decides whether it can run headless.
 3. **Probe the screen** with `inspect.js` to get real selectors.
 4. **Choose where the results go** — see `references/output-locations.md`.
 5. **Settle the captions** — on or off, and in which language.
-6. **Write `steps.js`** — see `references/writing-step-scripts.md`.
-7. **Record**, then hand the user the runner's own output lines.
+6. **Ask, if the take needs a screen** — `references/recording-a-screen.md`. Nothing else in
+   the path needs the user's machine; this does.
+7. **Write `steps.js`** — see `references/writing-step-scripts.md`.
+8. **Record**, then hand the user the runner's own output lines.
 
 ### Working out the context
 
@@ -84,7 +87,7 @@ not write it to `accountStore` unless there is a project config that says where 
 |---|---|
 | A static screen, display-only change, one or two actions | Screenshots are enough |
 | A multi-step flow — filling fields, submitting, modals, moving between screens | Video plus screenshots at the main moments |
-| The change's result is not on the page — a job enqueued, a file written, rows imported | Video plus the terminal panel, so the command and its output land in the same take |
+| The change's result is not on the page — a job enqueued, a file written, rows imported, a dialog the operating system drew | Video plus whatever holds that: a shell in the page, or a recording of the browser window. See below |
 | Recording is impossible for a technical reason | Screenshots at minimum, and say plainly in the report why there is no video |
 
 ### Probing the screen before writing anything
@@ -104,16 +107,31 @@ for them to agree, then do it with whatever the machine already uses. Their mach
 It prints buttons, inputs, selects (with their real option lists) and links, one usable selector per
 line. Shared navigation chrome is filtered out; `--all` shows everything.
 
-### When the proof is not on the page
+### When the page alone cannot prove it
 
-A button that enqueues a job, a form that writes a file, an import that moves rows: the click is
-visible and the result is not. A step script can open a terminal panel over the page and read the
-log, run the command, check the file — a real shell on the machine doing the recording, in the same
-video and the same runbook.
+Three things a page recording cannot contain, in the order they cost:
 
-Reach for it when the MR's claim is about something behind the browser. It is line-oriented output
-only, so a full-screen program (`vim`, `less`, `htop`) is out; the helpers and their limits are in
-`references/writing-step-scripts.md`.
+| The claim | What it needs |
+|---|---|
+| The click reached a worker, wrote a file, moved a row | a shell in the page — `term` in the step script, see `references/terminal-in-the-page.md`. Still headless, costs nothing |
+| A `<select>` menu, the file picker, `confirm`/`alert`, DevTools | a recording of the browser window, which needs a screen, permission, and the machine to itself |
+| Something outside the browser entirely | a recording of the whole display, and everything else on it |
+
+The default is the page, and it takes something to leave: it is the only backend that does not
+depend on whose machine it runs on, what is on that screen, or whether anyone touches the
+keyboard for the next minute.
+
+**Anything but the page records what is on someone's screen, so ask them first** — with the
+structured question tool where the agent has one — and show them the notice before you ask.
+`references/recording-a-screen.md` has the sequence, and the runner refuses to start one that
+has not been through it.
+
+### Keeping something out of the video
+
+If the flow puts a secret on screen — an API key, a token, a real customer's details — the step
+script wraps that stretch in `redact()`, and it is covered in the video and masked in the
+screenshot. See `references/redaction.md`. Decide it while writing the steps: it costs nothing
+there, and nothing afterwards can be relied on to find what was missed.
 
 ### Settling the captions
 
@@ -156,8 +174,8 @@ The runner brings the environment up (via `prepare` in the config), logs in (via
 trims the page-load wait from the front, and writes the mp4 plus the runbook. Everything it fixed is
 printed as a `FIXED: …` line — pass those lines into the report.
 
-Every script here — `record.js`, `inspect.js`, `convert.js` — answers `--help` with its arguments and
-environment variables. Call that instead of reading the source. They are written to be used as black
+Every script here — `record.js`, `inspect.js`, `convert.js`, `announce.js` — answers `--help` with
+its arguments and environment variables. Call that instead of reading the source. They are written to be used as black
 boxes: the source is long, it is loaded into context in full when you open it, and it tells you
 nothing `--help` does not.
 
@@ -178,6 +196,9 @@ fine and the errors are expected, add nothing.
 
 When the user is outside the codebase — a URL and a description, a hand-off, a report — just hand
 over the files. A code fix they cannot apply is noise.
+
+**A take that recorded a screen gets one more look before it is handed over** — see
+`references/recording-a-screen.md`.
 
 ### Another format
 
@@ -243,8 +264,11 @@ Read these when the step calls for them, not upfront:
 | File | Read it when |
 |---|---|
 | `references/project-setup.md` | The project has no `evidence.config.js` yet, or the recording needs different pacing, captions or archiving behaviour |
-| `references/writing-step-scripts.md` | Writing or editing `steps.js`: the helpers, how long to pause after each click, captions, keyboard shortcuts, and what a recording physically cannot capture |
+| `references/writing-step-scripts.md` | Writing or editing `steps.js`: the helpers, how long to pause after each click, captions, keyboard shortcuts, the browser's own dialogs, and what a recording physically cannot capture |
+| `references/terminal-in-the-page.md` | The step script has to show something that happened on the machine rather than in the page — a job that ran, a file that was written |
+| `references/redaction.md` | Something on screen must not survive into the evidence |
 | `references/output-locations.md` | Choosing `OUT_DIR`, dealing with the git-ignore check, and reading the runner's output to build the final report |
+| `references/recording-a-screen.md` | The evidence is something a page recording cannot hold: a `<select>` menu, a file picker, a browser dialog, DevTools, anything outside the browser. Covers asking the user first, what each backend does and does not pick up, and which machines can do it at all |
 | `references/other-formats.md` | The take has to be a gif or a webm, and you need to know what that costs |
 
 Templates to copy from: `assets/evidence.config.example.js` and `assets/steps.example.js`.
