@@ -143,32 +143,28 @@ frontmost window or widen the crop to hold both. Worth deciding once, with a tak
 to check against — including on Windows, where the whole capture backend is unimplemented and
 this would be part of proving it.
 
-# The translate bubble, which is not solved
+# The translate bubble — what failed before the page was asked
 
 On a page in a language the browser is not set to, Chrome raises its own offer to translate over
 the page. A window capture records it, and it is not part of the application being recorded. It
 turned up in a real take.
 
-## What has been measured
+Solved by telling Chrome from the page: `scripts/no-translate.js` adds the `notranslate` meta
+tag it reads when it makes that decision. Recorded here is what did NOT work, so nobody spends
+the attempts again.
 
-- `--disable-features=Translate,TranslateUI` does NOT stop it. The switch was confirmed present
+- **`--disable-features=Translate,TranslateUI`** — no effect. The switch was confirmed present
   on Chrome's own command line via `chrome://version`, and the bubble was still on screen in the
-  recording.
-- Passing that switch at all is harmful for a second reason: Chrome takes the last value for a
+  recording. Passing it is harmful for a second reason: Chrome takes the last value for a
   repeated switch, so it replaces the list Playwright relies on rather than adding to it.
+- **`recording.locale` set to the page's own language** — no effect either. Reasoning said Chrome
+  offers a translation only when the page's language is not among the browser's; measurement said
+  otherwise, with the bubble on screen in a take whose locale matched the page.
+- **`chrome://translate-internals`** as a way to read the decision without recording a screen —
+  four rows, no event for the offer. Not a signal.
+- **A `file://` page** as a cheap stand-in — may never be offered a translation at all. Serve it
+  over http.
 
-## What has not been measured, and how to
-
-Giving the browser the page's own language — `recording.locale`, which Playwright applies to the
-context as `Accept-Language` and `navigator.language`. The reasoning is that Chrome offers a
-translation when the page's detected language is not among the browser's, so a match should
-produce no offer. That is reasoning, not a result.
-
-Measuring it needs a window capture, because the bubble is browser UI and no page screenshot can
-hold it: record the same page twice with `capture: 'window'`, once with `recording.locale` set to
-the page's language and once not, and read a frame of each. Two things that wasted a probe here:
-`chrome://translate-internals` gave no usable event rows, and a `file://` page may not be offered
-a translation at all — serve it over http.
-
-If the locale does settle it, the remedy belongs in the runner rather than in advice: a step
-script author cannot be relied on to remember the language of every page a take visits.
+The lesson underneath: the bubble is browser UI, so the only place it can be observed is a frame
+of a window capture. Every attempt to shortcut that produced an answer that felt like evidence
+and was not.

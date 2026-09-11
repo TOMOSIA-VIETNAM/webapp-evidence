@@ -194,10 +194,8 @@ function resolveApp(config, app) {
 // repeated switch, so passing one replaces the long list Playwright relies on for a stable
 // automated browser rather than adding to it.
 //
-// That is also why the translate bubble is not here. It turned up in a real take, and
-// `--disable-features=Translate` does not stop it — measured, with the bubble still on screen
-// and the switch confirmed present on Chrome's own command line. Nothing in this file stops it
-// today; `backlogs/screen-capture/other-platforms.md` holds what is known.
+// The translate bubble is not here because no switch stops it. It is handled from the page
+// instead — see no-translate.js.
 const NO_BROWSER_POPUPS = [
   '--disable-save-password-bubble',
   '--no-default-browser-check',

@@ -38,6 +38,17 @@ module.exports = {
     await shot('detail');
     await click(page.getByRole('button', { name: 'Close' }), { pause: 1200 });
 
+    // Chrome raises its offer to translate over the page, and no launch switch stops it. The
+    // page says it itself, and this is where that can be checked without a screen — the
+    // headless take carries the same init script as a window one.
+    const noTranslate = await page.evaluate(() => ({
+      meta: Boolean(document.querySelector('meta[name="google"][content~="notranslate"]')),
+      attribute: document.documentElement.getAttribute('translate'),
+    }));
+    if (!noTranslate.meta || noTranslate.attribute !== 'no') {
+      throw new Error(`The page was not marked notranslate: ${JSON.stringify(noTranslate)}`);
+    }
+
     mark('Reveal a value that must not survive into the evidence');
     // The element does not exist on screen until the button is pressed, so the rectangle can only
     // be measured on the way out — which is the case worth exercising here.

@@ -850,6 +850,7 @@ async function main() {
   await context.addInitScript({ path: path.join(__dirname, 'cursor.js') });
   await context.addInitScript({ path: path.join(__dirname, 'caption.js') });
   await context.addInitScript({ path: path.join(__dirname, 'terminal-panel.js') });
+  await context.addInitScript({ path: path.join(__dirname, 'no-translate.js') });
   const page = await context.newPage();
   capture.attach({ context, page });
   const problems = watchProblems(page);
