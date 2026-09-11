@@ -66,12 +66,14 @@ off stops every window capture.
 ### The operator's own pointer
 
 A window capture records the real mouse pointer wherever it was left, and asking avfoundation not
-to makes no difference — measured. Playwright clicks through the browser rather than by moving the
-pointer, so it never moves during a take: what the video holds is a second, motionless arrow
-beside the one the runner draws and does move.
+to makes no difference — measured. Playwright clicks through the browser rather than by moving
+the pointer, so it never moves during a take: left alone, the video holds a second, motionless
+arrow beside the one the runner draws and does move, and a reader takes that for a fault in the
+application.
 
-Nothing in the runner can move it. The notice asks the operator to park it off the browser window
-before they answer, which is the only place that can be asked.
+So the runner parks it in the far corner of the display before the first frame and puts it back
+where it was afterwards. With `capture: 'screen'` the frame is the whole display and there is
+nowhere outside it to park — the pointer stays in the corner of the take, and the runner says so.
 
 Neither backend can keep out something drawn *on top of* the browser: a notification that lands
 there, another application brought to the front. That is what the Do Not Disturb line in the

@@ -26,17 +26,14 @@ function help() {
     --message   what it says. Write it in the language the person reads.
     --seconds   how long to wait for it to be pressed (default ${DEFAULT_WAIT_SECONDS})
 
-The first line is the heading, and what follows a blank line is the body. Say five things, or
+The first line is the heading, and what follows a blank line is the body. Say four things, or
 the notice does not do its job:
 
   1. nothing is being recorded yet, and nothing will be until they agree
   2. turn on Do Not Disturb, naming where — on macOS, System Settings > Focus > Do Not Disturb.
      Say the path, not the words alone: the point is that they can act on it without looking
-  3. move the pointer off the browser window. avfoundation records the real cursor wherever it
-     was left, whatever it is asked not to, and a second motionless arrow in the frame reads
-     as a fault in the application
-  4. press OK and go back to the terminal, where the question is waiting
-  5. the machine should be left alone once they answer
+  3. press OK and go back to the terminal, where the question is waiting
+  4. the machine should be left alone once they answer
 
 For example:
 
@@ -45,8 +42,7 @@ For example:
   Chưa quay gì cả, và sẽ không quay cho tới khi bạn đồng ý.
   
   1. Bật Do Not Disturb: System Settings > Focus > Do Not Disturb
-  2. Đưa con trỏ chuột ra khỏi cửa sổ trình duyệt
-  3. Bấm OK, rồi quay lại cửa sổ terminal — câu hỏi đang chờ ở đó
+  2. Bấm OK, rồi quay lại cửa sổ terminal — câu hỏi đang chờ ở đó
   
   Trả lời xong là bắt đầu quay. Đừng dùng máy cho tới khi xong."
 

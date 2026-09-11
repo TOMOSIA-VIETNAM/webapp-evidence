@@ -179,9 +179,30 @@ It matters more than it sounds. Playwright dispatches clicks through the browser
 moving the pointer, so the real one never moves for the length of a take: it is not a cursor
 following the action, it is a dead arrow sitting in the evidence.
 
-There is no supported way to move the pointer from a script on macOS — no AppleScript verb, and
-`cliclick` is a third-party dependency for one line of a recording. So the notice asks the
-operator to park it off the browser window, and that is the whole of the remedy.
+Solved by moving the pointer out of the frame instead: `scripts/pointer.js`. macOS has no
+AppleScript verb for it, but it has the C call, and `python3` from the Command Line Tools reaches
+`CGWarpMouseCursorPosition` through `ctypes` with nothing installed — pyobjc is not needed and is
+not there. The pointer is read, parked in the far corner, and put back when the recording stops.
+
+One thing that cost an attempt: a struct passed or returned by value goes through registers on
+arm64, and ctypes gets it wrong unless `argtypes`/`restype` are declared. Undeclared, the move
+silently did nothing and the read took the process down with it — a failure that looks exactly
+like the call not existing.
 
 Worth re-measuring if avfoundation is ever replaced with ScreenCaptureKit, which takes the
 exclusion as a property of the capture rather than a hint.
+
+## The same thing on Windows
+
+`SetCursorPos` in `user32.dll` is the call, and PowerShell reaches it without anything installed:
+
+```powershell
+Add-Type -AssemblyName System.Windows.Forms
+$at = [System.Windows.Forms.Cursor]::Position          # read
+[System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point(3500, 2300)
+```
+
+Not written yet, and deliberately: the capture backend does not exist on Windows, so a pointer
+mover there would be code nothing calls. It belongs in the same piece of work as `gdigrab`, and
+`pointer.js` already has the shape for it — `readPointer`, `movePointer`, and a `supported()`
+that is the only thing naming a platform.

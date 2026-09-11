@@ -12,6 +12,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawn, execFileSync } = require('child_process');
+const { readPointer, movePointer, parkTarget } = require('./pointer');
 
 const PAGE = 'page';
 const WINDOW = 'window';
@@ -360,6 +361,7 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
   let device = null;
   let display = null;
   let contentOffset = null;
+  let pointerWasAt = null;
   let endedEarly = false;
   // What the capture writes is not what is handed over: the encode reads it, applies whatever
   // was redacted and the configured quality, and deletes it.
@@ -431,6 +433,18 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
         : { x: 0, y: 0, width: display.width, height: display.height };
       const crop = mode === WINDOW ? cropFor(rect, scale, display) : null;
 
+      // The real pointer is recorded wherever it was left, and it never moves during a take —
+      // Playwright clicks through the browser, not by moving it. Parked outside the frame, and
+      // put back when the recording stops.
+      pointerWasAt = readPointer();
+      const park = parkTarget(rect, display);
+      if (pointerWasAt && movePointer(park) && !park.outsideFrame) {
+        console.log(
+          'NOTE: the frame is the whole display, so there is nowhere outside it to park the mouse '
+          + 'pointer. It sits in the corner of this take.'
+        );
+      }
+
       // The page has to be the frontmost window when the first frame is taken
       await page.bringToFront();
 
@@ -438,11 +452,8 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
         '-y', '-v', 'error',
         '-f', 'avfoundation',
         // Asked for, and not granted: measured on macOS 15, avfoundation records the real
-        // pointer whatever this says. It matters because the pointer never moves — Playwright
-        // dispatches its clicks through the browser — so what lands in the frame is a second,
-        // motionless arrow wherever the operator left theirs, next to the one the runner draws
-        // and actually moves. The notice asks them to park it off the window; there is nothing
-        // here that can move it for them.
+        // pointer whatever this says. Which is why the pointer is parked outside the frame
+        // before the first one — see pointer.js.
         '-capture_cursor', '0',
         '-framerate', String(screen.framerate),
         '-i', `${device}:none`,
@@ -509,6 +520,8 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
       const running = ffmpeg;
       ffmpeg = null;
       const stoppedBy = running ? await stopRecorder(running) : 'q';
+      // Where they left it, once there is nothing left to record
+      if (pointerWasAt) movePointer(pointerWasAt);
       await context.close();
 
       // Whether it stopped politely or had to be killed does not decide this — the fragmented
