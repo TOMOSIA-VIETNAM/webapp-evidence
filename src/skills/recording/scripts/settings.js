@@ -54,13 +54,17 @@ const DEFAULTS = {
       beforeHotkeyMs: 450,    // the key hint overlay appears first, then the keys are pressed
       hotkeyHoldMs: 1400,     // keep the overlay up after the press, long enough to read both the keys and the result
       afterHotkeyMs: 900,     // pause after the overlay goes away
-      // A caption stays up long enough to read, which depends on how much there is to read: the
-      // floor below, plus reading time for the sentence, capped so one long caption cannot stall
-      // the take. See readingTime() in record.js.
-      noteHoldMs: 1800,       // the shortest a caption is ever shown, however short the sentence
-      noteHoldMaxMs: 6500,    // and the longest, however long it is
-      noteCharsPerSec: 18,    // reading speed for an alphabetic script
-      noteCjkCharsPerSec: 9,  // Japanese and Chinese carry more meaning per character, so fewer per second
+      // A caption is a hint, not the evidence, and it is paid for twice: in how long the video
+      // runs and in how large the file is. Long enough to take in, not long enough to read
+      // twice — anyone who wants every word of a long one pauses, which they cannot do with
+      // the seconds a take spends holding still.
+      //
+      // Still proportional to the length, so a short caption does not sit there after it has
+      // been read. See readingTime() in record.js.
+      noteHoldMs: 1200,        // the shortest a caption is ever shown, however short the sentence
+      noteHoldMaxMs: 3200,     // and the longest, however long it is
+      noteCharsPerSec: 26,     // reading speed for an alphabetic script
+      noteCjkCharsPerSec: 13,  // Japanese and Chinese carry more meaning per character, so fewer per second
       settleMs: 600,          // wait after the page finishes loading, before the clock starts
       tailMs: 900,            // extra hold at the end so the last frame is not cut short
       // Every wait above is jittered around its declared value by this ratio. Machine-even pacing

@@ -26,17 +26,25 @@ function help() {
     --message   what it says. Write it in the language the person reads.
     --seconds   how long to wait for it to be pressed (default ${DEFAULT_WAIT_SECONDS})
 
-Say three things, or the notice does not do its job:
+The first line is the heading, and what follows a blank line is the body. Say four things, or
+the notice does not do its job:
 
   1. nothing is being recorded yet, and nothing will be until they agree
-  2. turn on Do Not Disturb, so a notification cannot appear in the video
+  2. turn on Do Not Disturb, naming where — on macOS, System Settings > Focus > Do Not Disturb.
+     Say the path, not the words alone: the point is that they can act on it without looking
   3. press OK and go back to the terminal, where the question is waiting
+  4. the machine should be left alone once they answer
 
 For example:
 
-  node announce.js --message "Có yêu cầu quay màn hình này. Chưa quay gì cả, và sẽ không quay
-  cho tới khi bạn đồng ý. Hãy bật Do Not Disturb để thông báo không lọt vào video, rồi bấm OK
-  và quay lại cửa sổ terminal — câu hỏi đang chờ ở đó."
+  node announce.js --message "Yêu cầu quay màn hình
+  
+  Chưa quay gì cả, và sẽ không quay cho tới khi bạn đồng ý.
+  
+  1. Bật Do Not Disturb: System Settings > Focus > Do Not Disturb
+  2. Bấm OK, rồi quay lại cửa sổ terminal — câu hỏi đang chờ ở đó
+  
+  Trả lời xong là bắt đầu quay. Đừng dùng máy cho tới khi xong."
 
 It waits to be pressed, because a notice that dismisses itself is one the person it was meant
 for may never see.
@@ -66,8 +74,10 @@ function parse(argv) {
   return options;
 }
 
-// An AppleScript dialog floats above every application, which is the whole point: the person is
-// looking at something else.
+// An AppleScript alert floats above every application, which is the whole point: the person is
+// looking at something else. `display alert` rather than `display dialog` because it sets the
+// first line as a heading and gives the rest room to be a list — a dialog renders the lot as one
+// grey paragraph, which is how a notice this one asks someone to act on gets skimmed.
 //
 // The wait is bounded all the same, generously, and running out is abandonment rather than
 // consent: nobody was at the machine, so nothing should be recorded of it.
@@ -75,10 +85,16 @@ function showNotice(message, timeoutSeconds) {
   if (process.platform !== 'darwin') return Promise.resolve('unavailable');
 
   return new Promise((resolve) => {
+    // The first line is the heading and the rest is the body, so the caller writes one string
+    // and still gets something laid out.
+    const [heading, ...rest] = String(message).split(/\n\s*\n/);
+    const body = rest.join('\n\n').trim();
+
     const dialog = spawn('osascript', [
       '-e',
-      `display dialog ${JSON.stringify(message)} buttons {"OK"} default button 1 `
-      + 'with title "webapp-evidence"',
+      `display alert ${JSON.stringify(heading.trim())} `
+      + (body ? `message ${JSON.stringify(body)} ` : '')
+      + 'as informational buttons {"OK"} default button 1',
     ], { stdio: 'ignore' });
 
     const abandon = setTimeout(() => {

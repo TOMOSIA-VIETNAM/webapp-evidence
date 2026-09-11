@@ -213,24 +213,35 @@ async function displayMetrics(browser) {
 // display actually has — the scale follows from that, rather than from a devicePixelRatio the
 // recording context has already overwritten — and whether this machine will hand over a screen
 // capture at all.
+// Bounded, because the first thing macOS does when an application has never asked for Screen
+// Recording is put a permission dialog on screen and leave the capture waiting behind it. With
+// no timeout that is a runner sitting silently for as long as nobody answers — and nobody is
+// looking at the terminal, which is the whole reason announce.js exists.
+const PROBE_TIMEOUT_MS = 20000;
+
 function probeDevice(device) {
   const probe = path.join(os.tmpdir(), `evidence-capture-probe-${process.pid}.png`);
   try {
     execFileSync('ffmpeg', [
       '-y', '-v', 'error', '-f', 'avfoundation', '-capture_cursor', '0',
       '-framerate', '30', '-i', `${device}:none`, '-frames:v', '1', probe,
-    ], { stdio: ['ignore', 'ignore', 'pipe'] });
+    ], { stdio: ['ignore', 'ignore', 'pipe'], timeout: PROBE_TIMEOUT_MS, killSignal: 'SIGKILL' });
     const size = execFileSync('ffprobe', [
       '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height',
       '-of', 'csv=p=0', probe,
-    ], { encoding: 'utf8' }).trim().split(',').map(Number);
+    ], { encoding: 'utf8', timeout: PROBE_TIMEOUT_MS }).trim().split(',').map(Number);
     return { width: size[0], height: size[1] };
   } catch (error) {
+    const timedOut = error.code === 'ETIMEDOUT' || error.signal === 'SIGKILL';
     throw new Error(
       'This machine did not hand over a screen capture.\n' +
-      `${String(error.stderr || error.message).trim()}\n\n` +
-      'On macOS this is usually Screen Recording permission: System Settings > Privacy & ' +
-      'Security > Screen Recording, for the application running this command, then start it again.'
+      (timedOut
+        ? `Nothing came back within ${PROBE_TIMEOUT_MS / 1000}s. macOS asks for Screen Recording ` +
+          'permission the first time an application tries, and waits behind that dialog — check ' +
+          'the screen for one.\n'
+        : `${String(error.stderr || error.message).trim()}\n`) +
+      '\nGrant it in System Settings > Privacy & Security > Screen Recording, for the ' +
+      'application running this command, then start it again.'
     );
   } finally {
     try { fs.unlinkSync(probe); } catch { /* nothing to clean up */ }

@@ -66,6 +66,10 @@ module.exports = {
     // Anything on screen during the body is kept out of the finished video. The step script is
     // the only place that knows a key is about to be revealed, so nothing has to be found
     // afterwards — and the screenshot is masked over the same element.
+    //
+    // Cover what can be READ. A password field already shows bullets: blurring it hides nothing
+    // and leaves a smear where a form field was, in the one recording meant to show the form
+    // working.
     // 'blur' is the default; 'box' when it must be unreadable rather than hard to read; 'cut'
     // removes the stretch, which moves every timestamp after it in the runbook.
     mark('APIキーを表示');

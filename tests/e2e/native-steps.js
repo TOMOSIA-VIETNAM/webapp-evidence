@@ -9,7 +9,7 @@ module.exports = {
   start: '/',
   fullPageShot: false,
 
-  async run({ page, mark, click, select, shot, dialog, sleep }) {
+  async run({ page, mark, click, select, shot, dialog, sleep, baseUrl }) {
     // Where the field is, for the check that follows. A native menu opens directly below it,
     // and it is a small part of the frame — measuring the whole page for a change washes it
     // out. Written from here because this is the only place that can measure the live page.
@@ -46,6 +46,10 @@ module.exports = {
       await click(page.getByRole('button', { name: 'Send notice' }), { pause: 'quick' });
     });
     await shot('alert-acknowledged');
-    await sleep(1000);
+
+    mark('Hold on a page in another language, where Chrome would offer to translate');
+    await page.goto(`${baseUrl}/vi`, { waitUntil: 'load' });
+    await sleep(2000);
+    await shot('another-language');
   },
 };

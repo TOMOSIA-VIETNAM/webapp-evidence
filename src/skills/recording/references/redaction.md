@@ -6,6 +6,17 @@ key, a token, a real customer's details.
 Decide it while writing the step script. It costs nothing there, and nothing afterwards can be
 relied on to find what was missed.
 
+## Cover what can be read
+
+A password field already shows `••••••`. Blurring it hides nothing, and what the viewer gets
+instead is a smear where a form field was — a page that looks broken in the one recording meant
+to show it working. The same goes for a masked card number, a token the application already
+truncates, an avatar.
+
+So the test is what a person watching could read off the screen, not what the field is called.
+A value that is on screen in full is worth covering; one the application has already hidden is
+not, and covering it costs the take its credibility.
+
 Everything else about writing a step script is in `writing-step-scripts.md`.
 
 Whoever wrote the step knows exactly when it appears, so they say so, and nothing has to be

@@ -186,13 +186,30 @@ function resolveApp(config, app) {
   return { name, appConfig, baseUrl: process.env.BASE_URL || appConfig.baseUrl };
 }
 
+// Chrome decides on its own to put things in front of the page: a translate bubble on a page
+// whose language is not the browser's, an offer to save a password after a sign-in, an infobar.
+// None of them is part of the application, and a window capture records all of them — the
+// translate bubble is the one that turned up in a real take.
+//
+// Off for every recording, not only a window one: the bubble overlaps the page it is offering to
+// translate, so it reaches a page recording too.
+const NO_BROWSER_POPUPS = [
+  '--disable-features=Translate,TranslateUI,AutofillServerCommunication',
+  '--disable-save-password-bubble',
+  '--disable-infobars',
+  '--no-default-browser-check',
+  '--no-first-run',
+  '--disable-search-engine-choice-screen',
+];
+
 async function launchBrowser(settings) {
   const { headed, browserChannel, viewport, devtools } = settings.recording;
   return chromium.launch({
     headless: !headed,
     channel: browserChannel,
-    args: headed
-      ? [
+    args: [
+      ...NO_BROWSER_POPUPS,
+      ...(headed ? [
         // Top-left, deliberately. A window capture crops to the window, so nothing outside it
         // can reach the video — and notification banners arrive at the top RIGHT of the
         // display. A window that does not reach that corner cannot have one land in it.
@@ -201,8 +218,8 @@ async function launchBrowser(settings) {
         // DevTools is browser UI, so it only reaches a video that records the window. Docked, it
         // takes its room out of the page area, which is why it is off unless asked for.
         ...(devtools ? ['--auto-open-devtools-for-tabs'] : []),
-      ]
-      : [],
+      ] : []),
+    ],
   });
 }
 
@@ -263,7 +280,7 @@ async function closeSession(session) {
 }
 
 module.exports = {
-  VIEWPORT, ROOT, SKILL_DIR, HELP_ENV, sleep, watchProblems, assertOutsideSkill, resolveSettings,
+  VIEWPORT, ROOT, SKILL_DIR, HELP_ENV, NO_BROWSER_POPUPS, sleep, watchProblems, assertOutsideSkill, resolveSettings,
   loadProjectConfig, makeAccountStore, generatePassword,
   resolveApp, launchBrowser, prepareApp, signIn,
   openSession, closeSession,

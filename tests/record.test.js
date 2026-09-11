@@ -74,15 +74,19 @@ test('an unknown pause level fails loudly instead of falling back to the default
 });
 
 test('a caption stays up in proportion to how much there is to read', () => {
-  // A fixed hold fits one sentence length and no other. The complaint that produced this was a
-  // caption of 124 characters shown for 2.2 seconds.
   const short = readingTime('Chosen.', PACE);
   const long = readingTime(
     'Selected "Price (low to high)". The dropdown menu is drawn by the operating system, '
     + 'so it does not appear in this recording.', PACE,
   );
   assert.ok(long > short, `${long} is not longer than ${short}`);
-  assert.ok(long >= 5000, `124 characters get only ${long}ms`);
+});
+
+test('no caption holds the take long enough to be read twice', () => {
+  // It is a hint, not the evidence, and it is paid for in how long the video runs and how
+  // large the file is. Anyone who wants every word of a long one pauses.
+  const longest = readingTime('x'.repeat(500), PACE);
+  assert.ok(longest <= 3500, `a caption can hold the take for ${longest}ms`);
 });
 
 test('even the shortest caption is shown long enough to notice', () => {

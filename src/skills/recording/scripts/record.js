@@ -196,9 +196,11 @@ function buildContext({
       await locator.selectOption({ label });
     }
 
-    // The viewer sees the value in the field change but sees no menu open, because that menu is drawn
-    // by the operating system. The caption says so instead of leaving them to work it out.
-    const caption = captions.text('selectOption', { value: label });
+    // The viewer sees the value in the field change but sees no menu open, because that menu is
+    // drawn by the operating system — unless this take records the window, where it is in the
+    // frame and saying otherwise would contradict it. The file picker is a different case: it
+    // never opens at all, so upload()'s caption holds whatever is being recorded.
+    const caption = await explain('selectOption', { value: label }, { aboutMissingUi: true });
     const shown = await showNote(caption);
     await sleep(Math.max(human.wait(pace.afterSelectMs), shown ? readingTime(caption, pace) : 0));
     if (shown) await hideCaption();
@@ -209,7 +211,7 @@ function buildContext({
   async function upload(locator, filePath) {
     await click(locator, { pause: 'quick' });
     await locator.setInputFiles(filePath);
-    const caption = captions.text('uploadFile', { file: path.basename(filePath) });
+    const caption = await explain('uploadFile', { file: path.basename(filePath) });
     const shown = await showNote(caption);
     await sleep(Math.max(human.wait(pace.afterUploadMs), shown ? readingTime(caption, pace) : 0));
     if (shown) await hideCaption();
@@ -236,6 +238,28 @@ function buildContext({
     await page.evaluate((payload) => window.__evCaption?.note(payload), { text });
     notes.push({ at: since(), text });
     return true;
+  }
+
+  // A caption the runner generates, as opposed to one the step script writes. Two things decide
+  // whether it is worth showing.
+  //
+  // It is worth saying once. A form with six dropdowns explained six times is six explanations
+  // of something understood at the first, each holding the video open while it is read. The
+  // step script's own note() is never suppressed — that one is written for a moment, not
+  // generated for a kind.
+  //
+  // And a caption about something the operating system drew has to be true of THIS take:
+  // recording the window puts those widgets in the frame, and insisting they are absent
+  // contradicts what the viewer is looking at. `aboutMissingUi` marks the ones that claim it.
+  const explained = new Set();
+
+  async function explain(key, params, { aboutMissingUi = false } = {}) {
+    if (aboutMissingUi && capturesBrowserUi) return null;
+    if (explained.has(key)) return null;
+    const text = captions.text(key, params);
+    if (!text) return null;
+    explained.add(key);
+    return text;
   }
 
   const hideCaption = () => page.evaluate(() => window.__evCaption?.hide());
@@ -329,8 +353,10 @@ function buildContext({
 
     // When the window is being recorded the dialog is in the video and needs no explaining.
     // When only page content is, the viewer sees a value change with nothing to account for it.
-    if (!capturesBrowserUi) {
-      const caption = captions.text('browserDialog', { accepted: accept, message });
+    {
+      // Not routed through explain(): a dialog says something different every time it appears,
+      // so the second one is not a repeat of the first.
+      const caption = capturesBrowserUi ? null : captions.text('browserDialog', { accepted: accept, message });
       if (await showNote(caption)) {
         await sleep(readingTime(caption, pace));
         await hideCaption();

@@ -51,6 +51,19 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // A page in a language the browser is not set to. Chrome offers to translate one of these,
+  // and its bubble sits over the page — which is how it reached a real recording. The take ends
+  // here so a frame of it proves the offer was suppressed.
+  if (rel === 'vi') {
+    res.writeHead(200, { 'content-type': TYPES['.html'] });
+    res.end('<!doctype html><html lang="vi"><meta charset="utf-8"><title>Trang tiếng Việt</title>'
+      + '<body style="font:16px system-ui;padding:24px">'
+      + '<h1>Đăng nhập hệ thống quản trị</h1>'
+      + '<p>Trang này viết bằng tiếng Việt để trình duyệt đề nghị dịch sang tiếng Anh. '
+      + 'Nếu thanh công cụ hiện biểu tượng dịch thì cờ khởi động chưa có tác dụng.</p></body></html>');
+    return;
+  }
+
   if (rel === 'trigger') {
     trigger();
     res.writeHead(202, { 'content-type': 'text/plain' });
