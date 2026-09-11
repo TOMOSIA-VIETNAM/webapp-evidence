@@ -63,6 +63,16 @@ this skill. It can read as a version number rather than a name, and a version nu
 privacy setting is a thing people turn off. Say what it is when asking, and say that turning it
 off stops every window capture.
 
+### The operator's own pointer
+
+A window capture records the real mouse pointer wherever it was left, and asking avfoundation not
+to makes no difference — measured. Playwright clicks through the browser rather than by moving the
+pointer, so it never moves during a take: what the video holds is a second, motionless arrow
+beside the one the runner draws and does move.
+
+Nothing in the runner can move it. The notice asks the operator to park it off the browser window
+before they answer, which is the only place that can be asked.
+
 Neither backend can keep out something drawn *on top of* the browser: a notification that lands
 there, another application brought to the front. That is what the Do Not Disturb line in the
 notice is for, and why the machine has to be left alone.

@@ -437,9 +437,12 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
       const args = [
         '-y', '-v', 'error',
         '-f', 'avfoundation',
-        // The real pointer never moves: Playwright dispatches its clicks through the browser, so
-        // capturing the cursor would record it sitting wherever the operator last left it. The
-        // cursor in the video is the one the runner draws into the page.
+        // Asked for, and not granted: measured on macOS 15, avfoundation records the real
+        // pointer whatever this says. It matters because the pointer never moves — Playwright
+        // dispatches its clicks through the browser — so what lands in the frame is a second,
+        // motionless arrow wherever the operator left theirs, next to the one the runner draws
+        // and actually moves. The notice asks them to park it off the window; there is nothing
+        // here that can move it for them.
         '-capture_cursor', '0',
         '-framerate', String(screen.framerate),
         '-i', `${device}:none`,

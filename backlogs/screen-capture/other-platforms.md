@@ -168,3 +168,20 @@ the attempts again.
 The lesson underneath: the bubble is browser UI, so the only place it can be observed is a frame
 of a window capture. Every attempt to shortcut that produced an answer that felt like evidence
 and was not.
+
+# `-capture_cursor 0` does not suppress the cursor
+
+Measured on macOS 15 with ffmpeg 7: avfoundation records the real mouse pointer whatever that
+option says. A take showed two arrows — the one the runner draws into the page, which moves with
+the action, and the operator's own, motionless in the corner where they left it.
+
+It matters more than it sounds. Playwright dispatches clicks through the browser rather than by
+moving the pointer, so the real one never moves for the length of a take: it is not a cursor
+following the action, it is a dead arrow sitting in the evidence.
+
+There is no supported way to move the pointer from a script on macOS — no AppleScript verb, and
+`cliclick` is a third-party dependency for one line of a recording. So the notice asks the
+operator to park it off the browser window, and that is the whole of the remedy.
+
+Worth re-measuring if avfoundation is ever replaced with ScreenCaptureKit, which takes the
+exclusion as a property of the capture rather than a hint.
