@@ -142,3 +142,33 @@ page in the context and say which is which, and the window backend would have to
 frontmost window or widen the crop to hold both. Worth deciding once, with a take that opens one
 to check against — including on Windows, where the whole capture backend is unimplemented and
 this would be part of proving it.
+
+# The translate bubble, which is not solved
+
+On a page in a language the browser is not set to, Chrome raises its own offer to translate over
+the page. A window capture records it, and it is not part of the application being recorded. It
+turned up in a real take.
+
+## What has been measured
+
+- `--disable-features=Translate,TranslateUI` does NOT stop it. The switch was confirmed present
+  on Chrome's own command line via `chrome://version`, and the bubble was still on screen in the
+  recording.
+- Passing that switch at all is harmful for a second reason: Chrome takes the last value for a
+  repeated switch, so it replaces the list Playwright relies on rather than adding to it.
+
+## What has not been measured, and how to
+
+Giving the browser the page's own language — `recording.locale`, which Playwright applies to the
+context as `Accept-Language` and `navigator.language`. The reasoning is that Chrome offers a
+translation when the page's detected language is not among the browser's, so a match should
+produce no offer. That is reasoning, not a result.
+
+Measuring it needs a window capture, because the bubble is browser UI and no page screenshot can
+hold it: record the same page twice with `capture: 'window'`, once with `recording.locale` set to
+the page's language and once not, and read a frame of each. Two things that wasted a probe here:
+`chrome://translate-internals` gave no usable event rows, and a `file://` page may not be offered
+a translation at all — serve it over http.
+
+If the locale does settle it, the remedy belongs in the runner rather than in advice: a step
+script author cannot be relied on to remember the language of every page a take visits.

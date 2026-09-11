@@ -46,11 +46,17 @@ created from a script, so it is a request, not a step.
 Chrome raises things of its own over the page: an offer to translate, an offer to save a
 password, a first-run panel. They are turned off at launch where a switch does it.
 
-The translate bubble is the exception, and it is worth knowing before a take rather than after.
+The translate bubble is the exception, and nothing here stops it yet. Worth knowing before a
+take rather than after: on a page in a language the browser is not set to, Chrome raises its
+offer to translate over the page, and a window capture records it.
+
 `--disable-features=Translate` does not stop it — measured, with the switch confirmed on
-Chrome's own command line and the bubble still on screen. What stops it is giving the browser
-the page's own language: set `recording.locale` to it, because Chrome offers a translation when
-the page is in a language the browser is not set to and offers nothing when they match.
+Chrome's own command line and the bubble still on screen in the take. Setting
+`recording.locale` to the page's own language is the obvious next thing to try and has NOT been
+measured, so it is not advice yet; `backlogs/screen-capture/other-platforms.md` says what
+measuring it needs.
+
+Until then it is something to look for in the review pass, and a reason to re-record.
 
 ### Permission, and what the entry is called
 
