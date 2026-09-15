@@ -209,8 +209,14 @@ function buildContext({
   // The operating system's file picker cannot be recorded either. Set the file directly, then hold
   // long enough to see the file name appear in the field — that is the part that proves anything.
   async function upload(locator, filePath) {
+    // Playwright only takes the operating system's file chooser out of the way while something
+    // is waiting for one: registering the listener is what turns the interception on. Without
+    // it, clicking a file input in a headed browser opens the real sheet, and setInputFiles
+    // sets the file through the DOM without closing it — a take that stops on a dialog nothing
+    // is going to answer.
+    const chooser = page.waitForEvent('filechooser');
     await click(locator, { pause: 'quick' });
-    await locator.setInputFiles(filePath);
+    await (await chooser).setFiles(filePath);
     const caption = await explain('uploadFile', { file: path.basename(filePath) });
     const shown = await showNote(caption);
     await sleep(Math.max(human.wait(pace.afterUploadMs), shown ? readingTime(caption, pace) : 0));
@@ -333,9 +339,15 @@ function buildContext({
     const triggered = Promise.resolve().then(body);
     triggered.catch(() => {});   // reported after the dialog is out of the way, not before
 
+    // A body that fails before any dialog appears IS the error worth reporting. Waiting only on
+    // the dialog would run the whole timeout and then blame a missing dialog for a click that
+    // never landed — a wrong selector, or an element behind the terminal panel. Resolving never
+    // settles, so a body that succeeds leaves the dialog to win the race.
+    const failedFirst = triggered.then(() => new Promise(() => {}));
+
     let opened;
     try {
-      opened = await appeared;
+      opened = await Promise.race([appeared, failedFirst]);
     } finally {
       // Node runs until its timers do. Left pending, this one holds the process open for the
       // rest of its timeout after the runbook has been written and the output printed.

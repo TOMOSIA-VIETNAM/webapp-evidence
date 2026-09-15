@@ -143,8 +143,8 @@ flow that raised the question**, not the category:
 | Record the browser window | the widget itself is what the MR proves |
 | Not now | — |
 
-`references/recording-a-screen.md` has the sequence, and the runner refuses a screen capture that
-has not been through it.
+`references/recording-a-screen.md` has the sequence. Nothing checks it afterwards: the runner
+only refuses a capture without `SCREEN_CAPTURE=1`, and that variable is you saying they agreed.
 
 ### When the user names the mode
 

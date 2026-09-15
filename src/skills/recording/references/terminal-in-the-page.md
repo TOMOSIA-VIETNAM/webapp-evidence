@@ -54,7 +54,7 @@ Three things it is not:
   drawing something misleading.
 - **Not interactive.** A command that waits on standard input hangs until the step times out. Pass
   what it needs on the command line or from a file.
-- **Not a terminal.** Programs decide by themselves whether to buffer their output when nothing is
+- **Not a pty.** Programs decide by themselves whether to buffer their output when nothing is
   watching, and one that buffers appears in bursts. `stdbuf -oL <command>` fixes it where it matters.
   Colour works for the tools that read `CLICOLOR_FORCE` and `FORCE_COLOR`; the rest need
   `--color=always`.

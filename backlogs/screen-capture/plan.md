@@ -14,11 +14,11 @@ node, so `node --test` covers them without a screen, a browser or a recording.
 ## 1. Redaction arithmetic — `scripts/redaction.js`
 
 - `createRedactions()` collects `{ from, to, mode, box }` against the take's clock.
-- `buildFilter(redactions, trimAt)` returns the ffmpeg `-vf` chain for `blur` and `box`:
+- `buildFilter(redactions, trimAt)` returns the ffmpeg `-filter_complex` graph for `blur` and `box`:
   `drawbox` for a solid fill, `split`/`crop`/`boxblur`/`overlay` for a blurred region, each gated
   with `enable='between(t,a,b)'`. A whole-frame blur needs no crop.
-- `buildCuts(redactions, duration)` returns the segments to keep, and `shiftTime(at)` maps a
-  timestamp on the original take to its place in the shortened one.
+- the same graph removes what `cut` marks, and `shiftTime(at, removed)` maps a timestamp on the
+  original take to its place in the shortened one.
 - A mark or caption inside a cut is dropped, not collapsed onto a zero-length row.
 
 **Done when** the tests cover: each mode's filter, two overlapping regions, a region and a cut in
@@ -49,7 +49,9 @@ start() -> { startedAt }      stop() -> { file }
 - `window` and `screen` spawn ffmpeg on avfoundation. `cropFor(rect, scale)` turns the window's
   logical rectangle into physical pixels. `readProgress(chunk)` parses `-progress pipe:1` and
   reports the instant the first frame was written, which is the take's t=0.
-- Stopping writes `q` to ffmpeg's stdin so the file is finalised rather than truncated.
+- Stopping escalates: `q` on ffmpeg's stdin, then an interrupt, then a kill. avfoundation answers
+  none of the first two, so the file has to survive a kill — written in fragments, flushed as they
+  are made.
 - Before the take: refuse without `SCREEN_CAPTURE=1`; capture one frame to learn the device's size
   and prove it hands anything over at all, naming the setting to open when it does not; show the
   on-screen notice and count down.

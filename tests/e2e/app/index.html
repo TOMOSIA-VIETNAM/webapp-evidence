@@ -118,9 +118,6 @@
   });
 </script>
 <script>
-  // The one thing a recording of the browser cannot prove on its own: this button's real work
-  // happens somewhere else. The server appends to a log file, and the take reads that log in the
-  // terminal panel.
   // A value that must not survive into the evidence, so the take can prove it did not
   document.getElementById('reveal_key').addEventListener('click', () => {
     document.getElementById('api_key').hidden = false;
@@ -140,6 +137,9 @@
     alert('A notice was sent to 3 users.');
   });
 
+  // The one thing a recording of the browser cannot prove on its own: this button's real work
+  // happens somewhere else. The server appends to a log file, and the take reads that log in the
+  // terminal panel.
   document.getElementById('sync').addEventListener('click', async () => {
     const button = document.getElementById('sync');
     button.disabled = true;

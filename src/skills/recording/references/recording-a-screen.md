@@ -155,8 +155,9 @@ declaring the video clean.
 `recording.capture` picks the backend, and `recording.screenCapture` holds the rest — the frame
 rate, which display, the seconds before the first frame, and a ceiling on the recording so a
 runner that dies cannot leave one going. `assets/evidence.config.example.js` has them written
-out with what each one is for, and `scripts/record.js --help` lists the environment variables
-that override them for a single run.
+out with what each one is for. Only the backend itself has an environment override — `CAPTURE`,
+listed by `scripts/record.js --help`; the values inside `screenCapture` are set in the config and
+nowhere else.
 
 `recording.devtools` opens DevTools alongside the page. Only a window capture can see it.
 

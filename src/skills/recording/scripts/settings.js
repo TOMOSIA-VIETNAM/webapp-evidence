@@ -306,6 +306,17 @@ function assertCapture({ capture, screenCapture }) {
       `${JSON.stringify(screenCapture.display)}`
     );
   }
+  // Numbered, and only the main one works. The window opens at --window-position=0,0, which is
+  // the main display, and window.screenX/screenY are global coordinates measured from its
+  // origin rather than from the captured display's — so another display records the right
+  // screen cropped at the wrong place, which looks like a recording and is not one.
+  if (screenCapture.display !== 0) {
+    throw new Error(
+      `recording.screenCapture.display is ${screenCapture.display}, and only 0 is implemented.\n` +
+      'The browser window always opens on the main display, so recording a different one crops ' +
+      'it at an offset the size of the first. See backlogs/screen-capture/other-platforms.md.'
+    );
+  }
   if (!Number.isFinite(screenCapture.maxSeconds) || screenCapture.maxSeconds < 10) {
     throw new Error(
       `recording.screenCapture.maxSeconds must be at least 10, got ` +
