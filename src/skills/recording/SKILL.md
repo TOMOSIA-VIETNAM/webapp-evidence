@@ -36,8 +36,8 @@ and runner labels inside it stay verbatim, because those are what they will copy
 
 1. **Work out the context**: which app, which issue (it names the output directory), which screen,
    which flow the MR needs to prove.
-2. **Pick the evidence type**: screenshots alone, or video plus screenshots — and what the
-   recording has to contain, which decides whether it can run headless.
+2. **Pick the evidence type**: screenshots alone, or video plus screenshots — and whether it can
+   run headless, which is the default and what everything else trades against.
 3. **Probe the screen** with `inspect.js` to get real selectors.
 4. **Choose where the results go** — see `references/output-locations.md`.
 5. **Settle the captions** — on or off, and in which language.
@@ -107,24 +107,57 @@ for them to agree, then do it with whatever the machine already uses. Their mach
 It prints buttons, inputs, selects (with their real option lists) and links, one usable selector per
 line. Shared navigation chrome is filtered out; `--all` shows everything.
 
-### When the page alone cannot prove it
+### Headless by default, and what it takes to leave it
 
-Three things a page recording cannot contain, in the order they cost:
+A recording runs headless unless there is a reason it cannot. Headless is independent: it does
+not depend on whose machine it runs on, what else is on that screen, or whether anyone touches
+the keyboard for the next minute. Everything else is a trade against that.
 
 | The claim | What it needs |
 |---|---|
-| The click reached a worker, wrote a file, moved a row | a shell in the page — `term` in the step script, see `references/terminal-in-the-page.md`. Still headless, costs nothing |
-| A `<select>` menu, the file picker, `confirm`/`alert`, DevTools | a recording of the browser window, which needs a screen, permission, and the machine to itself |
+| Anything that happens on the page | headless, the default. Nothing to ask, nothing to arrange |
+| The click reached a worker, wrote a file, moved a row | still headless — `term` opens a real shell inside the page. See `references/terminal-in-the-page.md` |
+| A `<select>` menu, the file picker, `confirm`/`alert`, DevTools — and **seeing** it is the point | a recording of the browser window, which needs a screen, permission, and the machine to itself |
 | Something outside the browser entirely | a recording of the whole display, and everything else on it |
 
-The default is the page, and it takes something to leave: it is the only backend that does not
-depend on whose machine it runs on, what is on that screen, or whether anyone touches the
-keyboard for the next minute.
+**A `<select>` or a file upload in the flow is not on its own a reason to leave headless.** The
+runner captions what was chosen and why the widget is not in the frame, and a reviewer following
+the flow understands it from that. What justifies a window capture is when the widget *itself* is
+what the MR has to prove — a menu that renders wrong, a picker that opens on the wrong folder, a
+dialog whose wording is the change.
 
-**Anything but the page records what is on someone's screen, so ask them first** — with the
-structured question tool where the agent has one — and show them the notice before you ask.
-`references/recording-a-screen.md` has the sequence, and the runner refuses to start one that
+### Asking before a take that needs the screen
+
+Recording a screen records what is on someone's screen and takes their machine for a minute, so
+they decide, not you — and they can only decide if they know what it buys.
+
+Ask with the structured question tool where the agent has one, and **name the thing in their own
+flow that raised the question**, not the category:
+
+> Step 3 opens the Status dropdown. Recording the browser window would put that menu in the
+> video; headless would caption it instead.
+
+| Answer | Recommend it when |
+|---|---|
+| Record headless | the widget is incidental — this is the recommendation unless the widget is the evidence |
+| Record the browser window | the widget itself is what the MR proves |
+| Not now | — |
+
+`references/recording-a-screen.md` has the sequence, and the runner refuses a screen capture that
 has not been through it.
+
+### When the user names the mode
+
+`--screen` on the command asks for the browser window; `--headless` is the default and needs no
+flag.
+
+```
+/webapp-evidence:recording --screen the checkout flow on https://app.example.com
+```
+
+`--screen` is a decision already made: do not ask the question above, put the notice up and go.
+`--headless` on a flow that would have raised the question settles it the other way, also without
+asking. Nothing else in the argument is a flag — it is what they want evidence of.
 
 ### Keeping something out of the video
 
@@ -135,24 +168,30 @@ there, and nothing afterwards can be relied on to find what was missed.
 
 ### Settling the captions
 
-A recording cannot contain a `<select>` dropdown or a file picker — the operating system draws
-those, and the video captures page content only. Captions fill that gap with a sentence saying what
-was chosen and why the widget is not visible. But a caption is text drawn over the app, and its
-language has to match the reviewer, so ask rather than decide alone.
+A caption is a film's subtitle: it says what the frame cannot, and it is gone before it is in the
+way. The runner shows each of its own captions **once** in a take — a form with six dropdowns
+explained six times is six explanations of something understood at the first, and every one of
+them holds the video still while it is read.
 
-Ask both questions in one round — one structured question call where the agent has one, otherwise a
-single chat message — and wait for the answer:
+Two decisions, and only one of them is usually worth a question.
 
-| Question | Options |
-|---|---|
-| Show captions in the video? | On (recommended) / Off |
-| Caption language? | English (default) / 日本語 / Tiếng Việt |
+**On or off.** On, unless the user says otherwise or `evidence.config.js` has settled it.
+
+**Which language.** In this order, and stop at the first that answers:
+
+1. **The user said so** in this conversation — "captions in Japanese", or they are writing the
+   MR description in Vietnamese and asked for evidence of it. Their word ends it.
+2. **The context says so**, clearly: the MR and its comments are in one language, the repository's
+   own documents are in one language, the user has been writing to you in one language. Take it
+   and say which you took, in one line.
+3. **Anything else — ask.** Not sure, two signals disagreeing, an English repository with a
+   Japanese reviewer: that is the case for the question tool, with the likeliest option marked.
+
+Do not reason your way past step 3. A recording costs the user minutes of their machine and your
+own time, and a take whose captions are in the wrong language is re-recorded in full — asking is
+seconds, and is the cheapest thing in the whole path.
 
 Then pass the answers to the recording command: `CAPTIONS=on|off`, `CAPTION_LOCALE=en|ja|vi`.
-
-Do not ask when the answer already exists: the user said so in the conversation ("record it with
-Japanese captions"), or `evidence.config.js` sets `recording.captions` — a config value is a
-decision the project already made.
 
 ### Recording
 

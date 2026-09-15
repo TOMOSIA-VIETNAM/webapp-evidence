@@ -138,6 +138,7 @@ What you can ask for:
 | A slower recording | `/webapp-evidence:recording record it slower` |
 | Captions in another language | `/webapp-evidence:recording captions in Japanese` — remembered per project |
 | Proof the click reached the backend — a job ran, a file was written | `/webapp-evidence:recording show the worker log after clicking Run sync` |
+| The dropdown or dialog itself in the video, not a caption of it | `/webapp-evidence:recording --screen` — hands your machine over for a minute; without the flag it asks first |
 | A secret kept out of the recording | `/webapp-evidence:recording blur the API key when it appears` |
 | A project set up once, so recordings start signed in | `/webapp-evidence:recording set up the evidence config for this project` |
 

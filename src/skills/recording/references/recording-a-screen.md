@@ -85,9 +85,10 @@ needs. Today the browser is always on the primary display and that is the one re
 
 ## Asking before recording a screen
 
-The person at that machine has to agree, and has to stop using it. They are probably not looking
-at the terminal — they may not know a recording was asked for at all. So the notice goes to the
-screen first and the question goes to them second, in that order:
+The person at that machine has to agree, has to stop using it, and can only weigh that against
+what it buys if they are told. They are probably not looking at the terminal — they may not know
+a recording was asked for at all. So the notice goes to the screen first and the question goes to
+them second, in that order:
 
 1. **Put the notice up**, and write it yourself, in the language they write in:
 
@@ -107,17 +108,27 @@ screen first and the question goes to them second, in that order:
    It exits non-zero if nobody presses it within five minutes. That is nobody at the machine,
    not consent: say so and stop, rather than recording an empty chair.
 
-2. **Ask in the terminal**, with the structured question tool where the agent has one (Claude Code's
-   `AskUserQuestion`), otherwise as one chat message. Ask one question with three answers, and
-   say what each one means:
+2. **Ask in the terminal**, with the structured question tool where the agent has one, otherwise
+   as one chat message. One question, three answers, and **name the step in their own flow that
+   raised it** — the category is not enough to decide against:
 
-   | Answer | What it means |
-   |---|---|
-   | Record the screen (recommended when a native dialog is the evidence) | They hand the machine over for about a minute and do not touch it |
-   | Record the page instead | Headless, they keep using the machine, and what the operating system draws is missing |
-   | Not now | Nothing is recorded |
+   > Step 3 opens the Status dropdown. Recording the browser window would put that menu in the
+   > video; headless would caption it instead and keep your machine.
 
-3. **Only on the first answer**, record with `SCREEN_CAPTURE=1`:
+   | Answer | What it means | Recommend it when |
+   |---|---|---|
+   | Record headless instead | they keep the machine; the operating system's widgets are captioned rather than shown | the widget is incidental to what the MR proves — which is most of the time |
+   | Record the browser window | they hand the machine over for about a minute and do not touch it | the widget itself is the evidence: a menu that renders wrong, a picker on the wrong folder, a dialog whose wording is the change |
+   | Not now | nothing is recorded | |
+
+   The recommendation is not "the one that shows more". A window capture costs a person's
+   machine and carries whatever else is on their screen; a caption costs a sentence. Ask for the
+   screen when the sentence cannot do the job, not when it would be nicer to see.
+
+   A `--screen` or `--headless` on the command is this question already answered. Do not ask it
+   again.
+
+3. **Only on the second answer**, record with `SCREEN_CAPTURE=1`:
 
    ```bash
    OUT_DIR=<the evidence directory> SCREEN_CAPTURE=1 \
@@ -127,8 +138,8 @@ screen first and the question goes to them second, in that order:
    The runner refuses without that variable, and it cannot ask for it itself: started through a
    shell, a prompt on stdin waits forever. Passing it is the agent saying the person agreed.
 
-   Their answer is the handover — nothing else appears on their screen, because by then
-   they have read the notice, turned off notifications and walked back to this terminal. A few
+   Their answer is the handover — nothing else appears on their screen, because by then they
+   have read the notice, turned off notifications and walked back to this terminal. A few
    seconds after they answer, the first frame is recorded.
 
 From the moment they answer, the machine is the agent's. Do not ask them anything else until the

@@ -134,6 +134,7 @@ Những thứ bạn có thể yêu cầu:
 | Quay chậm hơn | `/webapp-evidence:recording quay chậm lại` |
 | Chú thích bằng tiếng khác | `/webapp-evidence:recording chú thích tiếng Nhật` — nhớ theo từng dự án |
 | Bằng chứng là cú click đã chạm tới backend — job đã chạy, file đã được ghi | `/webapp-evidence:recording mở log worker sau khi bấm Run sync` |
+| Muốn chính cái dropdown hay hộp thoại nằm trong video, không phải phụ đề mô tả nó | `/webapp-evidence:recording --screen` — giao máy cho nó khoảng một phút; không có cờ này thì nó hỏi trước |
 | Giữ một thông tin nhạy cảm ra khỏi bản quay | `/webapp-evidence:recording làm mờ API key khi nó hiện ra` |
 | Cấu hình dự án một lần, để lần sau quay là đã đăng nhập sẵn | `/webapp-evidence:recording set up the evidence config for this project` |
 

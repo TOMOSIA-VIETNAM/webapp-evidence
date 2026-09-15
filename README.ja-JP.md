@@ -137,6 +137,7 @@ curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/mai
 | もっとゆっくり録る | `/webapp-evidence:recording もう少しゆっくり録って` |
 | 字幕を別の言語で | `/webapp-evidence:recording 字幕は英語で` — プロジェクトごとに覚えます |
 | クリックがバックエンドまで届いた証拠 — ジョブが動いた、ファイルが書かれた | `/webapp-evidence:recording Run sync を押したあとワーカーのログを見せて` |
+| 字幕ではなく、ドロップダウンやダイアログそのものを動画に入れたい | `/webapp-evidence:recording --screen` — 1 分ほどマシンを預けます。フラグなしなら先に確認されます |
 | 見せてはいけない値を録画から外す | `/webapp-evidence:recording API キーが出るところはぼかして` |
 | 最初に一度だけ設定して、以降はログイン済みで録る | `/webapp-evidence:recording set up the evidence config for this project` |
 

@@ -16,9 +16,17 @@ DEVTOOLS=0
 [ "${1:-}" = "--devtools" ] && DEVTOOLS=1
 
 fail() { printf '\nFAILED: %s\n' "$1" >&2; exit 1; }
+
+fail_missing_tool() {
+  printf '\nFAILED: %s is not on PATH\n' "$1" >&2
+  printf '  If `%s -v` works in your shell but not here, a version manager is loading it lazily\n' "$1" >&2
+  printf '  (nvm does this) — it is a shell function, not a binary, so a script cannot see it.\n' >&2
+  printf '  Run with the real directory on PATH, e.g. PATH="$HOME/.nvm/versions/node/<version>/bin:$PATH"\n' >&2
+  exit 1
+}
 step() { printf '\n== %s\n' "$1"; }
 
-for tool in node ffmpeg ffprobe; do command -v "$tool" >/dev/null || fail "$tool is not on PATH"; done
+for tool in node ffmpeg ffprobe; do command -v "$tool" >/dev/null || fail_missing_tool "$tool"; done
 
 OUT_DIR="$(mktemp -d "${TMPDIR:-/tmp}/webapp-evidence-native.XXXXXX")"
 SERVER_PID=
