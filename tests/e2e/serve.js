@@ -9,6 +9,25 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.join(__dirname, 'app');
+
+// Where the "Run sync" button's work shows up. The end-to-end check points this at a scratch file
+// and then proves, from the terminal panel inside the recording, that the lines arrived.
+const LOG = process.env.DEMO_LOG;
+let job = 0;
+
+// Two lines, seconds apart, because that is the shape of the thing being demonstrated: the click
+// returns immediately and the work finishes later. A take that could only ever match a line
+// already on disk would not show waiting for anything.
+function trigger() {
+  if (!LOG) return;
+  job += 1;
+  const id = job;
+  fs.appendFileSync(LOG, `SyncJob ${id} enqueued\n`);
+  // Long enough that the take really is waiting for the line when it arrives. A job that
+  // finished before the command to watch it was typed would prove the panel works and not that
+  // waitFor does.
+  setTimeout(() => fs.appendFileSync(LOG, `SyncJob ${id} finished, 3 records exported\n`), 9000);
+}
 const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript' };
 
 const server = http.createServer((req, res) => {
@@ -19,6 +38,36 @@ const server = http.createServer((req, res) => {
   if (rel === 'favicon.ico') {
     res.writeHead(204);
     res.end();
+    return;
+  }
+
+  // A page of one unmistakable colour. The window capture check samples it to prove the browser
+  // window really is in the frame and at the position the crop put it: without Screen Recording
+  // permission macOS hands back a picture of the desktop instead, which is not flat and not this.
+  if (rel === 'solid') {
+    res.writeHead(200, { 'content-type': TYPES['.html'] });
+    res.end('<!doctype html><meta charset="utf-8"><title>Solid</title>'
+      + '<style>html,body{margin:0;height:100%;background:#00b050}</style>');
+    return;
+  }
+
+  // A page in a language the browser is not set to. Chrome offers to translate one of these,
+  // and its bubble sits over the page — which is how it reached a real recording. The take ends
+  // here so a frame of it proves the offer was suppressed.
+  if (rel === 'vi') {
+    res.writeHead(200, { 'content-type': TYPES['.html'] });
+    res.end('<!doctype html><html lang="vi"><meta charset="utf-8"><title>Trang tiếng Việt</title>'
+      + '<body style="font:16px system-ui;padding:24px">'
+      + '<h1>Đăng nhập hệ thống quản trị</h1>'
+      + '<p>Trang này viết bằng tiếng Việt để trình duyệt đề nghị dịch sang tiếng Anh. '
+      + 'Nếu thanh công cụ hiện biểu tượng dịch thì cờ khởi động chưa có tác dụng.</p></body></html>');
+    return;
+  }
+
+  if (rel === 'trigger') {
+    trigger();
+    res.writeHead(202, { 'content-type': 'text/plain' });
+    res.end('queued');
     return;
   }
 

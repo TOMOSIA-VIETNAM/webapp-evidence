@@ -30,6 +30,7 @@ script, and it only shows up when someone watches the video back.
 | `locator.selectOption(...)` | `select(locator, 'label')` |
 | `locator.setInputFiles(path)` | `upload(locator, path)` |
 | `page.keyboard.press('Meta+C')` | `hotkey('ControlOrMeta+C', { label: 'コピー' })` |
+| a click that raises `alert`/`confirm` | `dialog(async () => click(locator))` — see below |
 
 The helpers' default pacing is already tuned for a viewer to keep up. When it needs adjusting: hold a
 modal or dialog for at least 4s before closing it. Write `mark()` in the language the MR reviewer
@@ -121,6 +122,40 @@ if the UI has a real button, click it, because the viewer needs to see which but
 `hotkey()` only when the shortcut itself is what the MR has to prove, or when the UI offers no other
 way.
 
+## Two things that need their own file
+
+| The claim | Read |
+|---|---|
+| The click reached a worker, wrote a file, moved a row — `term` opens a real shell in the page | `terminal-in-the-page.md` |
+| Something on screen must not survive into the evidence — `redact()` covers it, in the video and the screenshot | `redaction.md` |
+
+## A dialog the browser puts up
+
+`alert`, `confirm`, `prompt`, `beforeunload`. Two things make these need a helper rather than an
+ordinary click, and both look like the take hanging:
+
+- Playwright dismisses a dialog the instant it appears unless something is listening, so by
+  default one never reaches the screen at all.
+- The click that raises it does not return until the dialog is answered. Awaiting the click
+  first waits forever.
+
+```js
+mark('Confirm the deletion');
+await dialog(async () => {
+  await click(page.getByRole('button', { name: 'Delete selected' }), { pause: 'quick' });
+});
+await shot('deleted');
+```
+
+`{ accept: false }` presses Cancel instead; `{ text: '…' }` answers a `prompt`. The runbook lists
+what was asked and what was answered, whichever backend recorded the take.
+
+Nothing may talk to the page while a dialog is up — every evaluate and every mouse move blocks on
+it — so the cursor and the captions stay still for the duration, which is also what a real dialog
+looks like.
+
+A modal the application draws itself is ordinary page content. Click it like anything else.
+
 ## What a recording cannot capture
 
 The video records **page content**, not the machine's screen. Consequences:
@@ -134,12 +169,22 @@ The video records **page content**, not the machine's screen. Consequences:
 - **The operating system's file picker**: not recordable. The `upload()` helper loads the file,
   pauses long enough for the filename to appear in the field, and captions which file was chosen.
   What can be proved is the state after choosing, not the dialog.
-- **The browser's `confirm`/`alert` dialogs**: also drawn by the operating system. If the flow depends
-  on them, take screenshots of the state before and after and say so plainly in the report.
+- **The browser's `confirm`/`alert` dialogs**: drawn by the browser, over the page rather than in
+  it. `dialog()` drives them, and its own section is below — a click that raises one and is
+  awaited never returns.
 - **The keyboard**: nothing on screen shows which key was pressed. The `hotkey()` helper compensates
   with the key hint overlay in the video, and the runbook lists the presses again with timestamps.
 
-Widgets built in JS — modals, date pickers, a UI kit's dropdowns — record perfectly well.
+Widgets built in JS — modals, date pickers, a UI kit's dropdowns — record perfectly well. So does
+anything that happens on the machine rather than in the page, through `term` — see
+`terminal-in-the-page.md`.
+
+Everything in this list is about the default backend, which records page content. Setting
+`recording.capture` to `'window'` records the browser window instead, and on macOS the file
+picker, the JavaScript dialogs and the print sheet are all drawn inside it — so they do land in
+the video. That backend needs a screen, Screen Recording permission and the operator's agreement,
+and it cannot run headless or in CI, so it is worth reaching for only when one of these is the
+thing being proved.
 
 If the flow creates real data in the dev database (submitting a form that creates a record), say so
 in the report so that whoever sees that data later knows where it came from.

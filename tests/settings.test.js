@@ -7,7 +7,9 @@ const assert = require('node:assert/strict');
 
 const { DEFAULTS, resolveSettings } = require('../src/skills/recording/scripts/settings');
 
-const RECORDING_ENV = ['HEADED', 'BROWSER_CHANNEL', 'EVIDENCE_OVERWRITE', 'CAPTIONS', 'CAPTION_LOCALE'];
+const RECORDING_ENV = [
+  'HEADED', 'BROWSER_CHANNEL', 'EVIDENCE_OVERWRITE', 'CAPTURE', 'CAPTIONS', 'CAPTION_LOCALE',
+];
 
 // resolveSettings reads process.env directly, so each case starts from a clean slate.
 function withEnv(vars, fn) {
@@ -141,4 +143,83 @@ test('resolveSettings does not mutate the shared defaults', () => {
   resolve({ recording: { speed: 'slowest', pace: { afterClickMs: 5000 } }, output: { overwrite: true } });
   assert.equal(DEFAULTS.recording.pace.afterClickMs, 800);
   assert.equal(DEFAULTS.output.overwrite, false);
+});
+
+// ---------- the defaults are not written to ----------
+
+test('resolving twice gives the same answer, whatever the first run derived', () => {
+  // The settings object is written to after it is built — an environment variable overriding a
+  // value, a derived one filled in — and a shallow copy would leave those writes landing in the
+  // module's own defaults. The second run would then read what the first one decided.
+  const tall = resolveSettings({ recording: { viewport: { width: 900, height: 800 } } });
+  const short = resolveSettings({ recording: { viewport: { width: 900, height: 480 } } });
+  const tallAgain = resolveSettings({ recording: { viewport: { width: 900, height: 800 } } });
+
+  assert.equal(tallAgain.recording.terminal.height, tall.recording.terminal.height);
+  assert.ok(short.recording.terminal.height < tall.recording.terminal.height);
+  assert.equal(DEFAULTS.recording.terminal.height, null);
+});
+
+test('a project override does not reach into the defaults either', () => {
+  resolveSettings({ recording: { speed: 'slowest', captions: { enabled: false, locale: 'ja' } } });
+  assert.equal(DEFAULTS.recording.captions.enabled, true);
+  assert.equal(DEFAULTS.recording.captions.locale, 'en');
+});
+
+test('a regular expression survives being merged, rather than becoming a plain object', () => {
+  const settings = resolveSettings({ recording: { terminal: { scrub: [/ghp_[A-Za-z0-9]{4,}/g] } } });
+  assert.ok(settings.recording.terminal.scrub[0] instanceof RegExp);
+});
+
+// ---------- the panel height follows the frame ----------
+
+test('the terminal panel is a share of the frame, not a fixed number of pixels', () => {
+  // A fixed 300px default made a 480px frame refuse to record at all, even for a take that
+  // never opens a terminal.
+  const small = resolveSettings({ recording: { viewport: { width: 800, height: 480 } } });
+  assert.ok(small.recording.terminal.height < 300);
+  assert.ok(small.recording.terminal.height > 0);
+});
+
+test('a height written down by the project is still checked against the frame', () => {
+  assert.throws(
+    () => resolveSettings({ recording: { viewport: { width: 800, height: 480 }, terminal: { height: 400 } } }),
+    /480px frame/,
+  );
+});
+
+// ---------- what a capture backend will and will not accept ----------
+
+test('an unknown capture backend is refused by name', () => {
+  assert.throws(() => resolve({ recording: { capture: 'display' } }), /display/);
+});
+
+test('a display other than the main one is refused rather than recorded at the wrong offset', () => {
+  // The window opens on the main display and window.screenX/screenY are global, so another
+  // display records the right screen cropped at the wrong place — a file that looks recorded.
+  assert.throws(
+    () => resolve({ recording: { capture: 'window', screenCapture: { display: 1 } } }),
+    /screenCapture\.display/,
+  );
+});
+
+test('a frame rate outside what a recording can use is refused', () => {
+  assert.throws(() => resolve({ recording: { screenCapture: { framerate: 120 } } }), /framerate/);
+  assert.throws(() => resolve({ recording: { screenCapture: { framerate: 1 } } }), /framerate/);
+});
+
+test('a ceiling too low to hold a take is refused', () => {
+  assert.throws(() => resolve({ recording: { screenCapture: { maxSeconds: 5 } } }), /maxSeconds/);
+});
+
+test('a countdown cannot run backwards', () => {
+  assert.throws(
+    () => resolve({ recording: { screenCapture: { countdownSeconds: -1 } } }),
+    /countdownSeconds/,
+  );
+});
+
+test('CAPTURE from the environment picks the backend, and a typo there is refused too', () => {
+  assert.equal(resolve({}, { CAPTURE: 'window' }).result.recording.capture, 'window');
+  assert.throws(() => resolve({}, { CAPTURE: 'windows' }), /recording.capture/);
 });

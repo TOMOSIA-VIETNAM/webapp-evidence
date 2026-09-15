@@ -13,7 +13,7 @@ module.exports = {
 
   // Only act through the helpers (click/type/select/upload). Calling locator.click() or
   // locator.setInputFiles() directly leaves the cursor where it was, and the video loses its thread.
-  async run({ page, mark, click, type, select, upload, hotkey, note, shot, sleep }) {
+  async run({ page, mark, click, type, select, upload, hotkey, note, shot, sleep, term, redact }) {
     mark('一覧画面を開く');
     await sleep(1400);
     await shot('list');
@@ -56,5 +56,37 @@ module.exports = {
     // see which button was pressed. Use hotkey() only when the shortcut itself is what the MR has
     // to prove, or when the UI has no button for it.
     await click(page.getByRole('button', { name: 'Close' }).first(), { pause: 2000 });
+
+    // term is a real shell on this machine, shown in a panel over the page. It is for the half of
+    // the evidence the browser cannot show: that the click reached a worker, wrote a file, moved a
+    // row. Everything before this point is the browser; nothing here is a mock.
+    //
+    // The panel covers the bottom of the frame while it is open, and click() refuses to operate on
+    // anything behind it — finish with the page, or call term.close(), before going back to it.
+    // Anything on screen during the body is kept out of the finished video. The step script is
+    // the only place that knows a key is about to be revealed, so nothing has to be found
+    // afterwards — and the screenshot is masked over the same element.
+    //
+    // Cover what can be READ. A password field already shows bullets: blurring it hides nothing
+    // and leaves a smear where a form field was, in the one recording meant to show the form
+    // working.
+    // 'blur' is the default; 'box' when it must be unreadable rather than hard to read; 'cut'
+    // removes the stretch, which moves every timestamp after it in the runbook.
+    mark('APIキーを表示');
+    await redact(page.locator('#api_key'), async () => {
+      await click(page.getByRole('button', { name: 'Reveal' }), { pause: 'observe' });
+      await shot('key-revealed');
+    });
+
+    mark('バックグラウンドジョブが動いたことを確認');
+    await term.open();
+    // start() is for a command that does not end on its own; run() waits for one that does.
+    await term.start('tail -f log/development.log');
+    // This is the assertion the evidence rests on, and it is the line the runbook quotes.
+    await term.waitFor(/ImportJob .* performed/, { timeout: 30000 });
+    await shot('job-done');
+    await term.interrupt();
+    await term.run('ls -l tmp/imports');
+    await term.close();
   },
 };

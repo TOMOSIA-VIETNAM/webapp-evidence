@@ -2,13 +2,18 @@
 // a break in any of them shows up as a failed assertion rather than as a video nobody watches:
 // typing, a <select> the recording cannot show, a file picker it cannot show either, a keyboard
 // shortcut that leaves no trace on screen, a caption, a modal, and screenshots along the way.
+//
+// The last part is the one the browser cannot prove by itself: a button whose work happens on the
+// server, checked by reading the log in the terminal panel.
 const path = require('path');
 
 module.exports = {
   name: 'e2e-user-search',
   start: '/',
 
-  async run({ page, mark, click, type, select, upload, hotkey, note, shot, sleep }) {
+  async run({ page, mark, click, type, select, upload, hotkey, note, shot, sleep, term, redact }) {
+    if (!process.env.DEMO_LOG) throw new Error('DEMO_LOG must point at the demo app\'s log file');
+
     mark('Open the search screen');
     await sleep(600);
     await shot('start');
@@ -32,5 +37,38 @@ module.exports = {
     await click(page.getByRole('button', { name: 'Detail' }).first(), { pause: 2600 });
     await shot('detail');
     await click(page.getByRole('button', { name: 'Close' }), { pause: 1200 });
+
+    // Chrome raises its offer to translate over the page, and no launch switch stops it. The
+    // page says it itself, and this is where that can be checked without a screen — the
+    // headless take carries the same init script as a window one.
+    const noTranslate = await page.evaluate(() => ({
+      meta: Boolean(document.querySelector('meta[name="google"][content~="notranslate"]')),
+      attribute: document.documentElement.getAttribute('translate'),
+    }));
+    if (!noTranslate.meta || noTranslate.attribute !== 'no') {
+      throw new Error(`The page was not marked notranslate: ${JSON.stringify(noTranslate)}`);
+    }
+
+    mark('Reveal a value that must not survive into the evidence');
+    // The element does not exist on screen until the button is pressed, so the rectangle can only
+    // be measured on the way out — which is the case worth exercising here.
+    await redact(page.locator('#api_key'), async () => {
+      await click(page.getByRole('button', { name: 'Reveal API key' }), { pause: 'observe' });
+      await shot('key-masked');
+    }, { mode: 'box' });
+
+    mark('Trigger the sync, whose work happens on the server');
+    await click(page.getByRole('button', { name: 'Run sync' }), { pause: 'observe' });
+
+    mark('Read the worker log to prove the job ran');
+    await term.open();
+    // The shell inherits the runner's environment, so the log can be named the same way the
+    // check names it, instead of a screen's worth of absolute path being typed into the video.
+    await term.start('tail -f "$DEMO_LOG"');
+    await term.waitFor(/SyncJob \d+ finished/, { timeout: 20000 });
+    await shot('worker-finished');
+    await term.interrupt();
+    await term.run('wc -l < "$DEMO_LOG"');
+    await term.close();
   },
 };

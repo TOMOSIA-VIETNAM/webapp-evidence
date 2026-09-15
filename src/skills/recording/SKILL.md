@@ -36,12 +36,15 @@ and runner labels inside it stay verbatim, because those are what they will copy
 
 1. **Work out the context**: which app, which issue (it names the output directory), which screen,
    which flow the MR needs to prove.
-2. **Pick the evidence type**: screenshots alone, or video plus screenshots.
+2. **Pick the evidence type**: screenshots alone, or video plus screenshots — and whether it can
+   run headless, which is the default and what everything else trades against.
 3. **Probe the screen** with `inspect.js` to get real selectors.
 4. **Choose where the results go** — see `references/output-locations.md`.
 5. **Settle the captions** — on or off, and in which language.
-6. **Write `steps.js`** — see `references/writing-step-scripts.md`.
-7. **Record**, then hand the user the runner's own output lines.
+6. **Ask, if the take needs a screen** — `references/recording-a-screen.md`. Nothing else in
+   the path needs the user's machine; this does.
+7. **Write `steps.js`** — see `references/writing-step-scripts.md`.
+8. **Record**, then hand the user the runner's own output lines.
 
 ### Working out the context
 
@@ -84,6 +87,7 @@ not write it to `accountStore` unless there is a project config that says where 
 |---|---|
 | A static screen, display-only change, one or two actions | Screenshots are enough |
 | A multi-step flow — filling fields, submitting, modals, moving between screens | Video plus screenshots at the main moments |
+| The change's result is not on the page — a job enqueued, a file written, rows imported, a dialog the operating system drew | Video plus whatever holds that: a shell in the page, or a recording of the browser window. See below |
 | Recording is impossible for a technical reason | Screenshots at minimum, and say plainly in the report why there is no video |
 
 ### Probing the screen before writing anything
@@ -103,26 +107,91 @@ for them to agree, then do it with whatever the machine already uses. Their mach
 It prints buttons, inputs, selects (with their real option lists) and links, one usable selector per
 line. Shared navigation chrome is filtered out; `--all` shows everything.
 
+### Headless by default, and what it takes to leave it
+
+A recording runs headless unless there is a reason it cannot. Headless is independent: it does
+not depend on whose machine it runs on, what else is on that screen, or whether anyone touches
+the keyboard for the next minute. Everything else is a trade against that.
+
+| The claim | What it needs |
+|---|---|
+| Anything that happens on the page | headless, the default. Nothing to ask, nothing to arrange |
+| The click reached a worker, wrote a file, moved a row | still headless — `term` opens a real shell inside the page. See `references/terminal-in-the-page.md` |
+| A `<select>` menu, the file picker, `confirm`/`alert`, DevTools — and **seeing** it is the point | a recording of the browser window, which needs a screen, permission, and the machine to itself |
+| Something outside the browser entirely | a recording of the whole display, and everything else on it |
+
+**A `<select>` or a file upload in the flow is not on its own a reason to leave headless.** The
+runner captions what was chosen and why the widget is not in the frame, and a reviewer following
+the flow understands it from that. What justifies a window capture is when the widget *itself* is
+what the MR has to prove — a menu that renders wrong, a picker that opens on the wrong folder, a
+dialog whose wording is the change.
+
+### Asking before a take that needs the screen
+
+Recording a screen records what is on someone's screen and takes their machine for a minute, so
+they decide, not you — and they can only decide if they know what it buys.
+
+Ask with the structured question tool where the agent has one, and **name the thing in their own
+flow that raised the question**, not the category:
+
+> Step 3 opens the Status dropdown. Recording the browser window would put that menu in the
+> video; headless would caption it instead.
+
+| Answer | Recommend it when |
+|---|---|
+| Record headless | the widget is incidental — this is the recommendation unless the widget is the evidence |
+| Record the browser window | the widget itself is what the MR proves |
+| Not now | — |
+
+`references/recording-a-screen.md` has the sequence. Nothing checks it afterwards: the runner
+only refuses a capture without `SCREEN_CAPTURE=1`, and that variable is you saying they agreed.
+
+### When the user names the mode
+
+`--screen` on the command asks for the browser window; `--headless` is the default and needs no
+flag.
+
+```
+/webapp-evidence:recording --screen the checkout flow on https://app.example.com
+```
+
+`--screen` is a decision already made: do not ask the question above, put the notice up and go.
+`--headless` on a flow that would have raised the question settles it the other way, also without
+asking. Nothing else in the argument is a flag — it is what they want evidence of.
+
+### Keeping something out of the video
+
+If the flow puts a secret on screen — an API key, a token, a real customer's details — the step
+script wraps that stretch in `redact()`, and it is covered in the video and masked in the
+screenshot. See `references/redaction.md`. Decide it while writing the steps: it costs nothing
+there, and nothing afterwards can be relied on to find what was missed.
+
 ### Settling the captions
 
-A recording cannot contain a `<select>` dropdown or a file picker — the operating system draws
-those, and the video captures page content only. Captions fill that gap with a sentence saying what
-was chosen and why the widget is not visible. But a caption is text drawn over the app, and its
-language has to match the reviewer, so ask rather than decide alone.
+A caption is a film's subtitle: it says what the frame cannot, and it is gone before it is in the
+way. The runner shows each of its own captions **once** in a take — a form with six dropdowns
+explained six times is six explanations of something understood at the first, and every one of
+them holds the video still while it is read.
 
-Ask both questions in one round — one structured question call where the agent has one, otherwise a
-single chat message — and wait for the answer:
+Two decisions, and only one of them is usually worth a question.
 
-| Question | Options |
-|---|---|
-| Show captions in the video? | On (recommended) / Off |
-| Caption language? | English (default) / 日本語 / Tiếng Việt |
+**On or off.** On, unless the user says otherwise or `evidence.config.js` has settled it.
+
+**Which language.** In this order, and stop at the first that answers:
+
+1. **The user said so** in this conversation — "captions in Japanese", or they are writing the
+   MR description in Vietnamese and asked for evidence of it. Their word ends it.
+2. **The context says so**, clearly: the MR and its comments are in one language, the repository's
+   own documents are in one language, the user has been writing to you in one language. Take it
+   and say which you took, in one line.
+3. **Anything else — ask.** Not sure, two signals disagreeing, an English repository with a
+   Japanese reviewer: that is the case for the question tool, with the likeliest option marked.
+
+Do not reason your way past step 3. A recording costs the user minutes of their machine and your
+own time, and a take whose captions are in the wrong language is re-recorded in full — asking is
+seconds, and is the cheapest thing in the whole path.
 
 Then pass the answers to the recording command: `CAPTIONS=on|off`, `CAPTION_LOCALE=en|ja|vi`.
-
-Do not ask when the answer already exists: the user said so in the conversation ("record it with
-Japanese captions"), or `evidence.config.js` sets `recording.captions` — a config value is a
-decision the project already made.
 
 ### Recording
 
@@ -144,8 +213,8 @@ The runner brings the environment up (via `prepare` in the config), logs in (via
 trims the page-load wait from the front, and writes the mp4 plus the runbook. Everything it fixed is
 printed as a `FIXED: …` line — pass those lines into the report.
 
-Every script here — `record.js`, `inspect.js`, `convert.js` — answers `--help` with its arguments and
-environment variables. Call that instead of reading the source. They are written to be used as black
+Every script here — `record.js`, `inspect.js`, `convert.js`, `announce.js` — answers `--help` with
+its arguments and environment variables. Call that instead of reading the source. They are written to be used as black
 boxes: the source is long, it is loaded into context in full when you open it, and it tells you
 nothing `--help` does not.
 
@@ -166,6 +235,9 @@ fine and the errors are expected, add nothing.
 
 When the user is outside the codebase — a URL and a description, a hand-off, a report — just hand
 over the files. A code fix they cannot apply is noise.
+
+**A take that recorded a screen gets one more look before it is handed over** — see
+`references/recording-a-screen.md`.
 
 ### Another format
 
@@ -231,8 +303,11 @@ Read these when the step calls for them, not upfront:
 | File | Read it when |
 |---|---|
 | `references/project-setup.md` | The project has no `evidence.config.js` yet, or the recording needs different pacing, captions or archiving behaviour |
-| `references/writing-step-scripts.md` | Writing or editing `steps.js`: the helpers, how long to pause after each click, captions, keyboard shortcuts, and what a recording physically cannot capture |
+| `references/writing-step-scripts.md` | Writing or editing `steps.js`: the helpers, how long to pause after each click, captions, keyboard shortcuts, the browser's own dialogs, and what a recording physically cannot capture |
+| `references/terminal-in-the-page.md` | The step script has to show something that happened on the machine rather than in the page — a job that ran, a file that was written |
+| `references/redaction.md` | Something on screen must not survive into the evidence |
 | `references/output-locations.md` | Choosing `OUT_DIR`, dealing with the git-ignore check, and reading the runner's output to build the final report |
+| `references/recording-a-screen.md` | The evidence is something a page recording cannot hold: a `<select>` menu, a file picker, a browser dialog, DevTools, anything outside the browser. Covers asking the user first, what each backend does and does not pick up, and which machines can do it at all |
 | `references/other-formats.md` | The take has to be a gif or a webm, and you need to know what that costs |
 
 Templates to copy from: `assets/evidence.config.example.js` and `assets/steps.example.js`.

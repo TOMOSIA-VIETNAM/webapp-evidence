@@ -31,7 +31,16 @@ const HELP_ENV = `Environment variables:
     EVIDENCE_CONFIG   Path to the project config (default: probe upward from the step script directory)
     BASE_URL          Override the base URL of the app
     HEADED=1          Show the browser window (hidden by default, so the user cannot interact by accident)
-    BROWSER_CHANNEL   Playwright browser channel (default: chrome)`;
+    BROWSER_CHANNEL   Playwright browser channel (default: chrome)
+    CAPTURE           page (default) | window | screen — what the frame of the recording is.
+                      page records page content and runs headless. window records the browser
+                      window through ffmpeg, so what the operating system draws inside it is in
+                      the video too; screen records the whole display. Both show the window, so
+                      both imply HEADED=1.
+    SCREEN_CAPTURE=1  Required for window and screen: they record what is on someone's screen,
+                      so the operator has to have agreed before the run starts.
+                      The notice shown to that person before they are asked is a separate
+                      command: see scripts/announce.js --help.`;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -177,12 +186,41 @@ function resolveApp(config, app) {
   return { name, appConfig, baseUrl: process.env.BASE_URL || appConfig.baseUrl };
 }
 
+// Chrome puts things in front of the page on its own — an offer to save a password after a
+// sign-in, a first-run panel, a search-engine chooser — and a window capture records all of
+// them. None is part of the application being recorded.
+//
+// Every switch here ADDS. Nothing sets `--disable-features`: Chrome takes the last value for a
+// repeated switch, so passing one replaces the long list Playwright relies on for a stable
+// automated browser rather than adding to it.
+//
+// The translate bubble is not here because no switch stops it. It is handled from the page
+// instead — see no-translate.js.
+const NO_BROWSER_POPUPS = [
+  '--disable-save-password-bubble',
+  '--no-default-browser-check',
+  '--no-first-run',
+  '--disable-search-engine-choice-screen',
+];
+
 async function launchBrowser(settings) {
-  const { headed, browserChannel, viewport } = settings.recording;
+  const { headed, browserChannel, viewport, devtools } = settings.recording;
   return chromium.launch({
     headless: !headed,
     channel: browserChannel,
-    args: headed ? ['--window-position=0,0', `--window-size=${viewport.width},${viewport.height + 120}`] : [],
+    args: [
+      ...NO_BROWSER_POPUPS,
+      ...(headed ? [
+        // Top-left, deliberately. A window capture crops to the window, so nothing outside it
+        // can reach the video — and notification banners arrive at the top RIGHT of the
+        // display. A window that does not reach that corner cannot have one land in it.
+        '--window-position=0,0',
+        `--window-size=${viewport.width},${viewport.height + 120}`,
+        // DevTools is browser UI, so it only reaches a video that records the window. Docked, it
+        // takes its room out of the page area, which is why it is off unless asked for.
+        ...(devtools ? ['--auto-open-devtools-for-tabs'] : []),
+      ] : []),
+    ],
   });
 }
 
@@ -243,7 +281,7 @@ async function closeSession(session) {
 }
 
 module.exports = {
-  VIEWPORT, ROOT, SKILL_DIR, HELP_ENV, sleep, watchProblems, assertOutsideSkill, resolveSettings,
+  VIEWPORT, ROOT, SKILL_DIR, HELP_ENV, NO_BROWSER_POPUPS, sleep, watchProblems, assertOutsideSkill, resolveSettings,
   loadProjectConfig, makeAccountStore, generatePassword,
   resolveApp, launchBrowser, prepareApp, signIn,
   openSession, closeSession,
