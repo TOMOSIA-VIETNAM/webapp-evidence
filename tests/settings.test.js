@@ -7,7 +7,9 @@ const assert = require('node:assert/strict');
 
 const { DEFAULTS, resolveSettings } = require('../src/skills/recording/scripts/settings');
 
-const RECORDING_ENV = ['HEADED', 'BROWSER_CHANNEL', 'EVIDENCE_OVERWRITE', 'CAPTIONS', 'CAPTION_LOCALE'];
+const RECORDING_ENV = [
+  'HEADED', 'BROWSER_CHANNEL', 'EVIDENCE_OVERWRITE', 'CAPTURE', 'CAPTIONS', 'CAPTION_LOCALE',
+];
 
 // resolveSettings reads process.env directly, so each case starts from a clean slate.
 function withEnv(vars, fn) {
@@ -184,4 +186,40 @@ test('a height written down by the project is still checked against the frame', 
     () => resolveSettings({ recording: { viewport: { width: 800, height: 480 }, terminal: { height: 400 } } }),
     /480px frame/,
   );
+});
+
+// ---------- what a capture backend will and will not accept ----------
+
+test('an unknown capture backend is refused by name', () => {
+  assert.throws(() => resolve({ recording: { capture: 'display' } }), /display/);
+});
+
+test('a display other than the main one is refused rather than recorded at the wrong offset', () => {
+  // The window opens on the main display and window.screenX/screenY are global, so another
+  // display records the right screen cropped at the wrong place — a file that looks recorded.
+  assert.throws(
+    () => resolve({ recording: { capture: 'window', screenCapture: { display: 1 } } }),
+    /screenCapture\.display/,
+  );
+});
+
+test('a frame rate outside what a recording can use is refused', () => {
+  assert.throws(() => resolve({ recording: { screenCapture: { framerate: 120 } } }), /framerate/);
+  assert.throws(() => resolve({ recording: { screenCapture: { framerate: 1 } } }), /framerate/);
+});
+
+test('a ceiling too low to hold a take is refused', () => {
+  assert.throws(() => resolve({ recording: { screenCapture: { maxSeconds: 5 } } }), /maxSeconds/);
+});
+
+test('a countdown cannot run backwards', () => {
+  assert.throws(
+    () => resolve({ recording: { screenCapture: { countdownSeconds: -1 } } }),
+    /countdownSeconds/,
+  );
+});
+
+test('CAPTURE from the environment picks the backend, and a typo there is refused too', () => {
+  assert.equal(resolve({}, { CAPTURE: 'window' }).result.recording.capture, 'window');
+  assert.throws(() => resolve({}, { CAPTURE: 'windows' }), /recording.capture/);
 });

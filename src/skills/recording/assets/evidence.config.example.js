@@ -44,7 +44,7 @@ module.exports = {
     // devtools: false,
     // screenCapture: {
     //   framerate: 30,
-    //   display: 0,             // which display, when there is more than one
+    //   display: 0,             // only the main display is implemented
     //   countdownSeconds: 3,    // between the answer given in the terminal and the first frame
     //   maxSeconds: 600,        // a ceiling, so a runner that dies leaves no recorder running
     // },
