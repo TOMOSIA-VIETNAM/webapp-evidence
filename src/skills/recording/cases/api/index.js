@@ -64,11 +64,13 @@ function hasJq() {
   }
 }
 
+// Single quotes, because inside them a shell expands nothing at all: no parameter, no command
+// substitution, no glob. The only character that has to be escaped is the quote itself.
+const singleQuoted = (text) => `'${String(text).replace(/'/g, "'\\''")}'`;
+
 // Only where it is needed: a quoted string full of backslashes is a line a viewer has to decode
 // rather than read.
-const quote = (text) => (/^[A-Za-z0-9_@%+=:,./-]+$/.test(text)
-  ? text
-  : `'${String(text).replace(/'/g, "'\\''")}'`);
+const quote = (text) => (/^[A-Za-z0-9_@%+=:,./-]+$/.test(text) ? text : singleQuoted(text));
 
 // One curl line, in the order a person writes one: what to do, where, what to send, and what to
 // report. `-sS` is the pair every scripted curl carries — quiet about progress, not about its own
@@ -76,7 +78,10 @@ const quote = (text) => (/^[A-Za-z0-9_@%+=:,./-]+$/.test(text)
 function buildCurl({ method, url, jar, config, json, headers = {}, jq, filter }) {
   const line = ['curl', '-sS'];
   if (method !== 'GET') line.push('-X', method);
-  line.push(`"${url}"`);
+  // Always quoted, and in single quotes rather than double. The URL is the one argument built
+  // from a path a step script may have taken off the page, and `new URL` leaves `$(` and `${`
+  // alone: in double quotes the shell would run what is between them, on the machine recording.
+  line.push(singleQuoted(url));
   for (const [name, value] of Object.entries(headers)) line.push('-H', quote(`${name}: ${value}`));
   if (json !== undefined) line.push('-H', quote('Content-Type: application/json'));
   line.push('-b', jar);
@@ -100,7 +105,7 @@ const firstLines = (output) => String(output)
   .slice(0, BODY_LINES)
   .join('\n');
 
-function helpers({ term, registerSecret }) {
+function helpers({ term, registerSecret, onDispose }) {
   // The page is passed in rather than taken from the runtime, so the line in the step script says
   // which page the session comes from — a take that signed in as two different users reads
   // correctly instead of quietly using whichever page the runner happened to hold.
@@ -124,8 +129,11 @@ function helpers({ term, registerSecret }) {
       config = path.join(dir, 'auth.conf');
       fs.writeFileSync(config, `header = "Authorization: Bearer ${bearer}"\n`, { mode: 0o600 });
     }
-    // The take is over by then, and what is left behind is a live session on the operator's disk.
-    process.on('exit', () => { try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* gone already */ } });
+    // Handed to the runner rather than hung off process exit: a take stopped with Ctrl-C never
+    // reaches that event, and what it leaves on disk is a live session. Registering a signal
+    // handler here instead would take over Node's own exit and strand the runner's teardown —
+    // the browser it has open and the encode it is running.
+    onDispose(() => fs.rmSync(dir, { recursive: true, force: true }));
 
     const jq = hasJq();
 

@@ -142,6 +142,8 @@ function createTerminal({ page, viewport, config, human, pace, since, secrets = 
   let movedAt = Date.now();  // when the window was last advanced, for the elapsed time
   let settleUntil = 0;       // new content is left still until here before the window moves on
   let scrolledMs = 0;        // how long this command's output has been scrolling
+  let lostRows = 0;          // rows the screen has dropped, as of the last position update
+  let lostAtBlockStart = 0;  // and as of the prompt of the command being shown
   // Set when a command is typed, cleared by its first line of output, which in turn asks the next
   // redraw to bring the panel down to what that command needs. Until then the panel keeps the
   // height the previous command earned: emptying it out and refilling it within the same second
@@ -178,6 +180,17 @@ function createTerminal({ page, viewport, config, human, pace, since, secrets = 
     // a bounded speed is that no row crosses the panel without being in a frame.
     const elapsed = Math.min(now - movedAt, REDRAW_MS * 4);
     movedAt = now;
+
+    // The buffer drops its oldest rows once it is full, and every position here counts from the
+    // row it starts at. Left alone, the window would jump back up by whatever fell off.
+    const dropped = screen.droppedRows();
+    if (dropped !== lostRows) {
+      const slipped = dropped - lostRows;
+      lostRows = dropped;
+      blockStart = Math.max(0, blockStart - slipped);
+      firstRow = Math.max(0, firstRow - slipped);
+      paintedRow = Math.max(0, paintedRow - slipped);
+    }
 
     const total = screen.rowCount();
     const fitted = capacity();     // what the panel holds before this redraw resizes it
@@ -321,6 +334,7 @@ function createTerminal({ page, viewport, config, human, pace, since, secrets = 
     blockStart = Math.max(0, screen.rowCount() - 1);
     awaitingFirstOutput = true;
     scrolledMs = 0;
+    lostAtBlockStart = screen.droppedRows();
     const characters = Array.from(text);
     const delays = human.typeDelays(text);
     const from = Date.now();
@@ -359,7 +373,17 @@ function createTerminal({ page, viewport, config, human, pace, since, secrets = 
       // A response nobody will read is a step script that piped nothing into `jq`, not a panel to
       // scroll faster: every line was shown, which for an output this long is most of the take.
       // Said once, with the command that did it, where the operator will see it.
-      if (scrolledMs > pace.panelRevealWarnMs) {
+      // Printing faster than the window can walk is one problem; printing more than the buffer
+      // keeps is another, and the second one is the only case where a line is in no frame at all.
+      const lost = screen.droppedRows() - lostAtBlockStart;
+      if (lost > 0) {
+        console.log(
+          `LOST OUTPUT: \`${scrub(command)}\` printed more than the panel keeps. Its first ` +
+          `${lost} line${lost === 1 ? '' : 's'} fell out of the buffer before the window reached ` +
+          'them, so they are in no frame of the video. Cut it down with jq, head or grep and ' +
+          'record again.'
+        );
+      } else if (scrolledMs > pace.panelRevealWarnMs) {
         console.log(
           `SLOW OUTPUT: \`${scrub(command)}\` took ${(scrolledMs / 1000).toFixed(1)}s to scroll past in ` +
           'the panel. Every line was in a frame, so nothing was lost — but that is most of the ' +

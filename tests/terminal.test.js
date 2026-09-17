@@ -363,3 +363,32 @@ test('a command wider than the panel is wrapped onto a second row, not cut off a
     'the wrapped remainder of the line never reached the panel'
   );
 });
+
+test('output larger than the buffer keeps is named on stdout as lost, not reported as shown', async () => {
+  // The window is allowed to move far faster than a recording ever would, so the buffer overflows
+  // within a test rather than within the two minutes the real speed would take.
+  const { term, page, dispose } = terminalUnderTest({ pace: { panelRowFastestMs: 1, panelRevealMs: 200 } });
+  const said = [];
+  const log = console.log;
+  console.log = (...args) => said.push(args.join(' '));
+  try {
+    await term.open();
+    await term.run('seq 2600', { pause: 'quick' });
+  } finally {
+    console.log = log;
+    await dispose();
+  }
+
+  const warning = said.find((line) => line.startsWith('LOST OUTPUT:'));
+  assert.ok(warning, `losing lines was not reported: ${JSON.stringify(said)}`);
+  assert.ok(warning.includes('seq 2600'), warning);
+  // The claim that every line was in a frame belongs to the other case, and must not be made here.
+  assert.ok(!said.some((line) => line.includes('nothing was lost')), JSON.stringify(said));
+
+  // The window still walked the rows it did keep, downwards, instead of jumping back up by
+  // whatever fell off the top.
+  const rows = page.sent.map((payload) => payload.scrollRow);
+  for (let i = 1; i < rows.length; i++) {
+    assert.ok(rows[i] >= rows[i - 1] - 1, `the window jumped back from ${rows[i - 1]} to ${rows[i]}`);
+  }
+});

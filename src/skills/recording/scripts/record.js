@@ -923,8 +923,16 @@ async function main() {
 
   // Loaded here because a case is handed the terminal it runs its commands in. Each one is given
   // the same few things; anything a case needs beyond them is a change to the runner.
+  // What a case leaves on disk is cleaned up where the take ends, not on process exit: a take
+  // stopped with Ctrl-C never reaches that event.
+  const caseDisposers = [];
   const helpers = applyCases(loadCases(path.join(__dirname, '..', 'cases')), {
-    page, term: terminal.term, root: ROOT, registerSecret: terminal.registerSecret, outDir,
+    page,
+    term: terminal.term,
+    root: ROOT,
+    registerSecret: terminal.registerSecret,
+    outDir,
+    onDispose: (fn) => caseDisposers.push(fn),
   });
 
   const ctx = buildContext({
@@ -941,6 +949,15 @@ async function main() {
     // A step script that throws halfway must not leave a shell — or whatever it was running —
     // alive on the machine after the runner has gone.
     await terminal.dispose();
+    // One failing to clean up must not stop the others, and none of them is a reason to lose a
+    // take that has already been recorded.
+    for (const dispose of caseDisposers) {
+      try {
+        await dispose();
+      } catch {
+        // Already gone, or never created. Either way there is nothing left to remove.
+      }
+    }
   }
 
   await sleep(pace.tailMs);

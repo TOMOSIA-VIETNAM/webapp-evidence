@@ -38,6 +38,9 @@ function createScreen({ maxLines = 500, columns = MAX_COLUMNS } = {}) {
   const width = Math.max(1, Math.min(columns, MAX_COLUMNS));
   let rows = [[]];
   let column = 0;
+  // Rows the buffer has let go of. Every position the panel works in counts from the first row it
+  // holds, so a caller that keeps its own index has to know how far the floor has moved.
+  let dropped = 0;
   let style = { ...DEFAULT_STYLE };
 
   // Carried between write() calls: a chunk can end in the middle of an escape sequence, and
@@ -49,7 +52,11 @@ function createScreen({ maxLines = 500, columns = MAX_COLUMNS } = {}) {
   const newline = () => {
     rows.push([]);
     column = 0;
-    if (rows.length > maxLines) rows.splice(0, rows.length - maxLines);
+    if (rows.length > maxLines) {
+      const lost = rows.length - maxLines;
+      rows.splice(0, lost);
+      dropped += lost;
+    }
   };
 
   const putChar = (char) => {
@@ -170,6 +177,9 @@ function createScreen({ maxLines = 500, columns = MAX_COLUMNS } = {}) {
     // viewer reads, so a pattern that matches here matches what is on screen.
     text: () => rows.map((cells) => cells.map((c) => c.char).join('')).join('\n'),
     rowCount: () => rows.length,
+    // How many rows have fallen off the top since this screen was created — never reset, so the
+    // difference between two readings is how far every index has slipped in between.
+    droppedRows: () => dropped,
     // The runner draws its own prompt, and a prompt has to start at the left edge. Whether the
     // command that just ran left the cursor mid-line is something only the screen knows.
     atLineStart: () => column === 0,

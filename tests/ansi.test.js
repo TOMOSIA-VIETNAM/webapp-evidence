@@ -138,3 +138,14 @@ test('the width a screen is given cannot take it past the cap it draws within', 
   screen.write('x'.repeat(MAX_COLUMNS + 5));
   assert.deepStrictEqual(plain(screen).map((line) => line.length), [MAX_COLUMNS, 5]);
 });
+
+test('a full screen counts the rows it lets go of, so a caller can correct the indexes it kept', () => {
+  const screen = createScreen({ maxLines: 3 });
+  assert.equal(screen.droppedRows(), 0);
+  screen.write('one\ntwo\nthree\n');
+  assert.equal(screen.droppedRows(), 1);
+  assert.deepStrictEqual(plain(screen), ['two', 'three', '']);
+  screen.write('four\nfive\n');
+  // Two more rows pushed two more off the top, and the count never resets.
+  assert.equal(screen.droppedRows(), 3);
+});
