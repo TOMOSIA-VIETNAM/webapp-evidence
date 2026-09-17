@@ -91,12 +91,13 @@ full list lives in `scripts/settings.js`.
 Do not tune pacing by scattering `sleep()` calls through the step script. Pacing is a property of
 the whole take; kept in one place, changing it later is a single edit.
 
-Three parts of `pace` are computed rather than fixed, so the take does not come out machine-even:
+Four parts of `pace` are computed rather than fixed, so the take does not come out machine-even:
 
 | Part | How it behaves |
 |---|---|
 | Waits | Jittered around the configured value by `pace.jitter` (default `0.18`). Perfectly even timing is the clearest sign of a bot-driven video. Set `0` when two takes must match frame for frame |
 | Cursor travel time | Derived from the distance and the size of the target (`cursorBaseMs`, `cursorPerBitMs`, clamped between `cursorMinMs` and `cursorMaxMs`). Moving to the next field takes ~0.4s, crossing the screen ~0.8s. On a long move the cursor overshoots slightly and corrects |
+| Scrolling to something off screen | Derived from how far the page has to travel (`scrollBaseMs`, `scrollPerScreenMs`, capped by `scrollMaxMs`), then a beat to settle (`afterScrollMs`). The cursor stands still while the page moves, over the pane that is moving — the page is never jumped to the element, which in a video is a cut, not an action |
 | Typing speed | `typeCharMs` is an average; individual characters vary around it, slowing at spaces and after punctuation |
 
 The randomness is seeded from the step script's name, so the same script produces the same pacing on

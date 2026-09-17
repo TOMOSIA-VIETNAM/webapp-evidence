@@ -11,6 +11,7 @@ const {
 const { createHuman, resolvePause } = require('./human');
 const { createCaptions } = require('./captions');
 const { createTerminal, isBehindPanel } = require('./terminal');
+const scroll = require('./scroll');
 const { loadCases, applyCases } = require('./cases');
 const {
   createRedactions, buildFilter, shiftTime, unionBox, padBox,
@@ -120,18 +121,82 @@ function buildContext({
     return Math.hypot(x - from.x, y - from.y);
   }
 
-  async function click(locator, { pause } = {}) {
-    // scrollIntoViewIfNeeded costs about 64ms per call. Skip it when the element is already inside
-    // the frame: a run of clicks within the same screen is not slowed down by work nobody needs.
-    let box = await locator.boundingBox();
-    const inView = box
-      && box.y >= 0 && box.y + box.height <= viewport.height
-      && box.x >= 0 && box.x + box.width <= viewport.width;
-    if (!inView) {
-      await locator.scrollIntoViewIfNeeded();
-      box = await locator.boundingBox();
+  // How many panes may be scrolled on the way to one element. Deep enough for a list inside a
+  // drawer inside the page; shallow enough that a layout no wheel can reach gives up quickly
+  // instead of turning the wheel at nothing.
+  const MAX_HOPS = 4;
+
+  const measure = (locator) => locator.evaluate(scroll.SNAPSHOT);
+  // Two still frames is enough to tell "the scroll has finished" from "between two steps of it",
+  // and the timeout keeps a page that animates something forever from holding the take.
+  const settle = (locator) => locator.evaluate(scroll.SETTLE, { stillFrames: 2, timeoutMs: 600 });
+  const panelDepth = async () => (terminal.isOpen() ? terminal.panelHeight() : 0);
+
+  // The wheel, turned over time rather than in one delta. Same interpolation as a cursor move and
+  // for the same reason: each round trip to the browser costs more than one frame, so what is
+  // sent is the difference from the distance already covered at this point on the clock.
+  async function wheelBy(dx, dy) {
+    const plan = human.scrollPlan(dx, dy);
+    if (!plan) return;
+    const startedScroll = Date.now();
+    let sent = { x: 0, y: 0 };
+    for (;;) {
+      const frameAt = Date.now();
+      const progress = (frameAt - startedScroll) / plan.duration;
+      const point = plan.at(progress);
+      const stepX = Math.round(point.x - sent.x);
+      const stepY = Math.round(point.y - sent.y);
+      if (stepX || stepY) {
+        await page.mouse.wheel(stepX, stepY);
+        sent = { x: sent.x + stepX, y: sent.y + stepY };
+      }
+      if (progress >= 1) break;
+      const idle = plan.frameMs - (Date.now() - frameAt);
+      if (idle > 0) await sleep(idle);
     }
-    if (!box) throw new Error('The element to click is not visible');
+  }
+
+  // Scroll until the element can be clicked, one pane at a time, and leave it settled: nothing
+  // downstream may read a position while the page is still moving.
+  async function bringIntoView(locator) {
+    let snapshot = await measure(locator);
+    for (let hop = 0; hop < MAX_HOPS; hop++) {
+      const plan = scroll.planHop(snapshot, { cursor: page.__cursor, avoidBottom: await panelDepth() });
+      if (!plan) return snapshot;
+
+      // The wheel is delivered wherever the pointer stands, so it goes over the pane that has to
+      // move — which is also what a person does before scrolling one panel of a page.
+      await moveTo(plan.pointer.x, plan.pointer.y);
+      await wheelBy(plan.dx, plan.dy);
+      await settle(locator);
+      await sleep(human.wait(pace.afterScrollMs));
+
+      const landed = await measure(locator);
+      const stuck = Math.abs(landed.target.top - snapshot.target.top) < 1
+        && Math.abs(landed.target.left - snapshot.target.left) < 1;
+      snapshot = landed;
+      if (stuck) break;
+    }
+
+    if (!scroll.planHop(snapshot, { cursor: page.__cursor, avoidBottom: await panelDepth() })) return snapshot;
+
+    // Nothing a wheel can reach will finish this: a pane that swallows the event, or a container
+    // the app scrolls with its own script and hidden overflow. Take the jump rather than click at
+    // something off the frame — a video that cuts to the action still shows the action.
+    await locator.scrollIntoViewIfNeeded();
+    await settle(locator);
+    return measure(locator);
+  }
+
+  async function click(locator, { pause } = {}) {
+    const box = scroll.visibleBox(await bringIntoView(locator));
+    if (!box || box.width < 1 || box.height < 1) {
+      throw new Error(
+        'The element to click is not visible: no part of it is on screen, and scrolling to it did ' +
+        'not change that.\nClicking it anyway would put the cursor outside the frame, and the video ' +
+        'would show no action at all.'
+      );
+    }
     // A click under the open terminal panel would work and would not be visible: the video shows
     // the panel where the button was, and the reviewer is left with a result and no action.
     if (terminal.isOpen() && isBehindPanel(box, viewport.height, await terminal.panelHeight())) {

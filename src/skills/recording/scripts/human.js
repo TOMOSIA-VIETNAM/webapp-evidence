@@ -132,6 +132,28 @@ function createHuman({ pace, viewport, seed }) {
     return { duration, frameMs: pace.cursorFrameMs, at };
   };
 
+  // Scrolling has the same shape as a move: a flick that covers most of the ground quickly, then
+  // eases off. What differs is where the duration comes from — how many screens of page have to
+  // travel, rather than how small the target is. A whole-page jump therefore takes longer than a
+  // nudge, but never so long that the viewer is watching the scenery go by.
+  const scrollPlan = (dx, dy) => {
+    const dist = Math.hypot(dx, dy);
+    if (dist < 1) return null;
+    const screens = dist / Math.max(1, viewport.height);
+    const raw = pace.scrollBaseMs + pace.scrollPerScreenMs * screens;
+    const duration = Math.round(Math.min(raw, pace.scrollMaxMs) * (1 + between(-0.12, 0.12)));
+    return {
+      duration,
+      frameMs: pace.scrollFrameMs,
+      // How much of the distance has been covered at t — the caller wheels the difference from
+      // what it has sent so far, so a slow machine sends fewer, larger deltas over the same time.
+      at: (t) => {
+        const p = ballistic(Math.max(0, Math.min(t, 1)));
+        return { x: dx * p, y: dy * p };
+      },
+    };
+  };
+
   // Aim first, then click. Sliding to the cell right next door is almost an immediate click,
   // while having just crossed the whole screen costs a beat to re-locate.
   const aimDelay = (dist) => {
@@ -174,7 +196,7 @@ function createHuman({ pace, viewport, seed }) {
     y: viewport.height * between(0.5, 0.66),
   });
 
-  return { wait, moveDuration, movePlan, aimDelay, charDelay, typeDelays, restingPoint, rng };
+  return { wait, moveDuration, movePlan, scrollPlan, aimDelay, charDelay, typeDelays, restingPoint, rng };
 }
 
 // Not every action has something to look at. Opening a tab, expanding a menu, moving to the next
