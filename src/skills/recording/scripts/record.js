@@ -131,6 +131,8 @@ function buildContext({
   // and the timeout keeps a page that animates something forever from holding the take.
   const settle = (locator) => locator.evaluate(scroll.SETTLE, { stillFrames: 2, timeoutMs: 600 });
   const panelDepth = async () => (terminal.isOpen() ? terminal.panelHeight() : 0);
+  const nextHop = async (snapshot) =>
+    scroll.planHop(snapshot, { cursor: page.__cursor, avoidBottom: await panelDepth() });
 
   // The wheel, turned over time rather than in one delta. Same interpolation as a cursor move and
   // for the same reason: each round trip to the browser costs more than one frame, so what is
@@ -160,8 +162,19 @@ function buildContext({
   // downstream may read a position while the page is still moving.
   async function bringIntoView(locator) {
     let snapshot = await measure(locator);
+
+    // Measured inside an <iframe>, those coordinates belong to that frame, while page.mouse works
+    // in the top frame's — and the chain of panes stops at the frame's own document, so the page
+    // holding it is not in the plan either. Neither can be scrolled with, so this is the one case
+    // that still jumps; boundingBox() below is what converts the position back.
+    if (snapshot.inFrame) {
+      await locator.scrollIntoViewIfNeeded();
+      await settle(locator);
+      return measure(locator);
+    }
+
     for (let hop = 0; hop < MAX_HOPS; hop++) {
-      const plan = scroll.planHop(snapshot, { cursor: page.__cursor, avoidBottom: await panelDepth() });
+      const plan = await nextHop(snapshot);
       if (!plan) return snapshot;
 
       // The wheel is delivered wherever the pointer stands, so it goes over the pane that has to
@@ -178,7 +191,7 @@ function buildContext({
       if (stuck) break;
     }
 
-    if (!scroll.planHop(snapshot, { cursor: page.__cursor, avoidBottom: await panelDepth() })) return snapshot;
+    if (!(await nextHop(snapshot))) return snapshot;
 
     // Nothing a wheel can reach will finish this: a pane that swallows the event, or a container
     // the app scrolls with its own script and hidden overflow. Take the jump rather than click at
@@ -189,7 +202,11 @@ function buildContext({
   }
 
   async function click(locator, { pause } = {}) {
-    const box = scroll.visibleBox(await bringIntoView(locator));
+    const found = await bringIntoView(locator);
+    // Inside a frame the only position page.mouse can use is the one Playwright converts, and it
+    // knows nothing of the panes clipping the element; everywhere else the visible part is what a
+    // click may aim at.
+    const box = found.inFrame ? await locator.boundingBox() : scroll.visibleBox(found);
     if (!box || box.width < 1 || box.height < 1) {
       throw new Error(
         'The element to click is not visible: no part of it is on screen, and scrolling to it did ' +

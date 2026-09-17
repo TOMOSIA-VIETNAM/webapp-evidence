@@ -70,6 +70,11 @@
     <ol id="history_items"></ol>
     <p><button id="archive" type="button">Archive the trail</button>
        <span id="archive_result"></span></p>
+    <!-- A frame of its own: what is measured inside one is in that frame's coordinates, while the
+         mouse is driven in this page's. A click that does not land proves the two were mixed up. -->
+    <iframe id="embedded" title="Embedded report" width="420" height="90" style="border:1px solid #d7dbe0"
+      srcdoc="&lt;button id=&quot;confirm&quot; style=&quot;font:14px system-ui;padding:8px 16px&quot;
+                onclick=&quot;this.textContent='Report confirmed'&quot;&gt;Confirm the report&lt;/button&gt;"></iframe>
   </section>
 </main>
 

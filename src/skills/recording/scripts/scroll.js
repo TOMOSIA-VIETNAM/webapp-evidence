@@ -158,7 +158,14 @@ const SNAPSHOT = (el) => {
     maxLeft: Math.max(0, doc.scrollWidth - window.innerWidth),
   });
 
-  return { target: rectOf(el.getBoundingClientRect()), view: { width: window.innerWidth, height: window.innerHeight }, frames };
+  return {
+    target: rectOf(el.getBoundingClientRect()),
+    view: { width: window.innerWidth, height: window.innerHeight },
+    frames,
+    // Everything above was measured in this frame. Inside an <iframe> that is not the frame the
+    // mouse is driven in, and the chain of panes ends at this document rather than at the page.
+    inFrame: window !== window.top,
+  };
 };
 
 // Wait until the element has stopped moving. An app with `scroll-behavior: smooth` animates the
@@ -169,13 +176,17 @@ const SNAPSHOT = (el) => {
 const SETTLE = (el, { stillFrames, timeoutMs }) => new Promise((resolve) => {
   // The deadline is kept on a timer rather than counted inside the frame callback: a tab the
   // browser has stopped drawing runs no frames at all, and waiting for one that never comes would
-  // hold the take until Playwright gave up on it.
-  const deadline = setTimeout(resolve, timeoutMs);
-  const finish = () => { clearTimeout(deadline); resolve(); };
+  // hold the take until Playwright gave up on it. It also ends the frame loop, so an element that
+  // never settles — a spinner, a carousel — does not leave one turning for the rest of the take,
+  // with another added at every click.
+  let running = true;
+  const finish = () => { running = false; clearTimeout(deadline); resolve(); };
+  const deadline = setTimeout(finish, timeoutMs);
 
   let previous = null;
   let still = 0;
   const step = () => {
+    if (!running) return;
     const rect = el.getBoundingClientRect();
     if (previous && Math.abs(rect.top - previous.top) < 0.5 && Math.abs(rect.left - previous.left) < 0.5) {
       still += 1;
@@ -189,4 +200,4 @@ const SETTLE = (el, { stillFrames, timeoutMs }) => new Promise((resolve) => {
   requestAnimationFrame(step);
 });
 
-module.exports = { planHop, visibleBox, intersect, shortfall, SNAPSHOT, SETTLE, FOCUS, MARGIN, MIN_SCROLL };
+module.exports = { planHop, visibleBox, intersect, SNAPSHOT, SETTLE, FOCUS, MARGIN };

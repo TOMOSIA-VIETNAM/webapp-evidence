@@ -32,11 +32,7 @@ script, and it only shows up when someone watches the video back.
 | `page.keyboard.press('Meta+C')` | `hotkey('ControlOrMeta+C', { label: 'コピー' })` |
 | a click that raises `alert`/`confirm` | `dialog(async () => click(locator))` — see below |
 | `locator.scrollIntoViewIfNeeded()` | nothing — `click(locator)` already scrolls to what it clicks |
-
-Reaching something below the fold is the same rule seen from the other side: the helpers scroll
-there themselves, one pane at a time, at a pace an eye can follow. Scrolling by hand
-(`page.mouse.wheel`, `scrollIntoView`) puts the page somewhere else between two frames, and the
-viewer is left watching a cursor travel towards something that was not on screen a moment earlier.
+| `page.mouse.wheel(...)`, `scrollIntoView()` | nothing — scrolling by hand moves the page between two frames, leaving the cursor travelling towards something that was not on screen |
 
 The helpers' default pacing is already tuned for a viewer to keep up. When it needs adjusting: hold a
 modal or dialog for at least 4s before closing it. Write `mark()` in the language the MR reviewer

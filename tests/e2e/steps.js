@@ -64,6 +64,15 @@ module.exports = {
     if (longest > 260) {
       throw new Error(`One scroll step covered ${longest}px, which reads as a jump rather than a scroll`);
     }
+    // A button inside an <iframe>: its position is measured in that frame's coordinates and the
+    // mouse is driven in the page's, so a click that misses lands on nothing and changes nothing.
+    // The button's own label is what says the two were reconciled.
+    const embedded = page.frameLocator('#embedded').locator('#confirm');
+    await click(embedded, { pause: 'quick' });
+    const confirmed = await embedded.innerText();
+    if (confirmed === 'Confirm the report') {
+      throw new Error('The click inside the frame did not reach the button');
+    }
     await shot('audit-trail');
 
     mark('Reveal a value that must not survive into the evidence');
