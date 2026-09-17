@@ -7,7 +7,7 @@ The module returns `{ app, name, start, run(ctx) }`. Inside `run`, use the helpe
 | Helper | What it does |
 |---|---|
 | `mark('purpose')` | Marks a span in the timeline. Name it by **purpose** — one group of actions — not one per click |
-| `click(locator, { pause })` | Moves the cursor to the element with momentum, then clicks (with a ripple effect). `pause` is the wait afterwards: `'quick'` / `'normal'` / `'observe'` or a number of ms |
+| `click(locator, { pause })` | Scrolls to the element if it is off screen, moves the cursor to it with momentum, then clicks (with a ripple effect). `pause` is the wait afterwards: `'quick'` / `'normal'` / `'observe'` or a number of ms |
 | `type(locator, text)` | Clicks into the field, then types character by character |
 | `select(locator, 'label')` | Opens a `<select>` inside the page and picks the option |
 | `upload(locator, path)` | Loads a file into a file input, then pauses so the filename becomes visible |
@@ -31,6 +31,8 @@ script, and it only shows up when someone watches the video back.
 | `locator.setInputFiles(path)` | `upload(locator, path)` |
 | `page.keyboard.press('Meta+C')` | `hotkey('ControlOrMeta+C', { label: 'コピー' })` |
 | a click that raises `alert`/`confirm` | `dialog(async () => click(locator))` — see below |
+| `locator.scrollIntoViewIfNeeded()` | nothing — `click(locator)` already scrolls to what it clicks |
+| `page.mouse.wheel(...)`, `scrollIntoView()` | nothing — scrolling by hand moves the page between two frames, leaving the cursor travelling towards something that was not on screen |
 
 The helpers' default pacing is already tuned for a viewer to keep up. When it needs adjusting: hold a
 modal or dialog for at least 4s before closing it. Write `mark()` in the language the MR reviewer

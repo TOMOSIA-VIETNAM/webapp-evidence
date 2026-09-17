@@ -39,6 +39,14 @@ const DEFAULTS = {
       cursorMinMs: 120,       // even sliding to the element right next door is no faster than this
       cursorMaxMs: 900,       // even crossing the whole screen takes no longer than this
       cursorSettleMs: 110,    // the correction after overshooting the target (only on long moves)
+      // Scrolling an element into view. The runner turns the wheel over this many milliseconds
+      // instead of jumping the page, because a jump reads as a cut in the video and leaves the
+      // cursor travelling towards something that was not on screen a frame earlier.
+      scrollFrameMs: 24,      // interval between two wheel deltas while the page travels
+      scrollBaseMs: 220,      // the fixed part of one scroll
+      scrollPerScreenMs: 620, // added per screenful of distance the page has to cover
+      scrollMaxMs: 2000,      // even scrolling to the far end of a long page takes no longer
+      afterScrollMs: 260,     // a beat once it lands, before aiming at what was scrolled to
       beforeClickMs: 250,     // aiming before the click; short slides aim faster automatically
       clickHoldMs: 85,        // how long the mouse button is held
       afterClickQuickMs: 220, // pause: 'quick' — a click that only moves on, nothing to look at

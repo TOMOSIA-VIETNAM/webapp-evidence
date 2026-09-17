@@ -176,7 +176,31 @@ test('two runs of the same script produce identical pacing', () => {
       person.moveDuration(400, 40),
       person.typeDelays('search term'),
       person.movePlan({ x: 0, y: 0 }, { x: 500, y: 300 }, 40).duration,
+      person.scrollPlan(0, 900).duration,
     ];
   };
   assert.deepEqual(take(), take());
+});
+
+test('a scroll takes longer the further the page has to travel, up to a ceiling', () => {
+  const duration = (distance) => human().scrollPlan(0, distance).duration;
+  assert.ok(duration(200) < duration(1200), 'a nudge cannot cost as much as a whole page');
+  // The ceiling is jittered like every other duration, hence the allowance on top of it.
+  assert.ok(duration(20000) <= PACE.scrollMaxMs * 1.12, 'even the longest page has a ceiling');
+});
+
+test('a scroll covers the distance it was asked for, and none of it backwards', () => {
+  const plan = human().scrollPlan(0, 1500);
+  assert.deepEqual(plan.at(0), { x: 0, y: 0 });
+  assert.deepEqual(plan.at(1), { x: 0, y: 1500 });
+  let previous = 0;
+  for (let t = 0; t <= 1; t += 0.05) {
+    const { y } = plan.at(t);
+    assert.ok(y >= previous, `the page went back up at ${t}`);
+    previous = y;
+  }
+});
+
+test('a scroll of less than a pixel is not worth a frame', () => {
+  assert.equal(human().scrollPlan(0, 0), null);
 });

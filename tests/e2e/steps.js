@@ -50,6 +50,31 @@ module.exports = {
       throw new Error(`The page was not marked notranslate: ${JSON.stringify(noTranslate)}`);
     }
 
+    mark('Reach the audit trail below the fold');
+    // The button is off screen, so this click can only happen by scrolling — and the check is on
+    // how the page got there. Jumping to it lands in the video as a cut, with the cursor sliding
+    // towards something that was not on screen a frame earlier; the step count below is what
+    // tells one from the other without watching anything.
+    await click(page.getByRole('button', { name: 'Archive the trail' }), { pause: 'observe' });
+    const scrolled = await page.evaluate(() => window.__scrollSteps);
+    if (scrolled.length < 5) {
+      throw new Error(`The page reached the button in ${scrolled.length} scroll steps; a viewer cannot follow that`);
+    }
+    const longest = Math.max(...scrolled);
+    if (longest > 260) {
+      throw new Error(`One scroll step covered ${longest}px, which reads as a jump rather than a scroll`);
+    }
+    // A button inside an <iframe>: its position is measured in that frame's coordinates and the
+    // mouse is driven in the page's, so a click that misses lands on nothing and changes nothing.
+    // The button's own label is what says the two were reconciled.
+    const embedded = page.frameLocator('#embedded').locator('#confirm');
+    await click(embedded, { pause: 'quick' });
+    const confirmed = await embedded.innerText();
+    if (confirmed === 'Confirm the report') {
+      throw new Error('The click inside the frame did not reach the button');
+    }
+    await shot('audit-trail');
+
     mark('Reveal a value that must not survive into the evidence');
     // The element does not exist on screen until the button is pressed, so the rectangle can only
     // be measured on the way out — which is the case worth exercising here.

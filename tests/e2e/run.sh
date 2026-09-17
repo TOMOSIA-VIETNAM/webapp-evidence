@@ -99,6 +99,7 @@ SHOTS=$(find "$OUT_DIR" -maxdepth 1 -name '[0-9][0-9]-*.png' | wc -l | tr -d ' '
 
 [ -f "$RUNBOOK" ] || fail "no runbook at $RUNBOOK"
 for phrase in 'Run the search' 'Open a row' 'Select all' 'demo fixture' 'BASE_URL' \
+              'Reach the audit trail below the fold' \
               'Commands run in the terminal' 'tail -f' 'wc -l' 'SyncJob' \
               'curl -sS' '/report' 'Call the export endpoint'; do
   grep -qF -- "$phrase" "$RUNBOOK" || fail "the runbook never mentions '$phrase'"

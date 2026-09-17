@@ -5,6 +5,10 @@
 <title>Evidence demo — user search</title>
 <style>
   :root { color-scheme: light; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  /* Plenty of real apps set this, and it changes what a recording has to cope with: a scroll the
+     runner asks for is then animated rather than instant, so anything measuring a position right
+     afterwards measures one the element is about to leave. */
+  html { scroll-behavior: smooth; }
   body { margin: 0; background: #f6f7f9; color: #1c2024; }
   header { background: #1f2937; color: #fff; padding: 14px 24px; font-weight: 600; }
   nav { background: #374151; color: #d1d5db; padding: 8px 24px; font-size: 13px; }
@@ -20,6 +24,10 @@
   th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-size: 14px; }
   th { background: #eef1f5; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: #4b5563; }
   #empty { padding: 16px; color: #6b7280; font-size: 14px; background: #fff; border-radius: 8px; }
+  /* Taller than the frame on purpose: the button under it can only be clicked after the page has
+     been scrolled, which is the one thing a page that fits on screen cannot exercise. */
+  #history { margin-top: 24px; background: #fff; border-radius: 8px; padding: 16px; }
+  #history li { font-size: 13px; color: #4b5563; line-height: 2.6; }
   dialog { border: 0; border-radius: 10px; padding: 0; width: 380px; background: #fff;
            box-shadow: 0 18px 50px rgba(0,0,0,.28); }
   dialog::backdrop { background: rgba(15, 23, 42, .45); }
@@ -60,6 +68,20 @@
     <thead><tr><th>Code</th><th>Name</th><th>Status</th><th></th></tr></thead>
     <tbody id="rows"></tbody>
   </table>
+
+  <section id="history">
+    <h3>Audit trail</h3>
+    <ol id="history_items"></ol>
+    <p><button id="archive" type="button">Archive the trail</button>
+       <span id="archive_result"></span></p>
+    <!-- A frame of its own, a screenful below the button above it: what is measured inside one is
+         in that frame's coordinates while the mouse is driven in this page's, and the page has to
+         travel to reach it. A click that does not land proves one of the two was got wrong. -->
+    <div style="height:900px"></div>
+    <iframe id="embedded" title="Embedded report" width="420" height="90" style="border:1px solid #d7dbe0"
+      srcdoc="&lt;button id=&quot;confirm&quot; style=&quot;font:14px system-ui;padding:8px 16px&quot;
+                onclick=&quot;this.textContent='Report confirmed'&quot;&gt;Confirm the report&lt;/button&gt;"></iframe>
+  </section>
 </main>
 
 <dialog id="detail">
@@ -116,6 +138,29 @@
   document.getElementById('close_detail').addEventListener('click', () => {
     document.getElementById('detail').close();
   });
+</script>
+<script>
+  // The audit trail, long enough that its button starts well below the fold.
+  const trail = document.getElementById('history_items');
+  for (let i = 1; i <= 24; i++) {
+    const item = document.createElement('li');
+    item.textContent = `2024-05-${String(i).padStart(2, '0')} 09:${String(i).padStart(2, '0')} — record U-10${i} updated`;
+    trail.appendChild(item);
+  }
+  document.getElementById('archive').addEventListener('click', () => {
+    document.getElementById('archive_result').textContent = 'The trail was archived.';
+  });
+
+  // Every scroll position the page passed through. A recording that jumps to the button leaves
+  // one huge step here; one that scrolls the way a hand does leaves many small ones — which is
+  // the difference the runner exists to make and the only place a test can see it without
+  // looking at the video.
+  window.__scrollSteps = [];
+  let lastY = window.scrollY;
+  window.addEventListener('scroll', () => {
+    window.__scrollSteps.push(Math.abs(window.scrollY - lastY));
+    lastY = window.scrollY;
+  }, { passive: true });
 </script>
 <script>
   // A value that must not survive into the evidence, so the take can prove it did not
