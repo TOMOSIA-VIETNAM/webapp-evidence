@@ -310,6 +310,18 @@ Read these when the step calls for them, not upfront:
 | `references/recording-a-screen.md` | The evidence is something a page recording cannot hold: a `<select>` menu, a file picker, a browser dialog, DevTools, anything outside the browser. Covers asking the user first, what each backend does and does not pick up, and which machines can do it at all |
 | `references/other-formats.md` | The take has to be a gif or a webm, and you need to know what that costs |
 
+Some kinds of evidence bring helpers of their own, and a page to read before writing the steps that
+use them. Read the row that matches what has to be proved; a flow that matches none of them needs
+nothing from here.
+
+| Case | Read it when |
+|---|---|
+| `cases/api/CASE.md` | The evidence is an endpoint: the recording has to call it with the session the browser is holding, and show what came back |
+
+In the terminal panel, type the command. `term.script(path, contents)` is for a setup that genuinely
+is a file — nobody writes a shell file to make one request, and a file that appears in the video is
+one that was worth writing.
+
 Templates to copy from: `assets/evidence.config.example.js` and `assets/steps.example.js`.
 
 To look at a take rather than describe it — checking your own recording, finding where a layout

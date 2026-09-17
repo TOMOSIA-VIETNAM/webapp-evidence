@@ -107,6 +107,36 @@ test('a long move overshoots the target before settling back', () => {
   assert.ok(Math.max(...positions) > 1200, `no overshoot: ${Math.max(...positions)}`);
 });
 
+test('a piece of typing short enough to stay within its budget is left at a human rate', () => {
+  const { typeDelays } = human({ jitter: 0 });
+  const total = (text) => typeDelays(text).reduce((sum, ms) => sum + ms, 0);
+  // What goes into a form field: the value being typed is the evidence, and the rhythm is what
+  // makes it read as somebody typing rather than a string being set.
+  assert.ok(total('nightly export job') < PACE.typeMaxMs);
+  assert.ok(total('nightly export job') > 18 * PACE.typeCharMs * 0.6);
+});
+
+test('a line too long to type at that rate is compressed to the budget, rhythm intact', () => {
+  const line = `curl -sS "https://app.example.com/api/orders?page=1" ${'-H x '.repeat(40)}`;
+  // Same seed, so both runs draw the same variation and the only difference is the budget.
+  const raw = human({ typeMaxMs: 0 }).typeDelays(line);
+  const squeezed = human().typeDelays(line);
+
+  const sum = (delays) => delays.reduce((total, ms) => total + ms, 0);
+  assert.ok(sum(raw) > PACE.typeMaxMs * 2, 'the line was not long enough to test a squeeze');
+  // Each delay is rounded to a whole millisecond and none falls below the floor that keeps this
+  // looking typed, so the budget is approached rather than hit exactly.
+  assert.ok(sum(squeezed) <= PACE.typeMaxMs * 1.02, `${sum(squeezed)}ms is over the budget`);
+
+  // The shape is what makes it read as typing: every delay shrank by the same factor, so the
+  // pauses on spaces and after punctuation are still there, in proportion.
+  const ratio = PACE.typeMaxMs / sum(raw);
+  for (let i = 0; i < raw.length; i++) {
+    assert.ok(Math.abs(squeezed[i] - raw[i] * ratio) <= 1, `character ${i} was not scaled with the rest`);
+  }
+  for (const ms of squeezed) assert.ok(ms >= 8, String(ms));
+});
+
 test('aiming takes longer after crossing the screen than after nudging one field over', () => {
   const { aimDelay } = human({ jitter: 0 });
   assert.ok(aimDelay(900) > aimDelay(30));

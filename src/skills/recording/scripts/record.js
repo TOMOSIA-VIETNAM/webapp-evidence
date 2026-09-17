@@ -11,6 +11,7 @@ const {
 const { createHuman, resolvePause } = require('./human');
 const { createCaptions } = require('./captions');
 const { createTerminal, isBehindPanel } = require('./terminal');
+const { loadCases, applyCases } = require('./cases');
 const {
   createRedactions, buildFilter, shiftTime, unionBox, padBox,
 } = require('./redaction');
@@ -75,7 +76,7 @@ function readingTime(text, pace) {
 // The mouse interpolates its way over before clicking, so the viewer can see where the click lands
 function buildContext({
   page, outDir, marks, hotkeys, notes, dialogs, startedAt, pace, viewport, human, captions,
-  terminal, redactions, capture, capturesBrowserUi,
+  terminal, redactions, capture, capturesBrowserUi, helpers = {},
 }) {
   const mark = (label) => marks.push({ at: (Date.now() - startedAt) / 1000, label });
   const since = () => (Date.now() - startedAt) / 1000;
@@ -133,7 +134,7 @@ function buildContext({
     if (!box) throw new Error('The element to click is not visible');
     // A click under the open terminal panel would work and would not be visible: the video shows
     // the panel where the button was, and the reviewer is left with a result and no action.
-    if (terminal.isOpen() && isBehindPanel(box, viewport.height, terminal.panelHeight)) {
+    if (terminal.isOpen() && isBehindPanel(box, viewport.height, await terminal.panelHeight())) {
       throw new Error(
         'The element to click is behind the terminal panel, so the click would not be visible ' +
         'in the recording.\nCall term.close() before operating on the bottom of the page.'
@@ -467,10 +468,23 @@ function buildContext({
     }
   }
 
-  return {
+  const scope = {
     page, mark, click, type, select, upload, hotkey, note, shot, redact, dialog, sleep, moveTo,
     term: terminal.term,
   };
+
+  // A case adds vocabulary to a step script; it does not get to change what one already means.
+  // Silently winning the name would make `click` do something else in a flow that never said so.
+  for (const [name, helper] of Object.entries(helpers)) {
+    if (name in scope) {
+      throw new Error(
+        `A case adds a helper called ${name}, which every step script already has.\n` +
+        'Give it a name of its own.'
+      );
+    }
+    scope[name] = helper;
+  }
+  return scope;
 }
 
 // The commands are the half of the evidence the video is worst at: a viewer scrubbing for the
@@ -482,7 +496,10 @@ function buildCommandSection(commands, trimAt, removed = []) {
   const rows = shown.map((entry) => {
     const at = fmt(entry.at);
     if (entry.kind === 'wait') return `- ${at}  waited for ${entry.text} — matched \`${entry.matched}\``;
-    const suffix = entry.kind === 'run' ? `exit ${entry.exitCode}`
+    // What a command proved, when it was run to prove something. Without it the row says a
+    // command ran and leaves the reader to take the rest from the video.
+    const suffix = entry.kind === 'run'
+      ? (entry.asserted ? `${entry.asserted}, exit ${entry.exitCode}` : `exit ${entry.exitCode}`)
       : entry.kind === 'start' ? 'started, left running'
       : 'interrupted';
     return `- ${at}  \`${entry.text}\` — ${suffix}`;
@@ -904,9 +921,33 @@ async function main() {
     secrets: accountSecrets(makeAccountStore(settings.output.accountStore).get(app)),
   });
 
+  // Loaded here because a case is handed the terminal it runs its commands in. Each one is given
+  // the same few things; anything a case needs beyond them is a change to the runner.
+  // What a case leaves on disk is cleaned up where the take ends. Both ways out of a take have to
+  // be covered, and neither is `process.on('exit')`.
+  const caseDisposers = [];
+  const helpers = applyCases(loadCases(path.join(__dirname, '..', 'cases')), {
+    page,
+    term: terminal.term,
+    root: ROOT,
+    registerSecret: terminal.registerSecret,
+    outDir,
+    onDispose: (fn) => caseDisposers.push(fn),
+  });
+
+  // Ctrl-C ends the process without running a `finally`, an `exit` handler or anything else the
+  // normal path relies on, so the one route that survives it is a signal handler. It re-raises
+  // afterwards to die the way it would have: an interrupt has already abandoned the encode, so
+  // there is nothing left here worth keeping the process alive for.
+  const onInterrupt = () => {
+    runCaseDisposers(caseDisposers);
+    process.kill(process.pid, 'SIGINT');
+  };
+  process.once('SIGINT', onInterrupt);
+
   const ctx = buildContext({
     page, outDir, marks, hotkeys, notes, dialogs, startedAt, pace, viewport, human, captions,
-    terminal, redactions, capture,
+    terminal, redactions, capture, helpers,
     // A dialog the browser draws is in the video when the window is being recorded, and needs a
     // caption standing in for it when only page content is.
     capturesBrowserUi: capture.mode !== 'page',
@@ -918,6 +959,8 @@ async function main() {
     // A step script that throws halfway must not leave a shell — or whatever it was running —
     // alive on the machine after the runner has gone.
     await terminal.dispose();
+    process.off('SIGINT', onInterrupt);
+    runCaseDisposers(caseDisposers);
   }
 
   await sleep(pace.tailMs);
@@ -993,13 +1036,27 @@ if (require.main === module) {
   });
 }
 
+// What the cases left on disk, removed. Synchronous on purpose: the interrupt route calls this
+// with a signal already in flight, where there is no turn of the event loop left to await in.
+// One failing must not stop the others, and none of them is a reason to lose a take that has
+// already been recorded.
+function runCaseDisposers(disposers) {
+  for (const dispose of disposers) {
+    try {
+      dispose();
+    } catch {
+      // Already gone, or never created. Either way there is nothing left to remove.
+    }
+  }
+}
+
 // buildContext is exposed so the real pacing of the actions (how long each helper takes) can be measured
 // without recording a whole video; everything else is a black box.
 module.exports = {
   main, buildContext, archivePreviousRun, reportResult, runArtifacts,
   // Exported for the unit tests: pure helpers that decide timings, timeline rows and the
   // .gitignore hints, none of which need a browser to be checked.
-  fmt, keyCaps, readingTime, buildTimeline, buildHotkeySection, buildNoteSection,
+  fmt, keyCaps, readingTime, runCaseDisposers, buildTimeline, buildHotkeySection, buildNoteSection,
   buildCommandSection, buildDialogSection, buildRedactionSection, buildRemovedSection, placeAt,
   ignoreHints,
   // Re-exported where the pacing tests already look for it; it lives in human.js with the rest

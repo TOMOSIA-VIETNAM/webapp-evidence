@@ -128,6 +128,7 @@ way.
 |---|---|
 | The click reached a worker, wrote a file, moved a row — `term` opens a real shell in the page | `terminal-in-the-page.md` |
 | Something on screen must not survive into the evidence — `redact()` covers it, in the video and the screenshot | `redaction.md` |
+| The claim is a request and its response — `api` calls the endpoint with the browser's own session | `cases/api/CASE.md` |
 
 ## A dialog the browser puts up
 

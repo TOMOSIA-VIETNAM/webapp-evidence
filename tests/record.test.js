@@ -15,7 +15,7 @@ process.env.PROJECT_ROOT = PROJECT;
 
 const {
   fmt, keyCaps, resolvePause, readingTime, buildTimeline, buildHotkeySection, buildNoteSection,
-  buildCommandSection, buildRedactionSection, buildRemovedSection, placeAt,
+  buildCommandSection, buildRedactionSection, buildRemovedSection, placeAt, runCaseDisposers,
   ignoreHints, runArtifacts, archivePreviousRun,
 } = require('../src/skills/recording/scripts/record');
 const { DEFAULTS } = require('../src/skills/recording/scripts/settings');
@@ -237,6 +237,16 @@ test('each kind of terminal step says what became of it', () => {
   assert.match(section, /SyncJob 12 finished/);
 });
 
+test('a command run to prove something carries what it asserted, not only that it ran', () => {
+  const section = buildCommandSection([
+    { at: 5, kind: 'run', text: 'curl -sS "https://app/api/orders"', exitCode: 0, asserted: 'asserted HTTP 201' },
+  ], 0);
+
+  // The runbook is read without the video beside it, so a row saying a request was made and
+  // nothing about what it had to answer leaves the reader with the command alone.
+  assert.match(section, /asserted HTTP 201, exit 0/);
+});
+
 test('command timestamps are relative to the trimmed start, like every other section', () => {
   const section = buildCommandSection([{ at: 65, kind: 'run', text: 'true', exitCode: 0 }], 5);
   assert.match(section, /01:00/);
@@ -312,4 +322,77 @@ test('the reader is told the video is shorter than what was recorded', () => {
   const section = buildRemovedSection([{ from: 3, to: 6 }, { from: 10, to: 12 }]);
   assert.match(section, /2 stretches/);
   assert.match(section, /5\.0s/);
+});
+
+// ---------- what a case adds to a step script ----------
+
+// buildContext takes the whole of the runner's state, and none of it matters to the two decisions
+// below: which names a step script can call, and what happens when a case claims one twice.
+const { buildContext } = require('../src/skills/recording/scripts/record');
+const { createTerminal } = require('../src/skills/recording/scripts/terminal');
+const { createHuman } = require('../src/skills/recording/scripts/human');
+const { resolveSettings } = require('../src/skills/recording/scripts/settings');
+
+const scopeFrom = (helpers) => buildContext({
+  page: {}, outDir: PROJECT, marks: [], hotkeys: [], notes: [], dialogs: [], startedAt: Date.now(),
+  pace: PACE, viewport: DEFAULTS.recording.viewport, human: {}, captions: { enabled: false },
+  terminal: { term: {}, isOpen: () => false }, redactions: [], capture: {}, helpers,
+});
+
+test('a helper a case adds is in the scope beside the ones every step script has', () => {
+  const scope = scopeFrom({ api: { from: () => 'req' } });
+  assert.equal(scope.api.from(), 'req');
+  assert.equal(typeof scope.click, 'function');
+  assert.equal(typeof scope.term, 'object');
+});
+
+test('a case cannot take a name a step script already means something by', () => {
+  assert.throws(() => scopeFrom({ click: () => {} }), /click/);
+});
+
+test('a secret a case registers is scrubbed out of the panel and out of the runbook', async () => {
+  // The value is registered the way a session is: after the terminal exists, before any command
+  // is typed. Both the line that uses it and the line that echoes it back have to come out masked.
+  const secret = 'a1b2c3-this-is-the-session-value';
+  const settings = resolveSettings({ recording: { speed: 'fast' } }).recording;
+  const sent = [];
+  const terminal = createTerminal({
+    page: { async evaluate(_fn, payload) { sent.push(payload); } },
+    viewport: settings.viewport,
+    config: settings.terminal,
+    human: createHuman({ pace: settings.pace, viewport: settings.viewport, seed: 'secrets' }),
+    pace: settings.pace,
+    since: () => 0,
+    root: PROJECT,
+  });
+
+  terminal.registerSecret(secret);
+  try {
+    await terminal.term.run(`echo ${secret}`, { pause: 'quick' });
+  } finally {
+    await terminal.dispose();
+  }
+
+  const drawn = sent.flatMap((payload) => payload.lines ?? [])
+    .flatMap((row) => row.map((segment) => segment.text)).join('');
+  assert.ok(drawn.includes('echo'), 'the command never reached the panel at all');
+  assert.ok(!drawn.includes(secret), 'the session is on screen in the panel');
+
+  const section = buildCommandSection(terminal.commands, 0);
+  assert.ok(section.includes('echo'), 'the command never reached the runbook');
+  assert.ok(!section.includes(secret), 'the session is written out in the runbook');
+});
+
+test('cleaning up after the cases runs every one of them, and outlives one that throws', () => {
+  const ran = [];
+  // Synchronous by contract: the interrupt route calls this with a signal already in flight, so
+  // anything returning a promise here would be abandoned unfinished.
+  const results = runCaseDisposers([
+    () => ran.push('first'),
+    () => { throw new Error('already gone'); },
+    () => ran.push('third'),
+  ]);
+
+  assert.equal(results, undefined);
+  assert.deepEqual(ran, ['first', 'third']);
 });

@@ -30,7 +30,14 @@ await term.close();
 | `term.start(cmd)` | the command to be typed and entered, nothing more | `tail -f`, a watcher, a server |
 | `term.waitFor(pattern)` | a string or RegExp to appear in the output | the assertion that makes it evidence |
 | `term.interrupt()` | the last `start` to stop, the way ^C would | stopping a `start` |
+| `term.script(path, contents)` | the file to be written, then `cat` and the run of it | a setup that genuinely is a file |
 | `term.close()` | the panel to slide out | |
+
+`term.script` writes the file before the panel opens and shows only the `cat` and the run, which is
+what someone with that file already in their repository would do. It runs the file with `sh`; pass
+`{ run: 'node seed.js' }` for anything else. Reach for it when the setup really is a file — a single
+command is typed, and a shell file written to hold one line is two steps in the video where there
+was one.
 
 `term.run` throws when the command exits non-zero, because a failing command in a piece of evidence
 is a broken take rather than a result — pass `{ allowFailure: true }` when the failure is the thing
@@ -47,6 +54,27 @@ quotes as the assertion.
 anything behind it: the click would work and the video would not show it. Finish with the page
 before opening the panel, or call `term.close()` before going back to it.
 
+**The panel is sized to the command it is showing.** It sits at three rows between commands, grows
+to fit the output as it arrives, and settles back when the next command needs less room.
+`recording.terminal.height` is the tallest it may become, not the strip it occupies for the whole
+take.
+
+**Output longer than the panel is revealed, not clipped.** The window over it moves down at a
+bounded speed, so every line the panel still holds is in a frame somewhere and a reviewer can pause
+on any of them. That takes time in the video: the runner prints a `SLOW OUTPUT:` line naming any
+command whose output took more than ten seconds to scroll past.
+
+An output bigger than what the panel keeps gets a `LOST OUTPUT:` line instead, naming how many
+lines fell off the top before the window reached them. Those are in no frame at all, so that take
+proves less than it appears to and is worth recording again.
+
+Either line is asking for a shorter command rather than a faster panel — pipe it through `jq`,
+`head` or `grep`.
+
+The runbook does not hold the output. It records each command, what it asserted and its exit code,
+so the video is the only place the output itself survives — which is the reason a long one is worth
+cutting down rather than leaving for the reader to scrub through.
+
 Three things it is not:
 
 - **Not a terminal emulator.** Line-oriented output only. A full-screen program — `vim`, `less`,
@@ -61,9 +89,10 @@ Three things it is not:
 
 The commands run from the project root, in a shell that inherits the environment the runner was
 started with — the `PATH` from rbenv, nvm or asdf still applies. `recording.terminal` in
-`evidence.config.js` changes the directory, the environment and the panel's size.
+`evidence.config.js` changes the directory, the environment, the panel's tallest size and how
+opaque it is; the `panel…` keys in `recording.pace` change how fast it grows and reveals.
 
 The password of the account used to sign in is blacked out of the panel, the runbook and the
-screenshots. Anything else your commands print that should not be in a video goes in
+screenshots — in what a command prints and in the command line itself. Anything else your commands print that should not be in a video goes in
 `recording.terminal.scrub`.
 

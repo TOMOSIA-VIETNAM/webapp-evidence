@@ -55,6 +55,11 @@ trap cleanup EXIT
 export DEMO_LOG="$OUT_DIR/worker.log"
 : >"$DEMO_LOG"
 
+# The session the demo app hands the browser. The take calls an endpoint with it from the terminal
+# panel, and the checks below prove it got there without the value appearing anywhere in the
+# evidence — which is the whole reason the cookies travel as a file.
+export DEMO_SESSION=demo-session-8f3c1d9a2b
+
 step "Serving the demo app"
 # The port is chosen by the OS, so two runs at once do not collide.
 SERVER_OUT="$OUT_DIR/.server"
@@ -94,11 +99,24 @@ SHOTS=$(find "$OUT_DIR" -maxdepth 1 -name '[0-9][0-9]-*.png' | wc -l | tr -d ' '
 
 [ -f "$RUNBOOK" ] || fail "no runbook at $RUNBOOK"
 for phrase in 'Run the search' 'Open a row' 'Select all' 'demo fixture' 'BASE_URL' \
-              'Commands run in the terminal' 'tail -f' 'wc -l' 'SyncJob'; do
+              'Commands run in the terminal' 'tail -f' 'wc -l' 'SyncJob' \
+              'curl -sS' '/report' 'Call the export endpoint'; do
   grep -qF -- "$phrase" "$RUNBOOK" || fail "the runbook never mentions '$phrase'"
 done
 grep -qE '^[0-9]{2}:[0-9]{2} - [0-9]{2}:[0-9]{2}' "$RUNBOOK" \
   || fail "the runbook has no timeline rows"
+
+# The request in the panel was made with the session the browser holds, and the runbook quotes
+# every command that ran. The session must be in none of it: handed to curl along the command line
+# it would be in the video for as long as the command was on screen, and in this file underneath.
+#
+# The status is not checked here — `expect: 200` in the step script is the assertion, and a take
+# that got anything else never reached the point of writing a runbook.
+step "Checking the session stayed out of the evidence"
+grep -q "$DEMO_SESSION" "$RUNBOOK" && fail "the session cookie is written out in $RUNBOOK"
+grep -q -- '-b /' "$RUNBOOK" || fail "the request did not send the session as a cookie file"
+[ -n "$(find "$OUT_DIR" -maxdepth 1 -name '*-api-response.png' | awk 'NR==1')" ] \
+  || fail "no screenshot was taken while the response was on screen"
 
 # Redaction has to hold in both places a frame ends up: the video and the screenshot taken while
 # the value was on screen. The runbook says where it was covered, so the check reads the rectangle
@@ -135,12 +153,17 @@ awk -v y="$COVER_LUMA" 'BEGIN { exit (y < 40) ? 0 : 1 }' \
   || fail "at ${COVER_T}s the API key region has brightness $COVER_LUMA, so it was not covered"
 
 # The runbook can carry the command section while the panel never actually drew: the value of the
-# terminal is that a reviewer SEES the log. The panel fills the bottom 300px of the frame with a
-# near-black background, so the average brightness there says whether it rendered.
+# terminal is that a reviewer SEES the log. The panel is dark and the demo app behind it is not, so
+# the average brightness along the bottom of the frame says whether it rendered.
+#
+# The band is narrow on purpose. The panel is sized to the command it is showing, and this
+# screenshot is taken on one that has printed two lines, so the panel is near its smallest — a band
+# as tall as the ceiling would be mostly page, and would read as bright however well the panel drew.
+PANEL_BAND=90
 PANEL_SHOT="$(find "$OUT_DIR" -maxdepth 1 -name '*-worker-finished.png' | awk 'NR==1')"
 [ -n "$PANEL_SHOT" ] || fail "no screenshot was taken while the terminal panel was open"
 PANEL_LUMA="$(ffprobe -v error -f lavfi \
-  -i "movie=${PANEL_SHOT},crop=iw:300:0:ih-300,signalstats" \
+  -i "movie=${PANEL_SHOT},crop=iw:${PANEL_BAND}:0:ih-${PANEL_BAND},signalstats" \
   -show_entries frame_tags=lavfi.signalstats.YAVG -of csv=p=0)"
 awk -v y="$PANEL_LUMA" 'BEGIN { exit (y < 70) ? 0 : 1 }' \
   || fail "the bottom of $PANEL_SHOT has brightness $PANEL_LUMA, so the terminal panel did not draw"
@@ -153,6 +176,7 @@ printf '\nPASSED\n'
 printf '  video     %s (%s bytes, %.1fs)\n' "$VIDEO" "$SIZE" "$DURATION"
 printf '  runbook   %s\n' "$RUNBOOK"
 printf '  screenshots %s\n' "$SHOTS"
-printf '  panel     drawn (brightness %s under the fold)\n' "$PANEL_LUMA"
+printf '  panel     drawn (brightness %s over the bottom %spx)\n' "$PANEL_LUMA" "$PANEL_BAND"
 printf '  redaction video %s, screenshot chroma %s\n' "$COVER_LUMA" "$SHOT_CHROMA"
+printf '  endpoint  answered 200, session kept out of the runbook\n'
 [ "$KEEP" = yes ] || printf '\nRe-run with --keep to watch the video.\n'

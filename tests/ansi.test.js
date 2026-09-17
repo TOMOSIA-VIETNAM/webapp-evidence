@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const { createScreen } = require('../src/skills/recording/scripts/ansi.js');
+const { createScreen, MAX_COLUMNS } = require('../src/skills/recording/scripts/ansi.js');
 
 const plain = (screen) => screen.lines().map((segments) => segments.map((s) => s.text).join(''));
 
@@ -125,4 +125,27 @@ test('writing past the end of a shorter line pads with spaces, keeping columns a
   padded.write('\x1b[K');
   padded.write('z');
   assert.deepStrictEqual(plain(padded), ['', 'z']);
+});
+
+test('a line reaching the panel width wraps onto the next row rather than being cut off', () => {
+  const screen = createScreen({ columns: 10 });
+  screen.write('0123456789abcde');
+  assert.deepStrictEqual(plain(screen), ['0123456789', 'abcde']);
+});
+
+test('the width a screen is given cannot take it past the cap it draws within', () => {
+  const screen = createScreen({ columns: 10_000 });
+  screen.write('x'.repeat(MAX_COLUMNS + 5));
+  assert.deepStrictEqual(plain(screen).map((line) => line.length), [MAX_COLUMNS, 5]);
+});
+
+test('a full screen counts the rows it lets go of, so a caller can correct the indexes it kept', () => {
+  const screen = createScreen({ maxLines: 3 });
+  assert.equal(screen.droppedRows(), 0);
+  screen.write('one\ntwo\nthree\n');
+  assert.equal(screen.droppedRows(), 1);
+  assert.deepStrictEqual(plain(screen), ['two', 'three', '']);
+  screen.write('four\nfive\n');
+  // Two more rows pushed two more off the top, and the count never resets.
+  assert.equal(screen.droppedRows(), 3);
 });

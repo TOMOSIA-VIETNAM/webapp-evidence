@@ -139,6 +139,10 @@ function createHuman({ pace, viewport, seed }) {
     return wait(pace.beforeClickMs * share);
   };
 
+  // No two characters ever land closer together than this, however hard the budget squeezes: below
+  // it the text stops appearing and starts being pasted.
+  const MIN_CHAR_MS = 8;
+
   // People do not type evenly: they slow down on spaces and after punctuation, and now and then
   // hesitate for a beat.
   const charDelay = (char, prev) => {
@@ -146,10 +150,22 @@ function createHuman({ pace, viewport, seed }) {
     if (char === ' ') ms *= 1.4;
     if (prev && '.,;:!?、。」）)'.includes(prev)) ms *= 1.8;
     if (rng() < 0.05) ms *= between(2.2, 3.4);
-    return Math.max(8, Math.round(ms));
+    return Math.max(MIN_CHAR_MS, Math.round(ms));
   };
 
-  const typeDelays = (text) => Array.from(String(text)).map((char, i, all) => charDelay(char, all[i - 1]));
+  // A per-character rate is right for what people type into a form and wrong for anything long:
+  // the rhythm reads as a person at a keyboard, and two hundred characters of it is twenty
+  // seconds of a video in which nothing else happens. Past a budget for the whole piece the same
+  // delays are scaled to fit it, which keeps the rhythm — the pauses on spaces and after
+  // punctuation stay in proportion — and lets a long line arrive at the speed of someone who
+  // knows what they are typing.
+  const typeDelays = (text) => {
+    const delays = Array.from(String(text)).map((char, i, all) => charDelay(char, all[i - 1]));
+    const total = delays.reduce((sum, ms) => sum + ms, 0);
+    if (!pace.typeMaxMs || total <= pace.typeMaxMs) return delays;
+    const ratio = pace.typeMaxMs / total;
+    return delays.map((ms) => Math.max(MIN_CHAR_MS, Math.round(ms * ratio)));
+  };
 
   // Until the cursor has appeared in the frame there is no such thing as "where it is standing".
   // Bring it in from a point off the centre so the first move does not look like a jump.

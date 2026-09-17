@@ -15,6 +15,11 @@ const ROOT = path.join(__dirname, 'app');
 const LOG = process.env.DEMO_LOG;
 let job = 0;
 
+// The session the page hands the browser. The end-to-end check names the value, then proves the
+// recording carried it to an endpoint without ever putting it on screen: a session is the one
+// thing a request made from a video must not show.
+const SESSION = process.env.DEMO_SESSION;
+
 // Two lines, seconds apart, because that is the shape of the thing being demonstrated: the click
 // returns immediately and the work finishes later. A take that could only ever match a line
 // already on disk would not show waiting for anything.
@@ -64,6 +69,23 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // A response several times longer than the panel can hold in one screenful. The terminal reveals
+  // long output by moving a window down it, and the only way to see that working is a command
+  // whose output really is longer than the panel — an export summary is the shape a step script
+  // meets it in. Twelve records is around eighty lines: enough to scroll for several seconds,
+  // short enough that the runner does not tell the operator to cut it down.
+  if (rel === 'report') {
+    const rows = Array.from({ length: 12 }, (_, i) => ({
+      id: `U-${1001 + i}`,
+      name: `account ${i + 1}`,
+      status: i % 3 === 0 ? 'suspended' : 'active',
+      exported_at: `2024-05-${String((i % 28) + 1).padStart(2, '0')}T09:00:00Z`,
+    }));
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ job: 'nightly-export', records: rows }, null, 2));
+    return;
+  }
+
   if (rel === 'trigger') {
     trigger();
     res.writeHead(202, { 'content-type': 'text/plain' });
@@ -81,7 +103,11 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  res.writeHead(200, { 'content-type': TYPES[path.extname(file)] || 'application/octet-stream' });
+  const headers = { 'content-type': TYPES[path.extname(file)] || 'application/octet-stream' };
+  if (SESSION && path.extname(file) === '.html') {
+    headers['set-cookie'] = `demo_session=${SESSION}; Path=/`;
+  }
+  res.writeHead(200, headers);
   res.end(fs.readFileSync(file));
 });
 

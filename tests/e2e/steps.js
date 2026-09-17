@@ -4,14 +4,15 @@
 // shortcut that leaves no trace on screen, a caption, a modal, and screenshots along the way.
 //
 // The last part is the one the browser cannot prove by itself: a button whose work happens on the
-// server, checked by reading the log in the terminal panel.
+// server, checked by reading the log in the terminal panel, and an endpoint called in that same
+// panel with the session the browser is holding.
 const path = require('path');
 
 module.exports = {
   name: 'e2e-user-search',
   start: '/',
 
-  async run({ page, mark, click, type, select, upload, hotkey, note, shot, sleep, term, redact }) {
+  async run({ page, mark, click, type, select, upload, hotkey, note, shot, sleep, term, redact, api }) {
     if (!process.env.DEMO_LOG) throw new Error('DEMO_LOG must point at the demo app\'s log file');
 
     mark('Open the search screen');
@@ -69,6 +70,14 @@ module.exports = {
     await shot('worker-finished');
     await term.interrupt();
     await term.run('wc -l < "$DEMO_LOG"');
+
+    mark('Call the export endpoint with the session the browser is holding');
+    // The request is made from the same session as the page, and the cookie carrying it reaches
+    // curl as a file: the check afterwards greps the runbook for that value and fails if it is
+    // anywhere in the evidence.
+    const req = await api.from(page);
+    await req.curl('GET', '/report', { expect: 200, jq: '.records[0]' });
+    await shot('api-response');
     await term.close();
   },
 };
