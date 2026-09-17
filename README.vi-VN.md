@@ -172,7 +172,7 @@ screenshot ngay sau đó. Modal, date picker và dropdown viết bằng JS thì 
 Khi chính hộp thoại đó là thứ cần chứng minh, nó quay được cửa sổ trình duyệt thay vì trang, và lúc
 đó chúng nằm trong video. Cách này cần màn hình, cần quyền, và cần bạn không đụng máy suốt lượt
 quay — nên không phải mặc định. Agent sẽ hỏi bạn trước, và một thông báo hiện lên màn hình chỉ bạn
-chỗ có câu hỏi.
+chỗ có câu hỏi. Muốn đi thẳng thì gõ `/webapp-evidence:recording --screen`.
 
 Thông tin nhạy cảm hiện trên màn có thể làm mờ, che kín hoặc cắt khỏi bản quay — nói ra khi bạn mô
 tả luồng, và nó cũng được giữ khỏi ảnh chụp.

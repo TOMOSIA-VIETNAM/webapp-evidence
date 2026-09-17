@@ -18,6 +18,7 @@ explained below.
 src/skills/recording/      records a take — the one copy every platform reads
   SKILL.md                 what an agent reads when the skill triggers
   references/              detail it loads only when a step needs it
+  cases/                   a kind of evidence that brings helpers: CASE.md plus index.js
   assets/                  templates a project copies: evidence.config.js, steps.js
   scripts/                 record.js, inspect.js, convert.js and their modules
 src/skills/vision/         reads a take back: contact-sheet.js tiles it into timestamped sheets

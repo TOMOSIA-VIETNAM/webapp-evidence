@@ -5,6 +5,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const path = require('node:path');
 
 const api = require('../src/skills/recording/cases/api');
 
@@ -18,17 +19,30 @@ const options = (extra = {}) => ({
 test('a GET carries no -X: nobody types the verb curl already uses', () => {
   const line = api.buildCurl(options());
   assert.ok(!line.includes('-X'), line);
-  assert.match(line, /^curl -sS "https:\/\/app\.example\.com\/api\/orders"/);
+  assert.match(line, /^curl -sS 'https:\/\/app\.example\.com\/api\/orders'/);
 });
 
 test('the query is in the URL, and the URL is quoted so a & cannot end the command', () => {
   const line = api.buildCurl(options({ url: 'https://app.example.com/api/orders?page=2&status=open' }));
-  assert.ok(line.includes('"https://app.example.com/api/orders?page=2&status=open"'), line);
+  assert.ok(line.includes("'https://app.example.com/api/orders?page=2&status=open'"), line);
+});
+
+test('a URL carrying shell syntax is quoted so the shell cannot run any of it', () => {
+  // `new URL` percent-encodes a backtick and everything in a query string, and leaves `$(` and
+  // `${` in a path alone — so the path is what reaches the command line able to run.
+  const line = api.buildCurl(options({ url: 'https://app.example.com/r/$(touch /tmp/pwned)' }));
+  assert.ok(line.includes("'https://app.example.com/r/$(touch /tmp/pwned)'"), line);
+  assert.ok(!line.includes('"'), line);
+});
+
+test('a URL with a quote in it cannot close the quoting around it', () => {
+  const line = api.buildCurl(options({ url: "https://app.example.com/r/'; id; '" }));
+  assert.ok(line.includes(`'https://app.example.com/r/'\\''; id; '\\'''`), line);
 });
 
 test('a POST says so, sends the body, and declares what the body is', () => {
   const line = api.buildCurl(options({ method: 'POST', json: { sku: 'ABC', qty: 2 } }));
-  assert.match(line, /curl -sS -X POST "https:\/\/app\.example\.com\/api\/orders"/);
+  assert.match(line, /curl -sS -X POST 'https:\/\/app\.example\.com\/api\/orders'/);
   assert.ok(line.includes("-H 'Content-Type: application/json'"), line);
   assert.ok(line.includes(`-d '${JSON.stringify({ sku: 'ABC', qty: 2 })}'`), line);
 });
@@ -77,6 +91,11 @@ const cookies = [
   { name: 'session', value: SESSION, domain: 'app.example.com', path: '/', expires: -1, httpOnly: true, secure: true },
 ];
 
+// The runner is what removes a session in a real take, and there is no runner here. Without this
+// every test that opens one leaves a cookie jar in the system temp directory.
+const everyDisposer = [];
+test.after(() => { for (const fn of everyDisposer) { try { fn(); } catch { /* already gone */ } } });
+
 function harness(answers = []) {
   const events = [];
   const term = {
@@ -86,8 +105,20 @@ function harness(answers = []) {
     },
   };
   const registerSecret = (value) => events.push({ registered: value });
-  const { api: helper } = api.helpers({ term, registerSecret });
-  return { helper, events, ran: () => events.filter((e) => e.ran).map((e) => e.ran) };
+  // The runner ends the take and so owns what the case leaves on disk; the harness collects the
+  // same callbacks so a test can run them and see the session go.
+  const disposers = [];
+  const { api: helper } = api.helpers({
+    term,
+    registerSecret,
+    onDispose: (fn) => { disposers.push(fn); everyDisposer.push(fn); },
+  });
+  return {
+    helper,
+    events,
+    ran: () => events.filter((e) => e.ran).map((e) => e.ran),
+    dispose: async () => { for (const fn of disposers) await fn(); },
+  };
 }
 
 const page = {
@@ -165,4 +196,14 @@ test('a response the pipe could not read is a failure even when the status was r
   const { helper } = harness([{ exitCode: 5, output: 'HTTP 200 in 0.020s\nparse error: Invalid literal\n' }]);
   const req = await helper.from(page);
   await assert.rejects(() => req.curl('GET', '/api/orders', { expect: 200 }), /parse error/);
+});
+
+test('the session the case wrote is removed when the runner ends the take', async () => {
+  const { helper, dispose } = harness();
+  const req = await helper.from(page);
+  assert.ok(fs.existsSync(req.jar), 'the cookie jar was never written');
+
+  await dispose();
+  assert.ok(!fs.existsSync(req.jar), 'the session outlived the take');
+  assert.ok(!fs.existsSync(path.dirname(req.jar)), 'the session directory outlived the take');
 });

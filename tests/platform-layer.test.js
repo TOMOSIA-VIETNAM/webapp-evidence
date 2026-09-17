@@ -379,11 +379,14 @@ test('install.sh says so when the ref never reached Claude Code', () => {
   assert.ok(!script.includes(`${PLUGIN}@${MARKETPLACE}`), 'install.sh hardcodes the plugin id');
 });
 
-test('the version in gemini-extension.json keeps up with the published releases', () => {
+test('the version in gemini-extension.json is never behind the published releases', () => {
   // Gemini CLI reads this manifest, and a git tag cannot be moved once someone has installed from
-  // it — so a tag placed over a stale version ships that number permanently. Release notes come
-  // from .claude/commands/release-now.md, which checks this before tagging; this catches the case
-  // where the tag went out anyway.
+  // it — so a tag placed over a stale version ships that number permanently.
+  //
+  // Behind is the fault. Ahead is not: `main` only takes a change through a PR, so the bump lands
+  // as its own PR and the tag follows it, and between those two the manifest names a release that
+  // does not exist yet. Requiring the two to match made that window red, on a repository whose
+  // own release procedure creates it.
   const declared = readJson('gemini-extension.json').version;
   assert.match(declared, /^\d+\.\d+\.\d+$/, `version is "${declared}"`);
 
@@ -391,7 +394,14 @@ test('the version in gemini-extension.json keeps up with the published releases'
     .split('\n').map((t) => t.trim()).filter((t) => t && !/-rc\d+$/.test(t));
   if (!tags.length) return;   // nothing released yet; the manifest has nothing to keep up with
 
-  assert.equal(`v${declared}`, tags[0], 'the manifest is behind the newest release');
+  // Compared as numbers, not as text: "1.10.0" is ahead of "1.9.0" and sorts before it.
+  const parts = (version) => version.replace(/^v/, '').split('.').map(Number);
+  const order = (a, b) => a.reduce((so_far, n, i) => (so_far !== 0 ? so_far : n - b[i]), 0);
+
+  assert.ok(
+    order(parts(declared), parts(tags[0])) >= 0,
+    `the manifest says ${declared} and ${tags[0]} is already released — a tag placed over it ships that number for good`,
+  );
 });
 
 test('every demo file the READMEs link to exists', () => {
