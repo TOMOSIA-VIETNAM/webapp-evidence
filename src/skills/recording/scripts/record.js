@@ -496,7 +496,10 @@ function buildCommandSection(commands, trimAt, removed = []) {
   const rows = shown.map((entry) => {
     const at = fmt(entry.at);
     if (entry.kind === 'wait') return `- ${at}  waited for ${entry.text} — matched \`${entry.matched}\``;
-    const suffix = entry.kind === 'run' ? `exit ${entry.exitCode}`
+    // What a command proved, when it was run to prove something. Without it the row says a
+    // command ran and leaves the reader to take the rest from the video.
+    const suffix = entry.kind === 'run'
+      ? (entry.asserted ? `${entry.asserted}, exit ${entry.exitCode}` : `exit ${entry.exitCode}`)
       : entry.kind === 'start' ? 'started, left running'
       : 'interrupted';
     return `- ${at}  \`${entry.text}\` — ${suffix}`;

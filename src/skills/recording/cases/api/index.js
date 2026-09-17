@@ -145,7 +145,13 @@ function helpers({ term, registerSecret }) {
 
         // Run as it would be from a keyboard: a 404 is an answer, not a broken shell, so the
         // status decides the outcome rather than curl's exit code.
-        const result = await term.run(command, { allowFailure: true, pause });
+        const result = await term.run(command, {
+          allowFailure: true,
+          pause,
+          // What the step claims, recorded beside the command: a reader of the runbook alone
+          // otherwise sees that a request was made and has to take the rest from the video.
+          assert: expect === undefined ? undefined : `asserted HTTP ${expect}`,
+        });
         const status = readStatus(result.output);
 
         if (status === null) {

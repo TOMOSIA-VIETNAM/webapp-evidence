@@ -237,6 +237,16 @@ test('each kind of terminal step says what became of it', () => {
   assert.match(section, /SyncJob 12 finished/);
 });
 
+test('a command run to prove something carries what it asserted, not only that it ran', () => {
+  const section = buildCommandSection([
+    { at: 5, kind: 'run', text: 'curl -sS "https://app/api/orders"', exitCode: 0, asserted: 'asserted HTTP 201' },
+  ], 0);
+
+  // The runbook is read without the video beside it, so a row saying a request was made and
+  // nothing about what it had to answer leaves the reader with the command alone.
+  assert.match(section, /asserted HTTP 201, exit 0/);
+});
+
 test('command timestamps are relative to the trimmed start, like every other section', () => {
   const section = buildCommandSection([{ at: 65, kind: 'run', text: 'true', exitCode: 0 }], 5);
   assert.match(section, /01:00/);

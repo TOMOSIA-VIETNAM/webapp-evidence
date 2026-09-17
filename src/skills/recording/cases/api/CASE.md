@@ -66,16 +66,26 @@ reason to show it.
 ## `expect` is the assertion
 
 The status is written to standard error by curl itself, so it is on screen whether or not the body
-goes through `jq`, and the runbook records it beside the command. Without `expect` the take is a
-recording of a command that ran; with it, the take fails on the spot when the answer changes.
+goes through `jq`, and the runbook records what was asserted beside the command. Without `expect`
+the take is a recording of a command that ran; with it, the take fails on the spot when the answer
+changes, and the runbook says what it was holding the endpoint to.
 
 Assert the status the merge request claims, not the one that happens to come back.
 
+The response body is not in the runbook — only the command, what it asserted and its exit code. The
+video is where the body survives, so hold on it long enough to be found: `pause: 4000` on the
+request that carries the result, rather than the default beat after a command.
+
 ## What a request costs in screen time
 
-The command is typed at the speed a person types, and the line this case builds runs to about a
-hundred and sixty characters, so one request is around ten seconds of video before the answer
-appears. That is the price of a line a reviewer can read and check the status against.
+The command is typed at the speed a person types. A plain request runs to about a hundred and sixty
+characters — some ten seconds of video before the answer appears — and a `jq` filter of any
+substance takes it past two hundred and fifty, which is nearer twenty.
+
+That cuts against the advice below it, and knowingly: shortening a long response lengthens the
+command that shortens it. The trade is still worth making, because a filtered response is read in
+one frame while an unfiltered one scrolls for half the take — but it is a trade, not a saving.
+Write the shortest filter that answers the question, not the one that shows everything interesting.
 
 Plan the flow around it. Two or three requests are a recording; ten are a script — write the file,
 show it once with `term.script()`, and let the run prove the lot.

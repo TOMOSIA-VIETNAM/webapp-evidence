@@ -50,3 +50,18 @@ the video being able to stand on its own for the one thing it was recorded to sh
 
 Worth deciding between: wrapping a command line only (not output), shrinking the font for the row
 that overflows, or building a shorter line at the cost of what it shows.
+
+## The step-script template asks for an app that a config-free take does not have
+
+`assets/steps.example.js` opens with `app: 'admin'`, commented as the name of an app declared in
+`evidence.config.js`. A recording driven by `BASE_URL` has no config and no app to name, and
+`SKILL.md` says as much — without saying that the key can then be left out. Dropping it works: the
+runner fills it in. Leaving it in, with a name nothing declares, does not.
+
+The template is the first file anyone copies, and it is written for the path with a config only.
+
+## The full-page screenshot is not in the count the operator was expecting
+
+Every take also writes `99-full-page.png`, which nothing in `references/output-locations.md`
+mentions. A step script that takes three screenshots is reported as having taken four, which reads
+as a script that ran differently from how it was written.

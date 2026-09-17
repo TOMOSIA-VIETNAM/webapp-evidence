@@ -350,20 +350,20 @@ function createTerminal({ page, viewport, config, human, pace, since, secrets = 
       await sleep(320);
     },
 
-    async run(command, { timeout, allowFailure = false, pause } = {}) {
+    async run(command, { timeout, allowFailure = false, pause, assert: asserted } = {}) {
       if (!open) await term.open();
       await typeCommand(scrub(command));
       const result = await guard(shell.run(command, timeout ? { timeout } : {}));
       await revealThrough(screen.rowCount());
-      record({ kind: 'run', text: scrub(command), exitCode: result.exitCode });
+      record({ kind: 'run', text: scrub(command), exitCode: result.exitCode, asserted });
       // A response nobody will read is a step script that piped nothing into `jq`, not a panel to
       // scroll faster: every line was shown, which for an output this long is most of the take.
       // Said once, with the command that did it, where the operator will see it.
       if (scrolledMs > pace.panelRevealWarnMs) {
         console.log(
           `SLOW OUTPUT: \`${scrub(command)}\` took ${(scrolledMs / 1000).toFixed(1)}s to scroll past in ` +
-          'the panel. Cut it down with jq, head or grep and record again — the full output is in ' +
-          'the runbook either way.'
+          'the panel. Every line was in a frame, so nothing was lost — but that is most of the ' +
+          'take spent on one output. Cut it down with jq, head or grep and record again.'
         );
       }
       writePrompt();
