@@ -135,12 +135,17 @@ awk -v y="$COVER_LUMA" 'BEGIN { exit (y < 40) ? 0 : 1 }' \
   || fail "at ${COVER_T}s the API key region has brightness $COVER_LUMA, so it was not covered"
 
 # The runbook can carry the command section while the panel never actually drew: the value of the
-# terminal is that a reviewer SEES the log. The panel fills the bottom 300px of the frame with a
-# near-black background, so the average brightness there says whether it rendered.
+# terminal is that a reviewer SEES the log. The panel is dark and the demo app behind it is not, so
+# the average brightness along the bottom of the frame says whether it rendered.
+#
+# The band is narrow on purpose. The panel is sized to the command it is showing, and this
+# screenshot is taken on one that has printed two lines, so the panel is near its smallest — a band
+# as tall as the ceiling would be mostly page, and would read as bright however well the panel drew.
+PANEL_BAND=90
 PANEL_SHOT="$(find "$OUT_DIR" -maxdepth 1 -name '*-worker-finished.png' | awk 'NR==1')"
 [ -n "$PANEL_SHOT" ] || fail "no screenshot was taken while the terminal panel was open"
 PANEL_LUMA="$(ffprobe -v error -f lavfi \
-  -i "movie=${PANEL_SHOT},crop=iw:300:0:ih-300,signalstats" \
+  -i "movie=${PANEL_SHOT},crop=iw:${PANEL_BAND}:0:ih-${PANEL_BAND},signalstats" \
   -show_entries frame_tags=lavfi.signalstats.YAVG -of csv=p=0)"
 awk -v y="$PANEL_LUMA" 'BEGIN { exit (y < 70) ? 0 : 1 }' \
   || fail "the bottom of $PANEL_SHOT has brightness $PANEL_LUMA, so the terminal panel did not draw"
@@ -153,6 +158,6 @@ printf '\nPASSED\n'
 printf '  video     %s (%s bytes, %.1fs)\n' "$VIDEO" "$SIZE" "$DURATION"
 printf '  runbook   %s\n' "$RUNBOOK"
 printf '  screenshots %s\n' "$SHOTS"
-printf '  panel     drawn (brightness %s under the fold)\n' "$PANEL_LUMA"
+printf '  panel     drawn (brightness %s over the bottom %spx)\n' "$PANEL_LUMA" "$PANEL_BAND"
 printf '  redaction video %s, screenshot chroma %s\n' "$COVER_LUMA" "$SHOT_CHROMA"
 [ "$KEEP" = yes ] || printf '\nRe-run with --keep to watch the video.\n'

@@ -50,6 +50,20 @@ const DEFAULTS = {
       afterSelectMs: 900,
       afterUploadMs: 1200,    // hold so the file name has time to appear
       afterCommandMs: 1600,   // hold after a command finishes, so its output can be read
+      // The terminal panel is sized to the command it is showing and reveals long output by
+      // moving a window down it, and both of those are paced for a viewer rather than measured
+      // out by a machine. Everything here scales with `speed` like the waits above it, so a take
+      // recorded fast scrolls proportionally faster.
+      panelGrowMs: 220,       // the panel opening up; fast enough not to delay the output it is making room for
+      panelShrinkMs: 320,     // and settling back, slower — a panel that snaps down reads as a glitch
+      panelSettleMs: 500,     // new content is held still this long before the window moves on, so the eye reaches it
+      panelRevealMs: 6000,    // how long the window aims to take over one command's overflow, whatever its size
+      panelRowFastestMs: 50,  // and never less than this per row: below it only a paused frame is readable
+      panelRowSlowestMs: 125, // nor more than this per row: reading pace, for an overflow of a few lines
+      // Above this much scrolling for a single command the runner tells the operator to cut the
+      // output down. It still shows every line — the fix is a `jq` in the step script, not a
+      // faster panel — and it scales with speed so the same commands are named at any speed.
+      panelRevealWarnMs: 10000,
       dialogHoldMs: 2600,     // how long a browser dialog stays up before it is answered
       beforeHotkeyMs: 450,    // the key hint overlay appears first, then the keys are pressed
       hotkeyHoldMs: 1400,     // keep the overlay up after the press, long enough to read both the keys and the result
@@ -96,11 +110,17 @@ const DEFAULTS = {
     // so a step script can prove what happened behind the browser — a job that was enqueued, a
     // file that was written — without recording the whole screen.
     terminal: {
-      // The bottom strip of the frame the panel occupies. null derives it from the viewport, so
-      // a small frame does not have to override a number it never asked for — and a take that
-      // never opens a terminal is never stopped by one.
+      // The tallest the panel may become. It grows to fit the command it is showing and settles
+      // back when the next one needs less room, so this is the worst case the application being
+      // recorded has to live with, not the strip the panel occupies for the whole take. null
+      // derives it from the viewport, so a small frame does not have to override a number it
+      // never asked for — and a take that never opens a terminal is never stopped by one.
       height: null,
       fontSize: 13,
+      // How opaque the panel's background is. It is drawn over the application being recorded,
+      // and the application is the point of the recording: at less than fully opaque the page
+      // under it still reads. Below 0.5 the output stops being legible over a light page.
+      opacity: 0.86,
       // --norc keeps the take independent of whoever's dotfiles are on the machine. The
       // environment is still inherited, so a PATH set up by rbenv, nvm or asdf applies.
       shell: ['bash', '--norc', '--noprofile', '-s'],
@@ -248,6 +268,10 @@ function parseSwitch(value, name) {
 const MIN_PANEL_ROWS_HEIGHT = 120;
 const MAX_PANEL_SHARE = 0.6;
 
+// Any more see-through than this and the output stops being readable over a light page, which
+// costs more than the glimpse of the application behind it is worth.
+const MIN_PANEL_OPACITY = 0.5;
+
 function resolveTerminal({ terminal, viewport }) {
   const fail = (key, message) => {
     throw new Error(`recording.terminal.${key} ${message}`);
@@ -272,6 +296,10 @@ function resolveTerminal({ terminal, viewport }) {
   }
   if (!Number.isFinite(terminal.fontSize) || terminal.fontSize < 9 || terminal.fontSize > 24) {
     fail('fontSize', `must be between 9 and 24, got ${JSON.stringify(terminal.fontSize)}`);
+  }
+  if (!Number.isFinite(terminal.opacity)
+      || terminal.opacity < MIN_PANEL_OPACITY || terminal.opacity > 1) {
+    fail('opacity', `must be between ${MIN_PANEL_OPACITY} and 1, got ${JSON.stringify(terminal.opacity)}`);
   }
   if (!Array.isArray(terminal.shell) || !terminal.shell.length
       || terminal.shell.some((part) => typeof part !== 'string')) {

@@ -181,6 +181,40 @@ test('the terminal panel is a share of the frame, not a fixed number of pixels',
   assert.ok(small.recording.terminal.height > 0);
 });
 
+test('the panel is translucent by default, so the page under it is still readable', () => {
+  assert.equal(resolveSettings({}).recording.terminal.opacity, DEFAULTS.recording.terminal.opacity);
+  assert.equal(
+    resolveSettings({ recording: { terminal: { opacity: 0.95 } } }).recording.terminal.opacity,
+    0.95,
+  );
+});
+
+test('an opacity that would make the output unreadable is refused, and so is one over solid', () => {
+  // 0.5 and 1 are both allowed; the check is on what lies outside them.
+  assert.equal(resolveSettings({ recording: { terminal: { opacity: 0.5 } } }).recording.terminal.opacity, 0.5);
+  assert.equal(resolveSettings({ recording: { terminal: { opacity: 1 } } }).recording.terminal.opacity, 1);
+  assert.throws(() => resolveSettings({ recording: { terminal: { opacity: 0.3 } } }), /opacity/);
+  assert.throws(() => resolveSettings({ recording: { terminal: { opacity: 1.2 } } }), /opacity/);
+});
+
+// ---------- the panel's pacing scales with the take's speed ----------
+
+test('the reveal slows down and speeds up with the rest of the take', () => {
+  const { result: slow } = resolve({ recording: { speed: 'slowest' } });
+  const { result: fast } = resolve({ recording: { speed: 'fast' } });
+  for (const key of ['panelGrowMs', 'panelShrinkMs', 'panelSettleMs', 'panelRevealMs',
+                     'panelRowFastestMs', 'panelRowSlowestMs', 'panelRevealWarnMs']) {
+    assert.ok(slow.recording.pace[key] > DEFAULTS.recording.pace[key], key);
+    assert.ok(fast.recording.pace[key] < DEFAULTS.recording.pace[key], key);
+  }
+});
+
+test('a project can slow the reveal down on its own, the way it can slow a click', () => {
+  const { result } = resolve({ recording: { pace: { panelRevealMs: 12000 } } });
+  assert.equal(result.recording.pace.panelRevealMs, 12000);
+  assert.equal(result.recording.pace.panelGrowMs, DEFAULTS.recording.pace.panelGrowMs);
+});
+
 test('a height written down by the project is still checked against the frame', () => {
   assert.throws(
     () => resolveSettings({ recording: { viewport: { width: 800, height: 480 }, terminal: { height: 400 } } }),

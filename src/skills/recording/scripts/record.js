@@ -133,7 +133,7 @@ function buildContext({
     if (!box) throw new Error('The element to click is not visible');
     // A click under the open terminal panel would work and would not be visible: the video shows
     // the panel where the button was, and the reviewer is left with a result and no action.
-    if (terminal.isOpen() && isBehindPanel(box, viewport.height, terminal.panelHeight)) {
+    if (terminal.isOpen() && isBehindPanel(box, viewport.height, await terminal.panelHeight())) {
       throw new Error(
         'The element to click is behind the terminal panel, so the click would not be visible ' +
         'in the recording.\nCall term.close() before operating on the bottom of the page.'

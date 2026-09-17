@@ -47,6 +47,18 @@ quotes as the assertion.
 anything behind it: the click would work and the video would not show it. Finish with the page
 before opening the panel, or call `term.close()` before going back to it.
 
+**The panel is sized to the command it is showing.** It sits at three rows between commands, grows
+to fit the output as it arrives, and settles back when the next command needs less room.
+`recording.terminal.height` is the tallest it may become, not the strip it occupies for the whole
+take.
+
+**Output longer than the panel is revealed, not clipped.** The window over it moves down at a
+bounded speed, so every line is in a frame somewhere and a reviewer can pause on any of them. That
+takes time in the video: the runner prints a `SLOW OUTPUT:` line naming any command whose output
+took more than ten seconds to scroll past. That line is asking for a shorter command, not a faster
+panel — pipe it through `jq`, `head` or `grep` and record again. The full output is in the runbook
+either way.
+
 Three things it is not:
 
 - **Not a terminal emulator.** Line-oriented output only. A full-screen program — `vim`, `less`,
@@ -61,7 +73,8 @@ Three things it is not:
 
 The commands run from the project root, in a shell that inherits the environment the runner was
 started with — the `PATH` from rbenv, nvm or asdf still applies. `recording.terminal` in
-`evidence.config.js` changes the directory, the environment and the panel's size.
+`evidence.config.js` changes the directory, the environment, the panel's tallest size and how
+opaque it is; the `panel…` keys in `recording.pace` change how fast it grows and reveals.
 
 The password of the account used to sign in is blacked out of the panel, the runbook and the
 screenshots. Anything else your commands print that should not be in a video goes in

@@ -1,12 +1,15 @@
-// The panel's geometry: how many rows of output fit, and how wide the shell should believe it
-// is. Both are read by the runner before a browser exists, and both go wrong quietly — too many
-// rows and the newest output is drawn below the bottom edge of the panel, too few columns and
-// every listing comes out one item per line.
+// The panel's geometry and its pacing: how many rows of output fit, how tall the panel has to be
+// to hold them, how fast the window over a long output may travel, and how wide the shell should
+// believe it is. All of it is read by the runner before a browser exists, and all of it goes
+// wrong quietly — a row drawn below the bottom edge of the panel, a column count that makes every
+// listing come out one item per line, an output that scrolls past between two frames of the video.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  visibleRows, columnsFor, isBehindPanel, LINE_HEIGHT, PANEL_CHROME_PX,
+  createTerminal, visibleRows, idleHeight, heightFor, revealPlan, columnsFor, isBehindPanel,
+  LINE_HEIGHT, PANEL_CHROME_PX, IDLE_ROWS,
 } = require('../src/skills/recording/scripts/terminal');
+const { createHuman } = require('../src/skills/recording/scripts/human');
 const { resolveSettings } = require('../src/skills/recording/scripts/settings');
 
 test('the rows sent fit inside the panel, with none drawn past its bottom edge', () => {
@@ -59,4 +62,217 @@ test('an element ending exactly on the panel edge is not covered', () => {
 test('a taller panel covers more of the frame', () => {
   assert.equal(isBehindPanel(box(420, 40), 800, 300), false);
   assert.equal(isBehindPanel(box(420, 40), 800, 420), true);
+});
+
+// ---------- the height that holds a given amount of output ----------
+
+const FONT = 13;
+const CEILING = 300;
+const bounds = { base: idleHeight(FONT), ceiling: CEILING };
+
+test('a panel with nothing to show is still a panel', () => {
+  // Sliding fully out and back between commands is motion that means nothing, so the floor is
+  // the title bar and a few rows rather than zero.
+  assert.equal(heightFor(0, FONT, bounds), idleHeight(FONT));
+  assert.equal(heightFor(1, FONT, bounds), idleHeight(FONT));
+  assert.ok(visibleRows(idleHeight(FONT), FONT) >= IDLE_ROWS);
+});
+
+test('more output than the frame has room for stops at the configured ceiling', () => {
+  assert.equal(heightFor(500, FONT, bounds), CEILING);
+  assert.ok(heightFor(8, FONT, bounds) < CEILING);
+});
+
+test('a height and a row count say the same thing about each other', () => {
+  // The runner decides in rows and the page draws in pixels. A height that shows one row fewer
+  // than it was asked for puts the newest line below the bottom edge, where nothing draws it.
+  for (const rows of [3, 5, 9, 13]) {
+    assert.equal(visibleRows(heightFor(rows, FONT, bounds), FONT), rows, `${rows} rows`);
+  }
+});
+
+// ---------- how fast the window may travel ----------
+
+const pacing = (config = {}) => resolveSettings(config).recording.pace;
+
+test('an overflow short enough to read is revealed at reading pace', () => {
+  const pace = pacing();
+  const { rowsPerSecond, durationMs } = revealPlan(20, pace);
+  assert.equal(rowsPerSecond, 1000 / pace.panelRowSlowestMs);
+  assert.ok(durationMs < pace.panelRevealMs);
+});
+
+test('an overflow too long to read at that pace is capped, and reported as too long', () => {
+  const pace = pacing();
+  const { rowsPerSecond, durationMs } = revealPlan(400, pace);
+  assert.equal(rowsPerSecond, 1000 / pace.panelRowFastestMs);
+  // Nothing is truncated: it takes as long as it takes, and the runner says so instead.
+  assert.ok(durationMs > pace.panelRevealWarnMs);
+});
+
+test('between the two ends, the size of the output does not decide how long it takes', () => {
+  const pace = pacing();
+  const middle = revealPlan(90, pace);
+  assert.ok(middle.rowsPerSecond > 1000 / pace.panelRowSlowestMs);
+  assert.ok(middle.rowsPerSecond < 1000 / pace.panelRowFastestMs);
+  assert.ok(Math.abs(middle.durationMs - pace.panelRevealMs) < 1);
+});
+
+test('nothing waiting below the window is no movement at all', () => {
+  assert.equal(revealPlan(0, pacing()).durationMs, 0);
+});
+
+test('a faster take scrolls proportionally faster', () => {
+  const normal = revealPlan(90, pacing());
+  const fast = revealPlan(90, pacing({ recording: { speed: 'fast' } }));
+  assert.ok(fast.rowsPerSecond > normal.rowsPerSecond);
+  assert.ok(fast.durationMs < normal.durationMs);
+});
+
+// ---------- a real shell, printing more than the panel can hold ----------
+
+// The panel is never opened here: what is checked is the payload the runner would send, which is
+// the only thing that decides what a frame of the video can contain.
+function recordingPage() {
+  const sent = [];
+  return {
+    sent,
+    async evaluate(_fn, payload) { sent.push(payload); },
+  };
+}
+
+function terminalUnderTest(config = {}) {
+  const settings = resolveSettings({ recording: { speed: 'fast', ...config } }).recording;
+  const page = recordingPage();
+  const built = createTerminal({
+    page,
+    viewport: settings.viewport,
+    config: settings.terminal,
+    human: createHuman({ pace: settings.pace, viewport: settings.viewport, seed: 'reveal' }),
+    pace: settings.pace,
+    since: () => 0,
+    root: process.cwd(),
+  });
+  return { ...built, page, settings };
+}
+
+// What the panel is showing in a given update: the rows between the window's position and the
+// bottom edge of a panel that tall.
+const windowOf = (payload, fontSize) => {
+  const top = Math.floor(payload.scrollRow);
+  return { top, bottom: top + visibleRows(payload.height, fontSize) };
+};
+
+test('every line of an output too long for the panel lands inside some frame', async () => {
+  const { term, page, dispose, settings } = terminalUnderTest();
+  try {
+    await term.open();
+    await term.run('seq 40', { pause: 'quick' });
+  } finally {
+    await dispose();
+  }
+
+  const text = (payload, row) => (payload.lines[row - payload.linesFrom] || [])
+    .map((segment) => segment.text).join('');
+
+  // Every number seq printed was on the panel at some point, not just the last screenful.
+  const shown = new Set();
+  for (const payload of page.sent) {
+    const { top, bottom } = windowOf(payload, settings.terminal.fontSize);
+    for (let row = top; row < bottom; row++) shown.add(text(payload, row).trim());
+  }
+  for (let i = 1; i <= 40; i++) {
+    assert.ok(shown.has(String(i)), `line ${i} was never inside the panel`);
+  }
+});
+
+test('the window only ever moves down, and never past what it has shown', async () => {
+  const { term, page, dispose, settings } = terminalUnderTest();
+  try {
+    await term.open();
+    await term.run('seq 40', { pause: 'quick' });
+    // The second command resizes the panel, which is where a window measured from the top edge
+    // goes wrong: the bottom edge comes up ten rows and the newest output is left above it.
+    await term.run('echo done', { pause: 'quick' });
+  } finally {
+    await dispose();
+  }
+
+  let previous = null;
+  for (const payload of page.sent) {
+    const here = windowOf(payload, settings.terminal.fontSize);
+    if (previous) {
+      assert.ok(here.top >= previous.top, 'the window jumped back up the output');
+      // Overlapping windows are what "no line was skipped" means frame by frame: a step wider
+      // than the panel would carry rows across it between two updates and into no frame at all.
+      assert.ok(here.top <= previous.bottom, 'the window skipped past rows it never showed');
+      // A resize moves the panel's edges, not the output inside it. The row on the bottom row
+      // stays there, so a panel that has just shrunk is not suddenly behind again.
+      assert.ok(here.bottom >= previous.bottom, 'resizing the panel took back rows it had reached');
+    }
+    previous = here;
+  }
+  assert.ok(previous.top > 0, 'the output never scrolled, so this proved nothing');
+});
+
+test('the panel grows for an output that needs the room and settles back for one that does not', async () => {
+  const { term, page, dispose, settings } = terminalUnderTest();
+  const floor = idleHeight(settings.terminal.fontSize);
+  let grown = 0;
+  try {
+    await term.open();
+    assert.equal(page.sent[page.sent.length - 1].height, floor);
+    await term.run('seq 40', { pause: 'quick' });
+    grown = page.sent[page.sent.length - 1].height;
+    await term.run('echo done', { pause: 'quick' });
+  } finally {
+    await dispose();
+  }
+
+  assert.ok(grown > floor, 'the panel never grew for forty lines of output');
+  assert.ok(grown <= settings.terminal.height, 'the panel grew past the configured ceiling');
+  assert.equal(page.sent[page.sent.length - 1].height, floor);
+});
+
+test('a resize takes as long as its direction says, and only when the height changes', async () => {
+  const { term, page, dispose, settings } = terminalUnderTest();
+  try {
+    await term.open();
+    await term.run('seq 40', { pause: 'quick' });
+    await term.run('echo done', { pause: 'quick' });
+  } finally {
+    await dispose();
+  }
+
+  const moves = [];
+  let height = null;
+  for (const payload of page.sent) {
+    if (height !== null && payload.height !== height) moves.push(payload.heightMs);
+    else if (height !== null) assert.equal(payload.heightMs, 0);
+    height = payload.height;
+  }
+  assert.ok(moves.includes(settings.pace.panelGrowMs), 'nothing was ever sent as a grow');
+  assert.ok(moves.includes(settings.pace.panelShrinkMs), 'nothing was ever sent as a shrink');
+});
+
+test('an output that takes too long to scroll past is named on stdout, not cut short', async () => {
+  // The threshold is lowered instead of printing the two hundred lines it would take to cross the
+  // real one: what is being checked is that the runner speaks up, and which command it names.
+  const { term, page, dispose } = terminalUnderTest({ pace: { panelRevealWarnMs: 200 } });
+  const said = [];
+  const log = console.log;
+  console.log = (...args) => said.push(args.join(' '));
+  try {
+    await term.open();
+    await term.run('seq 40', { pause: 'quick' });
+  } finally {
+    console.log = log;
+    await dispose();
+  }
+
+  const warning = said.find((line) => line.includes('seq 40'));
+  assert.ok(warning, `nothing was said about the long output: ${JSON.stringify(said)}`);
+  // Every line still went to the panel: the runner asks for a shorter command, it does not fold.
+  const last = page.sent[page.sent.length - 1];
+  assert.ok(last.scrollRow > 0);
 });
