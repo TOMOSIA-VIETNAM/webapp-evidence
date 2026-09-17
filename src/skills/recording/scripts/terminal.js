@@ -10,10 +10,12 @@
 // that prints more than fits does not have the middle of its output scroll past between two
 // redraws and never appear in a single frame. Those are decisions, not drawing, so they are made
 // here where they can be unit tested; the page is handed a window and a time to take reaching it.
+const fs = require('fs');
 const path = require('path');
 const { createScreen } = require('./ansi');
 const { createShell } = require('./shell');
 const { createScrub } = require('./scrub');
+const { assertOutsideSkill } = require('./session');
 const { resolvePause } = require('./human');
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -81,6 +83,14 @@ function revealPlan(backlogRows, pace) {
 const columnsFor = (viewportWidth, fontSize) =>
   Math.max(40, Math.floor((viewportWidth - 28) / (fontSize * 0.6)));
 
+// A path the way someone at that shell would type it: relative to where the shell is, unless
+// that turns into a string of ../.. that is longer and harder to read than the path itself.
+function asTyped(target, from) {
+  const relative = path.relative(from, target);
+  const shown = relative && !relative.startsWith('..') ? relative : target;
+  return /\s/.test(shown) ? `"${shown}"` : shown;
+}
+
 // A click under the open panel would work and would not be visible. The decision is its own
 // function because it is the kind that goes wrong by one pixel and is never noticed: the video
 // shows the panel where the button was, and the reviewer is left with a result and no action.
@@ -91,7 +101,20 @@ function createTerminal({ page, viewport, config, human, pace, since, secrets = 
   const {
     height: ceiling, fontSize, opacity, shell: shellCommand, cwd, env, scrub: patterns, title,
   } = config;
-  const scrub = createScrub({ secrets, patterns });
+
+  // The list of secrets grows while a take runs: a flow that collects a session registers every
+  // value in it before its first command is typed. What a scrub matches is decided when its
+  // patterns are compiled, so a new secret rebuilds it rather than being appended to a list
+  // nothing reads again.
+  const known = [...secrets];
+  let compiled = createScrub({ secrets: known, patterns });
+  const scrub = (text) => compiled(text);
+  const registerSecret = (value) => {
+    known.push(value);
+    compiled = createScrub({ secrets: known, patterns });
+  };
+
+  const workingDir = cwd || root;
   const screen = createScreen({ maxLines: SCROLLBACK_ROWS });
   const commands = [];
 
@@ -255,7 +278,7 @@ function createTerminal({ page, viewport, config, human, pace, since, secrets = 
     shell = createShell({
       command: shellCommand[0],
       args: shellCommand.slice(1),
-      cwd: cwd || root,
+      cwd: workingDir,
       env: { COLUMNS: String(columnsFor(viewport.width, fontSize)), ...env },
       scrub,
       onOutput: (text) => {
@@ -284,6 +307,10 @@ function createTerminal({ page, viewport, config, human, pace, since, secrets = 
   // The command is typed into the runner's own screen, not echoed back by a terminal. Same
   // rhythm as typing into a form field, so a take does not change pace when it moves from the
   // browser to the shell.
+  //
+  // What is typed is the scrubbed command, while the shell is sent the real one: a secret is as
+  // exposed in the line that used it as in the line that echoed it back, and this is the only
+  // place the two versions can differ.
   async function typeCommand(text) {
     // The prompt row is where this command's block begins, and the block is what the panel is
     // sized to. Everything above it belongs to the command before.
@@ -321,16 +348,16 @@ function createTerminal({ page, viewport, config, human, pace, since, secrets = 
 
     async run(command, { timeout, allowFailure = false, pause } = {}) {
       if (!open) await term.open();
-      await typeCommand(command);
+      await typeCommand(scrub(command));
       const result = await guard(shell.run(command, timeout ? { timeout } : {}));
       await revealThrough(screen.rowCount());
-      record({ kind: 'run', text: command, exitCode: result.exitCode });
+      record({ kind: 'run', text: scrub(command), exitCode: result.exitCode });
       // A response nobody will read is a step script that piped nothing into `jq`, not a panel to
       // scroll faster: every line was shown, which for an output this long is most of the take.
       // Said once, with the command that did it, where the operator will see it.
       if (scrolledMs > pace.panelRevealWarnMs) {
         console.log(
-          `SLOW OUTPUT: \`${command}\` took ${(scrolledMs / 1000).toFixed(1)}s to scroll past in ` +
+          `SLOW OUTPUT: \`${scrub(command)}\` took ${(scrolledMs / 1000).toFixed(1)}s to scroll past in ` +
           'the panel. Cut it down with jq, head or grep and record again — the full output is in ' +
           'the runbook either way.'
         );
@@ -342,7 +369,7 @@ function createTerminal({ page, viewport, config, human, pace, since, secrets = 
       await sleep(human.wait(resolvePause(pause, pace, pace.afterCommandMs)));
       if (result.exitCode !== 0 && !allowFailure) {
         throw new Error(
-          `\`${command}\` exited with code ${result.exitCode}.\n` +
+          `\`${scrub(command)}\` exited with code ${result.exitCode}.\n` +
           `${result.output.trim() || '(no output)'}\n\n` +
           'A failing command in a recording is a broken take, not a result. Pass ' +
           '{ allowFailure: true } if the failure is the thing being shown.'
@@ -351,15 +378,41 @@ function createTerminal({ page, viewport, config, human, pace, since, secrets = 
       return result;
     },
 
+    // A file, shown and then run. Everything else here is for the short way — one line, typed —
+    // because that is how a person does one thing, and a step script that writes a shell file to
+    // run a single command has put two steps in the video where there was one.
+    //
+    // This is the other case: a setup that genuinely is a file. It is written before the panel
+    // opens, so what the viewer sees is someone reading and running a file that was already
+    // there, rather than the runner creating one in front of them.
+    async script(file, body, { run, pause } = {}) {
+      if (typeof body !== 'string') {
+        throw new Error(
+          'term.script() takes the file and what goes in it: term.script(path, contents).'
+        );
+      }
+      // Resolved against the shell's own directory, because that is where the path in the
+      // command will be read from when it runs.
+      const target = assertOutsideSkill(path.resolve(workingDir, file), 'The script to show in the terminal');
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.writeFileSync(target, body);
+
+      const typed = asTyped(target, workingDir);
+      // Shown first and run second, which is the order that lets a reviewer read what is about
+      // to happen before it does.
+      await term.run(`cat ${typed}`, { pause: 'quick' });
+      return term.run(run ?? `sh ${typed}`, { pause });
+    },
+
     // For a command that does not end on its own. It is backgrounded so the shell stays
     // available, but no prompt is drawn: on screen it reads as the foreground command it stands
     // in for, and interrupt() ends it the way ^C would.
     async start(command, { timeout } = {}) {
       if (!open) await term.open();
-      await typeCommand(command);
+      await typeCommand(scrub(command));
       const { pid } = await guard(shell.start(command, timeout ? { timeout } : {}));
       started.push({ pid, command });
-      record({ kind: 'start', text: command });
+      record({ kind: 'start', text: scrub(command) });
       await paint();
       return { pid };
     },
@@ -370,7 +423,7 @@ function createTerminal({ page, viewport, config, human, pace, since, secrets = 
       // The matched line can still be below the window while the output that carried it is being
       // walked through. Holding on a line the frame does not contain proves nothing.
       await revealThrough(screen.rowCount());
-      record({ kind: 'wait', text: String(pattern), matched: match[0] });
+      record({ kind: 'wait', text: scrub(String(pattern)), matched: scrub(match[0]) });
       await paint();
       // The line that matched is the assertion the take rests on. It has just appeared, so hold
       // on it rather than moving on the instant the pattern is found.
@@ -385,7 +438,7 @@ function createTerminal({ page, viewport, config, human, pace, since, secrets = 
       await paint();
       await guard(shell.interrupt(job.pid));
       await revealThrough(screen.rowCount());
-      record({ kind: 'interrupt', text: job.command });
+      record({ kind: 'interrupt', text: scrub(job.command) });
       writePrompt();
       await paint();
       await sleep(human.wait(pace.afterClickQuickMs));
@@ -404,6 +457,9 @@ function createTerminal({ page, viewport, config, human, pace, since, secrets = 
     term,
     commands,
     isOpen: () => open,
+    // Everything the panel draws, the runbook quotes and a screenshot catches goes through one
+    // scrub, so a value handed to this is covered in all three or in none of them.
+    registerSecret,
     // Asked of the page rather than answered from here: this file knows the height the panel is
     // being animated towards, and a click lands while it is still on its way there.
     async panelHeight() {

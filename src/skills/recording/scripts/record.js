@@ -11,6 +11,7 @@ const {
 const { createHuman, resolvePause } = require('./human');
 const { createCaptions } = require('./captions');
 const { createTerminal, isBehindPanel } = require('./terminal');
+const { loadCases, applyCases } = require('./cases');
 const {
   createRedactions, buildFilter, shiftTime, unionBox, padBox,
 } = require('./redaction');
@@ -75,7 +76,7 @@ function readingTime(text, pace) {
 // The mouse interpolates its way over before clicking, so the viewer can see where the click lands
 function buildContext({
   page, outDir, marks, hotkeys, notes, dialogs, startedAt, pace, viewport, human, captions,
-  terminal, redactions, capture, capturesBrowserUi,
+  terminal, redactions, capture, capturesBrowserUi, helpers = {},
 }) {
   const mark = (label) => marks.push({ at: (Date.now() - startedAt) / 1000, label });
   const since = () => (Date.now() - startedAt) / 1000;
@@ -467,10 +468,23 @@ function buildContext({
     }
   }
 
-  return {
+  const scope = {
     page, mark, click, type, select, upload, hotkey, note, shot, redact, dialog, sleep, moveTo,
     term: terminal.term,
   };
+
+  // A case adds vocabulary to a step script; it does not get to change what one already means.
+  // Silently winning the name would make `click` do something else in a flow that never said so.
+  for (const [name, helper] of Object.entries(helpers)) {
+    if (name in scope) {
+      throw new Error(
+        `A case adds a helper called ${name}, which every step script already has.\n` +
+        'Give it a name of its own.'
+      );
+    }
+    scope[name] = helper;
+  }
+  return scope;
 }
 
 // The commands are the half of the evidence the video is worst at: a viewer scrubbing for the
@@ -904,9 +918,15 @@ async function main() {
     secrets: accountSecrets(makeAccountStore(settings.output.accountStore).get(app)),
   });
 
+  // Loaded here because a case is handed the terminal it runs its commands in. Each one is given
+  // the same few things; anything a case needs beyond them is a change to the runner.
+  const helpers = applyCases(loadCases(path.join(__dirname, '..', 'cases')), {
+    page, term: terminal.term, root: ROOT, registerSecret: terminal.registerSecret, outDir,
+  });
+
   const ctx = buildContext({
     page, outDir, marks, hotkeys, notes, dialogs, startedAt, pace, viewport, human, captions,
-    terminal, redactions, capture,
+    terminal, redactions, capture, helpers,
     // A dialog the browser draws is in the video when the window is being recorded, and needs a
     // caption standing in for it when only page content is.
     capturesBrowserUi: capture.mode !== 'page',

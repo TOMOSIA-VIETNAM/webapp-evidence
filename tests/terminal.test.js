@@ -5,6 +5,17 @@
 // listing come out one item per line, an output that scrolls past between two frames of the video.
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+
+// The panel refuses to write a script inside the skill directory, and it reads where that is from
+// session.js — which refuses to load from in there at all. This repository IS that directory, so
+// the scratch project is named before the module is required.
+const PROJECT = fs.mkdtempSync(path.join(os.tmpdir(), 'evidence-terminal-'));
+process.env.PROJECT_ROOT = PROJECT;
+test.after(() => fs.rmSync(PROJECT, { recursive: true, force: true }));
+
 const {
   createTerminal, visibleRows, idleHeight, heightFor, revealPlan, columnsFor, isBehindPanel,
   LINE_HEIGHT, PANEL_CHROME_PX, IDLE_ROWS,
@@ -141,7 +152,7 @@ function recordingPage() {
   };
 }
 
-function terminalUnderTest(config = {}) {
+function terminalUnderTest(config = {}, root = process.cwd()) {
   const settings = resolveSettings({ recording: { speed: 'fast', ...config } }).recording;
   const page = recordingPage();
   const built = createTerminal({
@@ -151,7 +162,7 @@ function terminalUnderTest(config = {}) {
     human: createHuman({ pace: settings.pace, viewport: settings.viewport, seed: 'reveal' }),
     pace: settings.pace,
     since: () => 0,
-    root: process.cwd(),
+    root,
   });
   return { ...built, page, settings };
 }
@@ -275,4 +286,53 @@ test('an output that takes too long to scroll past is named on stdout, not cut s
   // Every line still went to the panel: the runner asks for a shorter command, it does not fold.
   const last = page.sent[page.sent.length - 1];
   assert.ok(last.scrollRow > 0);
+});
+
+// ---------- a file, shown and then run ----------
+
+test('the script is on disk before the panel shows it, and both commands are in the take', async () => {
+  const { term, commands, dispose } = terminalUnderTest({}, PROJECT);
+  const file = path.join(PROJECT, 'check-export.sh');
+  try {
+    const result = await term.script(file, 'echo counted 3 rows\n', { pause: 'quick' });
+    assert.equal(result.exitCode, 0);
+  } finally {
+    await dispose();
+  }
+
+  assert.equal(fs.readFileSync(file, 'utf8'), 'echo counted 3 rows\n');
+  // Typed the way someone at that shell would type them: relative to where the shell is.
+  assert.deepEqual(commands.map((entry) => entry.text), ['cat check-export.sh', 'sh check-export.sh']);
+  assert.ok(commands.every((entry) => entry.kind === 'run'));
+});
+
+test('another interpreter is named by the step script rather than guessed from the name', async () => {
+  const { term, commands, dispose } = terminalUnderTest({}, PROJECT);
+  const file = path.join(PROJECT, 'count.js');
+  try {
+    await term.script(file, 'console.log(3);\n', { run: 'node count.js', pause: 'quick' });
+  } finally {
+    await dispose();
+  }
+  assert.deepEqual(commands.map((entry) => entry.text), ['cat count.js', 'node count.js']);
+});
+
+test('a script inside the skill directory is refused, like everything else a take writes', async () => {
+  const { term, dispose } = terminalUnderTest({}, PROJECT);
+  const inside = path.resolve(__dirname, '../src/skills/recording/scratch.sh');
+  try {
+    await assert.rejects(() => term.script(inside, 'echo no\n'), /skill directory/);
+  } finally {
+    await dispose();
+  }
+  assert.ok(!fs.existsSync(inside), 'the refused script was written anyway');
+});
+
+test('a script with nothing in it is a mistake worth naming, not an empty file', async () => {
+  const { term, dispose } = terminalUnderTest({}, PROJECT);
+  try {
+    await assert.rejects(() => term.script(path.join(PROJECT, 'empty.sh')), /term\.script\(/);
+  } finally {
+    await dispose();
+  }
 });

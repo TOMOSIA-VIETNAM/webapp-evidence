@@ -456,3 +456,26 @@ test("each Gemini CLI command finds its own skill where the installer puts it", 
     assert.match(toml, new RegExp(`skills/${dir}/SKILL\\.md`), `${name}.toml does not name its own skill`);
   }
 });
+
+test('every case is whole, and the skill routes to exactly the cases that exist', () => {
+  // A case reaches a step script because the runner scans the directory, and reaches the agent
+  // only because SKILL.md carries a row pointing at it. Nothing in a run connects those two, so
+  // a case added without the row works and is never used, and a row left behind after a case is
+  // removed sends the agent to a file that is not there.
+  const root = path.join(SKILLS, SKILL_DIR, 'cases');
+  const dirs = fs.readdirSync(root, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort();
+  assert.ok(dirs.length > 0, 'the skill ships no cases at all');
+
+  for (const dir of dirs) {
+    for (const file of ['CASE.md', 'index.js']) {
+      assert.ok(fs.existsSync(path.join(root, dir, file)), `cases/${dir} has no ${file}`);
+    }
+  }
+
+  const skill = read(`src/skills/${SKILL_DIR}/SKILL.md`);
+  const routed = [...skill.matchAll(/`cases\/([A-Za-z0-9_-]+)\/CASE\.md`/g)].map((m) => m[1]).sort();
+  assert.deepEqual(routed, dirs, 'the case directories and the rows in SKILL.md have drifted apart');
+});

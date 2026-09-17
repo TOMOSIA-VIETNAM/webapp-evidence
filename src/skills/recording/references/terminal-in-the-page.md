@@ -30,7 +30,14 @@ await term.close();
 | `term.start(cmd)` | the command to be typed and entered, nothing more | `tail -f`, a watcher, a server |
 | `term.waitFor(pattern)` | a string or RegExp to appear in the output | the assertion that makes it evidence |
 | `term.interrupt()` | the last `start` to stop, the way ^C would | stopping a `start` |
+| `term.script(path, contents)` | the file to be written, then `cat` and the run of it | a setup that genuinely is a file |
 | `term.close()` | the panel to slide out | |
+
+`term.script` writes the file before the panel opens and shows only the `cat` and the run, which is
+what someone with that file already in their repository would do. It runs the file with `sh`; pass
+`{ run: 'node seed.js' }` for anything else. Reach for it when the setup really is a file — a single
+command is typed, and a shell file written to hold one line is two steps in the video where there
+was one.
 
 `term.run` throws when the command exits non-zero, because a failing command in a piece of evidence
 is a broken take rather than a result — pass `{ allowFailure: true }` when the failure is the thing
@@ -77,6 +84,6 @@ started with — the `PATH` from rbenv, nvm or asdf still applies. `recording.te
 opaque it is; the `panel…` keys in `recording.pace` change how fast it grows and reveals.
 
 The password of the account used to sign in is blacked out of the panel, the runbook and the
-screenshots. Anything else your commands print that should not be in a video goes in
+screenshots — in what a command prints and in the command line itself. Anything else your commands print that should not be in a video goes in
 `recording.terminal.scrub`.
 

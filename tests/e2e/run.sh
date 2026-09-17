@@ -55,6 +55,11 @@ trap cleanup EXIT
 export DEMO_LOG="$OUT_DIR/worker.log"
 : >"$DEMO_LOG"
 
+# The session the demo app hands the browser. The take calls an endpoint with it from the terminal
+# panel, and the checks below prove it got there without the value appearing anywhere in the
+# evidence — which is the whole reason the cookies travel as a file.
+export DEMO_SESSION=demo-session-8f3c1d9a2b
+
 step "Serving the demo app"
 # The port is chosen by the OS, so two runs at once do not collide.
 SERVER_OUT="$OUT_DIR/.server"
@@ -94,11 +99,24 @@ SHOTS=$(find "$OUT_DIR" -maxdepth 1 -name '[0-9][0-9]-*.png' | wc -l | tr -d ' '
 
 [ -f "$RUNBOOK" ] || fail "no runbook at $RUNBOOK"
 for phrase in 'Run the search' 'Open a row' 'Select all' 'demo fixture' 'BASE_URL' \
-              'Commands run in the terminal' 'tail -f' 'wc -l' 'SyncJob'; do
+              'Commands run in the terminal' 'tail -f' 'wc -l' 'SyncJob' \
+              'curl -sS' '/report' 'Call the export endpoint'; do
   grep -qF -- "$phrase" "$RUNBOOK" || fail "the runbook never mentions '$phrase'"
 done
 grep -qE '^[0-9]{2}:[0-9]{2} - [0-9]{2}:[0-9]{2}' "$RUNBOOK" \
   || fail "the runbook has no timeline rows"
+
+# The request in the panel was made with the session the browser holds, and the runbook quotes
+# every command that ran. The session must be in none of it: handed to curl along the command line
+# it would be in the video for as long as the command was on screen, and in this file underneath.
+#
+# The status is not checked here — `expect: 200` in the step script is the assertion, and a take
+# that got anything else never reached the point of writing a runbook.
+step "Checking the session stayed out of the evidence"
+grep -q "$DEMO_SESSION" "$RUNBOOK" && fail "the session cookie is written out in $RUNBOOK"
+grep -q -- '-b /' "$RUNBOOK" || fail "the request did not send the session as a cookie file"
+[ -n "$(find "$OUT_DIR" -maxdepth 1 -name '*-api-response.png' | awk 'NR==1')" ] \
+  || fail "no screenshot was taken while the response was on screen"
 
 # Redaction has to hold in both places a frame ends up: the video and the screenshot taken while
 # the value was on screen. The runbook says where it was covered, so the check reads the rectangle
@@ -160,4 +178,5 @@ printf '  runbook   %s\n' "$RUNBOOK"
 printf '  screenshots %s\n' "$SHOTS"
 printf '  panel     drawn (brightness %s over the bottom %spx)\n' "$PANEL_LUMA" "$PANEL_BAND"
 printf '  redaction video %s, screenshot chroma %s\n' "$COVER_LUMA" "$SHOT_CHROMA"
+printf '  endpoint  answered 200, session kept out of the runbook\n'
 [ "$KEEP" = yes ] || printf '\nRe-run with --keep to watch the video.\n'
