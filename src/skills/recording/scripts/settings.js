@@ -45,6 +45,12 @@ const DEFAULTS = {
       afterClickMs: 800,      // the default pause (the click helper can override it per call)
       afterClickObserveMs: 1700, // pause: 'observe' — the result on screen has to be read
       typeCharMs: 75,         // average time per character while typing
+      // The longest one piece of typing may take. What someone types into a form is short and
+      // reads as a person at a keyboard; a command built for an API request runs past two hundred
+      // characters, and at the same rate that is twenty seconds of a video in which nothing else
+      // happens. Past this the delays are scaled down together, so the rhythm survives and the
+      // line arrives at the speed of someone who knows what they are typing.
+      typeMaxMs: 6000,
       afterTypeMs: 700,
       selectStepMs: 220,      // time per option change inside a select
       afterSelectMs: 900,
