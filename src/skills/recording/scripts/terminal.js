@@ -115,7 +115,11 @@ function createTerminal({ page, viewport, config, human, pace, since, secrets = 
   };
 
   const workingDir = cwd || root;
-  const screen = createScreen({ maxLines: SCROLLBACK_ROWS });
+  // One width for both: what the shell is told it has, and what the screen model wraps at. The
+  // command line the runner types is drawn straight into the model and never passes the shell, so
+  // a model that wrapped somewhere else would leave exactly that line running off the panel.
+  const columns = columnsFor(viewport.width, fontSize);
+  const screen = createScreen({ maxLines: SCROLLBACK_ROWS, columns });
   const commands = [];
 
   const idle = idleHeight(fontSize);
@@ -279,7 +283,7 @@ function createTerminal({ page, viewport, config, human, pace, since, secrets = 
       command: shellCommand[0],
       args: shellCommand.slice(1),
       cwd: workingDir,
-      env: { COLUMNS: String(columnsFor(viewport.width, fontSize)), ...env },
+      env: { COLUMNS: String(columns), ...env },
       scrub,
       onOutput: (text) => {
         try {

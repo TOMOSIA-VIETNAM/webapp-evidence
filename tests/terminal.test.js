@@ -336,3 +336,30 @@ test('a script with nothing in it is a mistake worth naming, not an empty file',
     await dispose();
   }
 });
+
+test('a command wider than the panel is wrapped onto a second row, not cut off at the edge', async () => {
+  const { term, page, dispose, settings } = terminalUnderTest();
+  const { fontSize } = settings.terminal;
+  const width = columnsFor(settings.viewport.width, fontSize);
+  // Long enough to run off the edge, and echoed back so the assertion does not rest on the
+  // runner's own drawing of the line alone.
+  const argument = 'w'.repeat(width);
+  try {
+    await term.open();
+    await term.run(`echo ${argument}`, { pause: 'quick' });
+  } finally {
+    await dispose();
+  }
+
+  const rowsOf = (payload) => payload.lines.map((row) => row.map((s) => s.text).join(''));
+  const everyRow = page.sent.flatMap(rowsOf);
+  assert.ok(
+    everyRow.every((row) => row.length <= width),
+    'a row was drawn wider than the panel, which clips it at the right edge'
+  );
+  // The whole argument reached the panel: the tail of it is on a row of its own.
+  assert.ok(
+    everyRow.some((row) => row.startsWith('w') && row.trim().length > 0),
+    'the wrapped remainder of the line never reached the panel'
+  );
+});

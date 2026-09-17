@@ -9,6 +9,8 @@
 // address a column: "go back to column 0 and write over what is there" cannot be expressed by
 // appending to a string, and a progress bar does exactly that dozens of times a second.
 
+// Nothing is ever drawn wider than this, whatever the panel is told it has room for: a runaway
+// value would build rows of cells that no frame can show and that still cost memory to hold.
 const MAX_COLUMNS = 400;
 
 // Programs that take over the whole display (vim, htop, less) switch to the alternate screen
@@ -28,7 +30,12 @@ const DEFAULT_STYLE = { fg: null, bold: false, dim: false };
 
 const sameStyle = (a, b) => a.fg === b.fg && a.bold === b.bold && a.dim === b.dim;
 
-function createScreen({ maxLines = 500 } = {}) {
+// `columns` is how wide the panel actually is, in characters. A terminal wraps a line that
+// reaches the right edge; it does not cut it off. Wrapping here rather than in the page keeps the
+// count of rows honest — the panel is sized and scrolled in rows, and a row that the browser
+// silently turned into two would make both of those wrong by the difference.
+function createScreen({ maxLines = 500, columns = MAX_COLUMNS } = {}) {
+  const width = Math.max(1, Math.min(columns, MAX_COLUMNS));
   let rows = [[]];
   let column = 0;
   let style = { ...DEFAULT_STYLE };
@@ -46,8 +53,10 @@ function createScreen({ maxLines = 500 } = {}) {
   };
 
   const putChar = (char) => {
+    // The row is read after the wrap, never before: taken first, the character that starts the
+    // next row is written back into the one it just left, at the column the wrap reset.
+    if (column >= width) newline();
     const line = current();
-    if (column >= MAX_COLUMNS) newline();
     // Writing past the end of a shorter line: the gap has to become spaces, otherwise the cells
     // are holes and every later index is off by the size of the gap.
     while (line.length < column) line.push({ char: ' ', ...DEFAULT_STYLE });
