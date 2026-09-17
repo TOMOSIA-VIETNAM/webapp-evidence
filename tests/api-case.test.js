@@ -91,6 +91,11 @@ const cookies = [
   { name: 'session', value: SESSION, domain: 'app.example.com', path: '/', expires: -1, httpOnly: true, secure: true },
 ];
 
+// The runner is what removes a session in a real take, and there is no runner here. Without this
+// every test that opens one leaves a cookie jar in the system temp directory.
+const everyDisposer = [];
+test.after(() => { for (const fn of everyDisposer) { try { fn(); } catch { /* already gone */ } } });
+
 function harness(answers = []) {
   const events = [];
   const term = {
@@ -103,7 +108,11 @@ function harness(answers = []) {
   // The runner ends the take and so owns what the case leaves on disk; the harness collects the
   // same callbacks so a test can run them and see the session go.
   const disposers = [];
-  const { api: helper } = api.helpers({ term, registerSecret, onDispose: (fn) => disposers.push(fn) });
+  const { api: helper } = api.helpers({
+    term,
+    registerSecret,
+    onDispose: (fn) => { disposers.push(fn); everyDisposer.push(fn); },
+  });
   return {
     helper,
     events,

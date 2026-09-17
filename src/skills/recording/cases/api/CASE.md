@@ -24,7 +24,7 @@ take — and take the screenshot before closing, because the answer goes with th
 What the panel shows is one curl line and its answer:
 
 ```
-$ curl -sS -X POST "https://app.example.com/api/orders" -H 'Content-Type: application/json' \
+$ curl -sS -X POST 'https://app.example.com/api/orders' -H 'Content-Type: application/json' \
     -b /tmp/evidence-session-8QhT1a/cookies.txt -d '{"sku":"ABC","qty":2}' \
     -w '%{stderr}HTTP %{http_code} in %{time_total}s\n' | jq
 HTTP 201 in 0.184s

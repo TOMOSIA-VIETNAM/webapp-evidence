@@ -15,7 +15,7 @@ process.env.PROJECT_ROOT = PROJECT;
 
 const {
   fmt, keyCaps, resolvePause, readingTime, buildTimeline, buildHotkeySection, buildNoteSection,
-  buildCommandSection, buildRedactionSection, buildRemovedSection, placeAt,
+  buildCommandSection, buildRedactionSection, buildRemovedSection, placeAt, runCaseDisposers,
   ignoreHints, runArtifacts, archivePreviousRun,
 } = require('../src/skills/recording/scripts/record');
 const { DEFAULTS } = require('../src/skills/recording/scripts/settings');
@@ -381,4 +381,18 @@ test('a secret a case registers is scrubbed out of the panel and out of the runb
   const section = buildCommandSection(terminal.commands, 0);
   assert.ok(section.includes('echo'), 'the command never reached the runbook');
   assert.ok(!section.includes(secret), 'the session is written out in the runbook');
+});
+
+test('cleaning up after the cases runs every one of them, and outlives one that throws', () => {
+  const ran = [];
+  // Synchronous by contract: the interrupt route calls this with a signal already in flight, so
+  // anything returning a promise here would be abandoned unfinished.
+  const results = runCaseDisposers([
+    () => ran.push('first'),
+    () => { throw new Error('already gone'); },
+    () => ran.push('third'),
+  ]);
+
+  assert.equal(results, undefined);
+  assert.deepEqual(ran, ['first', 'third']);
 });

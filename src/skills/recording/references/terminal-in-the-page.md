@@ -60,10 +60,16 @@ to fit the output as it arrives, and settles back when the next command needs le
 take.
 
 **Output longer than the panel is revealed, not clipped.** The window over it moves down at a
-bounded speed, so every line is in a frame somewhere and a reviewer can pause on any of them. That
-takes time in the video: the runner prints a `SLOW OUTPUT:` line naming any command whose output
-took more than ten seconds to scroll past. That line is asking for a shorter command, not a faster
-panel — pipe it through `jq`, `head` or `grep` and record again.
+bounded speed, so every line the panel still holds is in a frame somewhere and a reviewer can pause
+on any of them. That takes time in the video: the runner prints a `SLOW OUTPUT:` line naming any
+command whose output took more than ten seconds to scroll past.
+
+An output bigger than what the panel keeps gets a `LOST OUTPUT:` line instead, naming how many
+lines fell off the top before the window reached them. Those are in no frame at all, so that take
+proves less than it appears to and is worth recording again.
+
+Either line is asking for a shorter command rather than a faster panel — pipe it through `jq`,
+`head` or `grep`.
 
 The runbook does not hold the output. It records each command, what it asserted and its exit code,
 so the video is the only place the output itself survives — which is the reason a long one is worth

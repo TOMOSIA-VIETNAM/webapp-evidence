@@ -923,8 +923,8 @@ async function main() {
 
   // Loaded here because a case is handed the terminal it runs its commands in. Each one is given
   // the same few things; anything a case needs beyond them is a change to the runner.
-  // What a case leaves on disk is cleaned up where the take ends, not on process exit: a take
-  // stopped with Ctrl-C never reaches that event.
+  // What a case leaves on disk is cleaned up where the take ends. Both ways out of a take have to
+  // be covered, and neither is `process.on('exit')`.
   const caseDisposers = [];
   const helpers = applyCases(loadCases(path.join(__dirname, '..', 'cases')), {
     page,
@@ -934,6 +934,16 @@ async function main() {
     outDir,
     onDispose: (fn) => caseDisposers.push(fn),
   });
+
+  // Ctrl-C ends the process without running a `finally`, an `exit` handler or anything else the
+  // normal path relies on, so the one route that survives it is a signal handler. It re-raises
+  // afterwards to die the way it would have: an interrupt has already abandoned the encode, so
+  // there is nothing left here worth keeping the process alive for.
+  const onInterrupt = () => {
+    runCaseDisposers(caseDisposers);
+    process.kill(process.pid, 'SIGINT');
+  };
+  process.once('SIGINT', onInterrupt);
 
   const ctx = buildContext({
     page, outDir, marks, hotkeys, notes, dialogs, startedAt, pace, viewport, human, captions,
@@ -949,15 +959,8 @@ async function main() {
     // A step script that throws halfway must not leave a shell — or whatever it was running —
     // alive on the machine after the runner has gone.
     await terminal.dispose();
-    // One failing to clean up must not stop the others, and none of them is a reason to lose a
-    // take that has already been recorded.
-    for (const dispose of caseDisposers) {
-      try {
-        await dispose();
-      } catch {
-        // Already gone, or never created. Either way there is nothing left to remove.
-      }
-    }
+    process.off('SIGINT', onInterrupt);
+    runCaseDisposers(caseDisposers);
   }
 
   await sleep(pace.tailMs);
@@ -1033,13 +1036,27 @@ if (require.main === module) {
   });
 }
 
+// What the cases left on disk, removed. Synchronous on purpose: the interrupt route calls this
+// with a signal already in flight, where there is no turn of the event loop left to await in.
+// One failing must not stop the others, and none of them is a reason to lose a take that has
+// already been recorded.
+function runCaseDisposers(disposers) {
+  for (const dispose of disposers) {
+    try {
+      dispose();
+    } catch {
+      // Already gone, or never created. Either way there is nothing left to remove.
+    }
+  }
+}
+
 // buildContext is exposed so the real pacing of the actions (how long each helper takes) can be measured
 // without recording a whole video; everything else is a black box.
 module.exports = {
   main, buildContext, archivePreviousRun, reportResult, runArtifacts,
   // Exported for the unit tests: pure helpers that decide timings, timeline rows and the
   // .gitignore hints, none of which need a browser to be checked.
-  fmt, keyCaps, readingTime, buildTimeline, buildHotkeySection, buildNoteSection,
+  fmt, keyCaps, readingTime, runCaseDisposers, buildTimeline, buildHotkeySection, buildNoteSection,
   buildCommandSection, buildDialogSection, buildRedactionSection, buildRemovedSection, placeAt,
   ignoreHints,
   // Re-exported where the pacing tests already look for it; it lives in human.js with the rest
