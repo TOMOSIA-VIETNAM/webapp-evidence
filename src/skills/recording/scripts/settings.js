@@ -47,6 +47,12 @@ const DEFAULTS = {
       scrollPerScreenMs: 620, // added per screenful of distance the page has to cover
       scrollMaxMs: 2000,      // even scrolling to the far end of a long page takes no longer
       afterScrollMs: 260,     // a beat once it lands, before aiming at what was scrolled to
+      // How long the runner waits for the page to stop moving before it measures again. It has to
+      // outlast the easing of a momentum scroller (Lenis, Locomotive, `scroll-behavior: smooth`):
+      // a position read while the page is still coasting is one it is about to leave, and scrolling
+      // to it again overshoots and corrects back. Only a ceiling — a page that has stopped is
+      // measured at once.
+      scrollSettleMs: 1800,
       beforeClickMs: 250,     // aiming before the click; short slides aim faster automatically
       clickHoldMs: 85,        // how long the mouse button is held
       afterClickQuickMs: 220, // pause: 'quick' — a click that only moves on, nothing to look at

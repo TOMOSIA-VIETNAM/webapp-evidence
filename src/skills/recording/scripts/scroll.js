@@ -87,7 +87,7 @@ function pointerFor(place, { cursor }) {
 // One hop at a time, innermost pane outwards: a pane can only be scrolled while it is on screen,
 // so when it is not, what holds it moves first and the pane itself waits for the next hop. That
 // is also the order a person works in — scroll the page to the list, then scroll the list.
-function planHop({ target, view, frames, header = 0 }, { cursor = null, avoidBottom = 0 } = {}) {
+function planHop({ target, view, frames, header = 0 }, { cursor = null, avoidBottom = 0, heading = 0 } = {}) {
   // What any pane has to work with: the frame, less the header the page keeps pinned over the top
   // of it and the terminal panel drawn over the bottom. Scrolling something to a place either one
   // covers puts it on screen and out of reach — under the panel it earns a refusal to click, under
@@ -97,6 +97,15 @@ function planHop({ target, view, frames, header = 0 }, { cursor = null, avoidBot
     top, left: 0, width: view.width, height: Math.max(0, view.height - top - avoidBottom),
   };
 
+  // A page running a momentum scroller is still travelling when the wheel stops, so it settles a
+  // little past what was asked for. Turning the wheel back for that is the overshoot-and-correct
+  // a viewer reads as the page jerking past a section and sliding back, and it buys nothing while
+  // the element is somewhere it can be seen and clicked. `heading` is the direction already
+  // turned in; a hop against it is only made when the page carried the element out of sight.
+  const seen = visibleBox({ target, view, frames });
+  const holdHeading = heading !== 0 && !!seen
+    && !!intersect({ top: seen.y, left: seen.x, width: seen.width, height: seen.height }, room);
+
   let focus = target;
   for (const frame of frames) {
     // The part of this pane that is on screen. A pane hanging off the bottom has less usable
@@ -104,11 +113,12 @@ function planHop({ target, view, frames, header = 0 }, { cursor = null, avoidBot
     // no one can see.
     const place = intersect(frame.rect, room);
     if (place) {
-      const dy = shortfall({
+      let dy = shortfall({
         start: focus.top, size: focus.height,
         frameStart: place.top, frameSize: place.height,
         scrollPos: frame.scrollTop, scrollMax: frame.maxTop,
       });
+      if (holdHeading && Math.sign(dy) === -heading) dy = 0;
       const dx = shortfall({
         start: focus.left, size: focus.width,
         frameStart: place.left, frameSize: place.width,

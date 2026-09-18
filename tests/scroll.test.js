@@ -199,3 +199,28 @@ test('the header and the terminal panel both take their room out of the same fra
   assert.ok(landed >= header, `rests at ${landed}, behind the header`);
   assert.ok(landed + target.height <= VIEW.height - panel, `rests at ${landed}, under the panel`);
 });
+
+// ---------- a page that is still moving when it is measured ----------
+
+test('a page measured while it is still coasting is not wheeled back over that ground', () => {
+  // The momentum carried the section past the resting place: its first rows are off the top of
+  // the frame, but most of it is on screen and readable. Correcting that would show as the page
+  // sliding backwards for a few dozen pixels nobody was waiting for.
+  const target = { top: -40, left: 0, width: VIEW.width, height: 300 };
+  const snap = snapshot(target, [windowPane({ scrollTop: 900 })]);
+
+  assert.ok(planHop(snap).dy < 0, 'without a heading this is a correction upwards');
+  assert.equal(planHop(snap, { heading: 1 }), null);
+});
+
+test('a page that carried the element clean out of the frame is still brought back', () => {
+  const target = { top: -400, left: 0, width: VIEW.width, height: 300 };
+  const { dy } = planHop(snapshot(target, [windowPane({ scrollTop: 900 })]), { heading: 1 });
+  assert.ok(dy < 0, String(dy));
+});
+
+test('the heading only holds back the direction already travelled in', () => {
+  const target = { top: 1400, left: 0, width: VIEW.width, height: 300 };
+  const { dy } = planHop(snapshot(target, [windowPane()]), { heading: 1 });
+  assert.ok(dy > 0, String(dy));
+});

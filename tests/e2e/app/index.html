@@ -10,7 +10,11 @@
      afterwards measures one the element is about to leave. */
   html { scroll-behavior: smooth; }
   body { margin: 0; background: #f6f7f9; color: #1c2024; }
-  header { background: #1f2937; color: #fff; padding: 14px 24px; font-weight: 600; }
+  /* Pinned, the way a marketing page or an app shell keeps its title bar in place. It covers the
+     top band of the frame, so anything the runner leaves resting under it is on screen and
+     unreadable — which is what the check on the section below measures. */
+  header { background: #1f2937; color: #fff; padding: 14px 24px; font-weight: 600;
+           position: sticky; top: 0; z-index: 5; }
   nav { background: #374151; color: #d1d5db; padding: 8px 24px; font-size: 13px; }
   nav a { color: #d1d5db; margin-right: 16px; text-decoration: none; }
   main { padding: 24px; max-width: 900px; }
@@ -28,6 +32,10 @@
      been scrolled, which is the one thing a page that fits on screen cannot exercise. */
   #history { margin-top: 24px; background: #fff; border-radius: 8px; padding: 16px; }
   #history li { font-size: 13px; color: #4b5563; line-height: 2.6; }
+  /* A section holding nothing to click: the only way to bring it into the frame is to scroll to
+     it, and most of a screen tall is the height that gets left half past the fold by a scroll
+     that places an element's middle rather than its bounds. */
+  #summary { margin-top: 24px; background: #fff; border-radius: 8px; padding: 16px; height: 560px; }
   dialog { border: 0; border-radius: 10px; padding: 0; width: 380px; background: #fff;
            box-shadow: 0 18px 50px rgba(0,0,0,.28); }
   dialog::backdrop { background: rgba(15, 23, 42, .45); }
@@ -81,6 +89,11 @@
     <iframe id="embedded" title="Embedded report" width="420" height="90" style="border:1px solid #d7dbe0"
       srcdoc="&lt;button id=&quot;confirm&quot; style=&quot;font:14px system-ui;padding:8px 16px&quot;
                 onclick=&quot;this.textContent='Report confirmed'&quot;&gt;Confirm the report&lt;/button&gt;"></iframe>
+  </section>
+
+  <section id="summary">
+    <h3>Quarter summary</h3>
+    <p>Nothing here is interactive. A tour of this page has to stop on it all the same.</p>
   </section>
 </main>
 

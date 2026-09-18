@@ -128,11 +128,14 @@ function buildContext({
 
   const measure = (locator) => locator.evaluate(scroll.SNAPSHOT);
   // Two still frames is enough to tell "the scroll has finished" from "between two steps of it",
-  // and the timeout keeps a page that animates something forever from holding the take.
-  const settle = (locator) => locator.evaluate(scroll.SETTLE, { stillFrames: 2, timeoutMs: 600 });
+  // and the timeout keeps a page that animates something forever from holding the take. It has to
+  // outlast a momentum scroller's easing: measuring while the page is still coasting reads a
+  // distance the coast is already covering, and the next hop then scrolls it a second time.
+  const settle = (locator) =>
+    locator.evaluate(scroll.SETTLE, { stillFrames: 2, timeoutMs: pace.scrollSettleMs });
   const panelDepth = async () => (terminal.isOpen() ? terminal.panelHeight() : 0);
-  const nextHop = async (snapshot) =>
-    scroll.planHop(snapshot, { cursor: page.__cursor, avoidBottom: await panelDepth() });
+  const nextHop = async (snapshot, heading = 0) =>
+    scroll.planHop(snapshot, { cursor: page.__cursor, avoidBottom: await panelDepth(), heading });
 
   // The wheel, turned over time rather than in one delta. Same interpolation as a cursor move and
   // for the same reason: each round trip to the browser costs more than one frame, so what is
@@ -173,9 +176,15 @@ function buildContext({
       return measure(locator);
     }
 
+    // The direction the wheel has already been turned in. Kept for the whole of one bringIntoView
+    // so that a page still coasting when it was measured is not wheeled back over ground it is
+    // about to cover by itself.
+    let heading = 0;
+
     for (let hop = 0; hop < MAX_HOPS; hop++) {
-      const plan = await nextHop(snapshot);
+      const plan = await nextHop(snapshot, heading);
       if (!plan) return snapshot;
+      heading = heading || Math.sign(plan.dy);
 
       // The wheel is delivered wherever the pointer stands, so it goes over the pane that has to
       // move — which is also what a person does before scrolling one panel of a page.
@@ -191,7 +200,7 @@ function buildContext({
       if (stuck) break;
     }
 
-    if (!(await nextHop(snapshot))) return snapshot;
+    if (!(await nextHop(snapshot, heading))) return snapshot;
 
     // Nothing a wheel can reach will finish this: a pane that swallows the event, or a container
     // the app scrolls with its own script and hidden overflow. Take the jump rather than click at
@@ -199,6 +208,24 @@ function buildContext({
     await locator.scrollIntoViewIfNeeded();
     await settle(locator);
     return measure(locator);
+  }
+
+  // Travel to something and stop on it. `click` already scrolls to what it clicks, so this is for
+  // the part of a page that holds nothing to click — a section of a long page that is only there
+  // to be read. Written by hand out of page.mouse.wheel it is a loop that re-measures the target
+  // between turns, which on a page with a momentum scroller reads a distance the coast is already
+  // covering: the page then overshoots and slides back, and the video shows the bounce.
+  async function scrollTo(locator, { pause } = {}) {
+    const found = await bringIntoView(locator);
+    if (!found.inFrame && !scroll.visibleBox(found)) {
+      throw new Error(
+        'The element to scroll to is not visible: no part of it is on screen, and scrolling to it ' +
+        'did not change that.\nCheck the locator, or reach it through something inside the same pane.'
+      );
+    }
+    // Arriving at a section is an action whose result is the section itself, so the default is the
+    // wait for something that has to be read rather than the beat after an ordinary click.
+    await sleep(human.wait(resolvePause(pause, pace, pace.afterClickObserveMs)));
   }
 
   async function click(locator, { pause } = {}) {
@@ -552,6 +579,7 @@ function buildContext({
 
   const scope = {
     page, mark, click, type, select, upload, hotkey, note, shot, redact, dialog, sleep, moveTo,
+    scrollTo,
     term: terminal.term,
   };
 
