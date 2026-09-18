@@ -60,6 +60,7 @@ Inside `OUT_DIR`:
 | `NN-*.png` | Screenshots, numbered in capture order |
 | `<name>-console.log` | **Only written when the page had errors** — console errors/warnings and requests returning 400 or above |
 | `steps.js` | The step script, so the next run does not start by probing the screen again |
+| `<name>-failed.mp4` | **Only written when a step script threw** — what was recorded before it stopped. There is no runbook for it: the take did not finish |
 
 The runbook is the thing that makes a later re-recording cheap: open it, run the command inside. To
 change what gets recorded, edit `steps.js`, not the runbook — the runbook is regenerated on every
@@ -67,6 +68,41 @@ run.
 
 This directory sits in an already ignored area of the project, so the video and screenshots are
 **not committed**; the user attaches them to the MR/PR themselves.
+
+## When a take fails
+
+The runner stops recording where the flow stopped, keeps what it had as `<name>-failed.mp4`, and
+says which step it died in:
+
+```
+The take failed 00:41 in, during step 2, "Reach the audit trail below the fold":
+locator.click: Timeout 30000ms exceeded.
+
+What was recorded before it stopped: .../user-search-failed.mp4
+```
+
+Read that video before changing the step script: it usually shows the screen the step was waiting
+on, which says whether the selector was wrong or the application never got there. Delete it once the
+take has been re-recorded — it is not evidence of anything and it is not tidied up automatically.
+
+## One project at a time
+
+`record.js` and `inspect.js` both take a lock on the project before they start, and refuse while the
+other one holds it:
+
+```
+A take is already recording this project (process 51234, started 12s ago, writing to …).
+A screen is already being probed in this project (process 51234, started 12s ago).
+```
+
+Which of the two appears depends on what is holding the lock; a probe names no directory, because it
+writes nothing. It is a run that never started rather than one that failed, and probing raises it as
+readily as recording does — both bring up the application's development server, and two runs share its state
+and its build cache even when each has its own port. The one that loses that race gets a blank page,
+or a 404 from a route the application defines, which points at everything except the other run.
+
+Wait for the other one, or stop it. The message names the process holding the lock and the file to
+delete if that process is not a run at all.
 
 ## Reporting back
 

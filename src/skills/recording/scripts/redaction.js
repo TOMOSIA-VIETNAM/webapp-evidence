@@ -23,16 +23,36 @@ const seconds = (value) => Number(value.toFixed(3));
 // past the page-load wait first, so everything here is rebased on that same point.
 const rebase = (at, trimAt) => Math.max(0, at - trimAt);
 
+// A stretch that opened and closed inside the same millisecond still covered a real frame: a step
+// script that threw on its first line, with nothing in between that costs a round trip to measure.
+// With no width at all it falls out of `all()` below and reaches the encode as nothing, so what it
+// was covering is in the video kept from the attempt.
+//
+// One frame at the slowest rate a recording is allowed to run at, rather than at the rate this one
+// happens to use: a frame of the finished video is a fifth of a second at five frames a second, and
+// a floor shorter than that lands between two frames and covers neither. Covering a fraction of a
+// second more than was asked for is the safe direction, and only a stretch with no length at all is
+// affected either way.
+
+const MIN_STRETCH = 1 / 5;
+
 function createRedactions() {
   const entries = [];
   return {
-    // `box` is null for a whole frame. `to` is filled in when the stretch ends, so an entry with
-    // no end never reaches the encode: a step script that threw halfway should not silently blur
-    // the rest of the take.
+    // `box` is null for a whole frame. A stretch is closed where it ends, including where a step
+    // script threw inside it — so what was being covered at that moment is covered in the video
+    // kept from the failure, and nothing after it is blurred. An entry left with no end reaches
+    // no encode.
     open({ mode, box }) {
       const entry = { mode, box, from: null, to: null };
       entries.push(entry);
       return entry;
+    },
+    // Where a stretch ends. An entry never closed stays out of `all()` — nothing reaches the encode
+    // from a redaction whose steps were never reached at all.
+    close(entry, from, to) {
+      entry.from = from;
+      entry.to = Math.max(to, from + MIN_STRETCH);
     },
     all: () => entries.filter((e) => e.from !== null && e.to !== null && e.to > e.from),
   };

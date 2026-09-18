@@ -152,3 +152,144 @@ test('two rectangles that only touch do not overlap', () => {
   const b = { top: 100, left: 0, width: 100, height: 100 };
   assert.equal(intersect(a, b), null);
 });
+
+// ---------- where a section comes to rest ----------
+
+test('a section most of a screen tall comes to rest whole, not split across the fold', () => {
+  // Placed by its middle this one hangs off the top: the frame would hold the tail of what came
+  // before it, and the section itself would start below the fold.
+  const target = { top: 1600, left: 0, width: VIEW.width, height: 700 };
+  const { dy } = planHop(snapshot(target, [windowPane()]));
+
+  const landed = target.top - dy;
+  assert.ok(landed >= MARGIN, `rests at ${landed}, above the top of the frame`);
+  assert.ok(landed + target.height <= VIEW.height - MARGIN, `bottom at ${landed + target.height}`);
+});
+
+test('a section short enough to place freely still rests on the focus line', () => {
+  const target = { top: 1600, left: 0, width: VIEW.width, height: 200 };
+  const { dy } = planHop(snapshot(target, [windowPane()]));
+  assert.equal(target.top - dy, Math.round(VIEW.height * FOCUS - target.height / 2));
+});
+
+test('a section is left under the header the page keeps pinned, not behind it', () => {
+  const header = 96;
+  const target = { top: 1600, left: 0, width: VIEW.width, height: 900 };   // taller than the frame
+  const { dy } = planHop({ ...snapshot(target, [windowPane()]), header });
+
+  assert.equal(target.top - dy, header + MARGIN);
+});
+
+test('a section whole on screen but behind the pinned header is brought out from under it', () => {
+  const header = 96;
+  const target = { top: 20, left: 0, width: VIEW.width, height: 300 };
+  const { dy } = planHop({ ...snapshot(target, [windowPane({ scrollTop: 500 })]), header });
+
+  assert.ok(dy < 0, String(dy));
+  assert.ok(target.top - dy >= header, `rests at ${target.top - dy}, under a ${header}px header`);
+});
+
+test('the header and the terminal panel both take their room out of the same frame', () => {
+  const header = 96;
+  const panel = 300;
+  const target = { top: 1400, left: 0, width: VIEW.width, height: 160 };
+  const { dy } = planHop({ ...snapshot(target, [windowPane()]), header }, { avoidBottom: panel });
+
+  const landed = target.top - dy;
+  assert.ok(landed >= header, `rests at ${landed}, behind the header`);
+  assert.ok(landed + target.height <= VIEW.height - panel, `rests at ${landed}, under the panel`);
+});
+
+// ---------- a page that is still moving when it is measured ----------
+
+test('a page measured while it is still coasting is not wheeled back over that ground', () => {
+  // The momentum carried the section past the resting place: its first rows are off the top of
+  // the frame, but most of it is on screen and readable. Correcting that would show as the page
+  // sliding backwards for a few dozen pixels nobody was waiting for.
+  const target = { top: -40, left: 0, width: VIEW.width, height: 300 };
+  const snap = snapshot(target, [windowPane({ scrollTop: 900 })]);
+
+  assert.ok(planHop(snap).dy < 0, 'without a heading this is a correction upwards');
+  assert.equal(planHop(snap, { heading: 1 }), null);
+});
+
+test('a page that carried the element clean out of the frame is still brought back', () => {
+  const target = { top: -400, left: 0, width: VIEW.width, height: 300 };
+  const { dy } = planHop(snapshot(target, [windowPane({ scrollTop: 900 })]), { heading: 1 });
+  assert.ok(dy < 0, String(dy));
+});
+
+test('the heading only holds back the direction already travelled in', () => {
+  const target = { top: 1400, left: 0, width: VIEW.width, height: 300 };
+  const { dy } = planHop(snapshot(target, [windowPane()]), { heading: 1 });
+  assert.ok(dy > 0, String(dy));
+});
+
+// ---------- how deep the page's pinned header reaches ----------
+
+// Measured in the page, so it is written as a page function and tested as one: `window`, `document`
+// and `getComputedStyle` are all it touches. Three tuned numbers live in it — where it samples, how
+// far from the top edge still counts as a header, and how much of the frame stops being one — and
+// the end-to-end check exercises exactly one arrangement, so each decision is pinned here instead.
+const { HEADER } = require('../src/skills/recording/scripts/scroll');
+
+// A page holding pinned bars at the given rects. `elementsFromPoint` answers with whichever of them
+// covers the point, which is what the real one does for a bar drawn over the page.
+function pageWith(bars, { width = 1280, height = 800 } = {}) {
+  const nodes = bars.map((bar) => ({
+    position: bar.position ?? 'sticky',
+    rect: { top: bar.top, bottom: bar.top + bar.height },
+  }));
+  return {
+    window: { innerWidth: width, innerHeight: height },
+    document: {
+      elementsFromPoint: (x, y) => nodes
+        .filter((node) => y >= node.rect.top && y <= node.rect.bottom)
+        .map((node) => ({ getBoundingClientRect: () => node.rect })),
+    },
+    getComputedStyle: (node) => ({
+      position: nodes.find((candidate) => candidate.rect === node.getBoundingClientRect()).position,
+    }),
+  };
+}
+
+const headerDepthOf = (bars, size) => {
+  const page = pageWith(bars, size);
+  const saved = { window: globalThis.window, document: globalThis.document, getComputedStyle: globalThis.getComputedStyle };
+  Object.assign(globalThis, page);
+  try {
+    return HEADER();
+  } finally {
+    Object.assign(globalThis, saved);
+  }
+};
+
+test('a header against the top edge is measured to its bottom', () => {
+  assert.equal(headerDepthOf([{ top: 0, height: 64 }]), 64);
+});
+
+test('a header floating clear of the edge is still a header', () => {
+  assert.equal(headerDepthOf([{ top: 8, height: 46 }]), 54);
+});
+
+test('a bar inset as far as the test accepts is still reached by a sample', () => {
+  // 10% of the frame is where "over the top edge" stops; a sample has to land on it before that
+  // judgment can be made at all.
+  assert.equal(headerDepthOf([{ top: 72, height: 40 }]), 112);
+});
+
+test('a bar pinned down the page is nothing to do with the top of the frame', () => {
+  assert.equal(headerDepthOf([{ top: 300, height: 60 }]), 0);
+});
+
+test('something pinned over a third of the frame is an overlay, not a header', () => {
+  assert.equal(headerDepthOf([{ top: 0, height: 400 }]), 0);
+});
+
+test('an element that merely sits at the top of the page is not pinned over anything', () => {
+  assert.equal(headerDepthOf([{ top: 0, height: 64, position: 'static' }]), 0);
+});
+
+test('the deepest of several pinned bars is what has to be cleared', () => {
+  assert.equal(headerDepthOf([{ top: 0, height: 40 }, { top: 8, height: 60, position: 'fixed' }]), 68);
+});

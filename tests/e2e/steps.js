@@ -12,7 +12,7 @@ module.exports = {
   name: 'e2e-user-search',
   start: '/',
 
-  async run({ page, mark, click, type, select, upload, hotkey, note, shot, sleep, term, redact, api }) {
+  async run({ page, mark, click, type, select, upload, hotkey, note, shot, scrollTo, drag, sleep, term, redact, api }) {
     if (!process.env.DEMO_LOG) throw new Error('DEMO_LOG must point at the demo app\'s log file');
 
     mark('Open the search screen');
@@ -24,6 +24,16 @@ module.exports = {
     await select(page.locator('#q_status_eq'), 'Active');
     await upload(page.locator('#import_file'), path.join(__dirname, 'fixtures', 'sample.csv'));
     await shot('conditions');
+
+    mark('Drag the slider that says how many rows to show');
+    // A handle is what no other helper reaches: click() has nothing to click, and setting the value
+    // through the DOM changes the number on screen with nobody touching it.
+    const before = Number(await page.locator('#rows_shown').inputValue());
+    await drag(page.locator('#rows_shown'), { dx: 90 }, { pause: 'quick' });
+    const after = Number(await page.locator('#rows_shown').inputValue());
+    if (!(after > before)) {
+      throw new Error(`The slider still reads ${after}, so the drag never reached it`);
+    }
 
     mark('Run the search');
     await click(page.getByRole('button', { name: 'Search' }), { pause: 'observe' });
@@ -74,6 +84,29 @@ module.exports = {
       throw new Error('The click inside the frame did not reach the button');
     }
     await shot('audit-trail');
+
+    mark('Travel to a section that holds nothing to click');
+    // Nothing in this section can be clicked, so it can only be reached by scrolling to it — and
+    // where the scroll comes to rest is the whole point. A section that fits the frame has to end
+    // up whole inside it, clear of the header the page keeps pinned over the top: resting with the
+    // section split across the fold reads as a scroll that stopped halfway rather than arrived.
+    await scrollTo(page.locator('#summary'));
+    const rested = await page.evaluate(() => {
+      const box = document.getElementById('summary').getBoundingClientRect();
+      return {
+        top: box.top,
+        bottom: box.bottom,
+        header: document.querySelector('header').getBoundingClientRect().bottom,
+        frame: window.innerHeight,
+      };
+    });
+    if (rested.top < rested.header) {
+      throw new Error(`The section came to rest at ${rested.top}, behind a header ${rested.header}px deep`);
+    }
+    if (rested.bottom > rested.frame) {
+      throw new Error(`The section came to rest with ${Math.round(rested.bottom - rested.frame)}px of it below the frame`);
+    }
+    await shot('summary');
 
     mark('Reveal a value that must not survive into the evidence');
     // The element does not exist on screen until the button is pressed, so the rectangle can only

@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const { execFileSync } = require('child_process');
 const { chromium } = require('playwright-core');
 const { resolveSettings } = require('./settings');
+const lock = require('./lock');
 
 const VIEWPORT = { width: 1280, height: 800 };
 const SKILL_DIR = path.resolve(__dirname, '..');
@@ -259,9 +260,15 @@ function watchProblems(page) {
 }
 
 // Session used for probing selectors: no recording, just a signed-in page.
+//
+// It takes the same lock a take does, and for the same reason: prepareApp() starts or reuses the
+// application's development server, so a probe running beside a take shares the build cache and the
+// server state with it. The probe is the step before writing a step script, which is exactly when
+// somebody else's take is likely to be running.
 async function openSession({ config, app }) {
   const settings = resolveSettings(config);
   const { name, appConfig, baseUrl } = resolveApp(config, app);
+  const release = lock.acquire(ROOT, { kind: 'probe' });
   const fixes = await prepareApp({ appConfig, name, baseUrl });
   const browser = await launchBrowser(settings);
   const storageState = await signIn({ browser, appConfig, name, baseUrl, settings });
@@ -272,16 +279,43 @@ async function openSession({ config, app }) {
   });
   const page = await context.newPage();
   const problems = watchProblems(page);
-  return { browser, context, page, baseUrl, app: name, storageState, fixes, config, settings, problems };
+  return {
+    browser, context, page, baseUrl, app: name, storageState, fixes, config, settings, problems,
+    release,
+  };
 }
 
 async function closeSession(session) {
-  await session.context.close();
-  await session.browser.close();
+  try {
+    await session.context.close();
+    await session.browser.close();
+  } finally {
+    // The browser failing to close is not a reason to leave the project locked for the next run.
+    session.release?.();
+  }
+}
+
+// Opening the screen a take starts on.
+//
+// Not `networkidle`: a page that preloads a video or an audio element keeps that request open for
+// as long as it is streaming, so the state never arrives and the take fails before its first step
+// with a message about navigation and nothing about the cause. What the runner needs is the page
+// drawn and still, so it waits for the load event and then gives the network a short while to go
+// quiet — and carries on when it does not.
+const QUIET_MS = 3000;
+
+async function openPage(page, url) {
+  await page.goto(url, { waitUntil: 'load' });
+  try {
+    await page.waitForLoadState('networkidle', { timeout: QUIET_MS });
+  } catch {
+    // Something on the page is still talking — a stream, a poll, a preloaded media element. The
+    // page is drawn, which is what the first step needs.
+  }
 }
 
 module.exports = {
-  VIEWPORT, ROOT, SKILL_DIR, HELP_ENV, NO_BROWSER_POPUPS, sleep, watchProblems, assertOutsideSkill, resolveSettings,
+  VIEWPORT, ROOT, SKILL_DIR, HELP_ENV, NO_BROWSER_POPUPS, sleep, openPage, watchProblems, assertOutsideSkill, resolveSettings,
   loadProjectConfig, makeAccountStore, generatePassword,
   resolveApp, launchBrowser, prepareApp, signIn,
   openSession, closeSession,

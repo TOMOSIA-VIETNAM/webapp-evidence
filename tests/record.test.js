@@ -7,6 +7,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 
 // session.js refuses to run from inside the skill directory, and this repository IS that
 // directory. Point it at a scratch project before the module is loaded.
@@ -16,7 +17,7 @@ process.env.PROJECT_ROOT = PROJECT;
 const {
   fmt, keyCaps, resolvePause, readingTime, buildTimeline, buildHotkeySection, buildNoteSection,
   buildCommandSection, buildRedactionSection, buildRemovedSection, placeAt, runCaseDisposers,
-  ignoreHints, runArtifacts, archivePreviousRun,
+  ignoreHints, runArtifacts, archivePreviousRun, failedTakeError,
 } = require('../src/skills/recording/scripts/record');
 const { DEFAULTS } = require('../src/skills/recording/scripts/settings');
 
@@ -331,6 +332,7 @@ test('the reader is told the video is shorter than what was recorded', () => {
 const { buildContext } = require('../src/skills/recording/scripts/record');
 const { createTerminal } = require('../src/skills/recording/scripts/terminal');
 const { createHuman } = require('../src/skills/recording/scripts/human');
+const { SNAPSHOT, HEADER } = require('../src/skills/recording/scripts/scroll');
 const { resolveSettings } = require('../src/skills/recording/scripts/settings');
 
 const scopeFrom = (helpers) => buildContext({
@@ -395,4 +397,326 @@ test('cleaning up after the cases runs every one of them, and outlives one that 
 
   assert.equal(results, undefined);
   assert.deepEqual(ran, ['first', 'third']);
+});
+
+
+// ---------- a take that failed ----------
+
+// What the operator is left with when a step script throws. The video is gone either way; what
+// decides whether the failure can be worked on is knowing which step it happened in, because the
+// alternative is counting the screenshots that were written and inferring it.
+
+test('the failure names the step it happened in, and when', () => {
+  const marks = [{ at: 0, label: 'Open the search screen' }, { at: 12, label: 'Reach the audit trail' }];
+  const error = failedTakeError(
+    { error: new Error('locator.click: Timeout 30000ms exceeded'), raw: null },
+    { outDir: PROJECT, name: 'take', marks, trimAt: 0, videoOpts: {}, redactions: { all: () => [] }, at: 41 },
+  );
+
+  assert.match(error.message, /step 2/);
+  assert.match(error.message, /Reach the audit trail/);
+  assert.match(error.message, /00:41/);
+  assert.match(error.message, /Timeout 30000ms exceeded/);
+});
+
+test('a take that failed before its first mark says so rather than naming a step', () => {
+  const error = failedTakeError(
+    { error: new Error('page.goto: net::ERR_CONNECTION_REFUSED'), raw: null },
+    { outDir: PROJECT, name: 'take', marks: [], trimAt: 0, videoOpts: {}, redactions: { all: () => [] }, at: 3 },
+  );
+  assert.match(error.message, /before the first mark/);
+  assert.match(error.message, /ERR_CONNECTION_REFUSED/);
+});
+
+test('the original failure is kept, so nothing about it is lost in the retelling', () => {
+  const cause = new Error('locator.click: Timeout 30000ms exceeded');
+  const error = failedTakeError({ error: cause, raw: null }, {
+    outDir: PROJECT, name: 'take', marks: [], trimAt: 0, videoOpts: {}, redactions: { all: () => [] }, at: 1,
+  });
+  assert.equal(error.cause, cause);
+});
+
+test('with nothing recorded, the operator is told that rather than pointed at a file', () => {
+  const error = failedTakeError({ error: new Error('nope'), raw: null }, {
+    outDir: PROJECT, name: 'take', marks: [], trimAt: 0, videoOpts: {}, redactions: { all: () => [] }, at: 1,
+  });
+  assert.match(error.message, /Nothing had been recorded/);
+});
+
+// ---------- aiming at something that is not a size ----------
+
+test('moveTo refuses a bounding box where it expects a number of pixels', async () => {
+  const scope = scopeFrom({});
+  await assert.rejects(
+    () => scope.moveTo(100, 100, { x: 1, y: 2, width: 40, height: 20 }),
+    /moveTo/,
+  );
+});
+
+// A page that answers only what the pointer helpers ask it: where the mouse was told to go, and
+// what a measurement of an element returned. Everything the browser does with that is out of scope
+// here — what is being pinned down is which coordinates the helpers compute, and from what.
+const FAST = resolveSettings({ recording: { speed: 'fast' } }).recording;
+
+function pointerScope(snapshots = [], { header = 0, boxes = [], stops = true } = {}) {
+  const sent = [];
+  // A sequence per locator: each measurement takes the next one, and the last stands for every
+  // measurement after it. That is what makes a page still moving when it was measured expressible
+  // here — one snapshot for where it was, the next for where it ended up.
+  const queues = snapshots.map((entry) => (Array.isArray(entry) ? [...entry] : [entry]));
+  const page = {
+    // The header is measured in the page rather than in the element's own document, so it is the
+    // page that answers for it.
+    evaluate: async (fn) => (fn === HEADER ? header : undefined),
+    mouse: {
+      async move(x, y) { sent.push({ kind: 'move', x, y }); },
+      async down() { sent.push({ kind: 'down' }); },
+      async up() { sent.push({ kind: 'up' }); },
+      async wheel(dx, dy) { sent.push({ kind: 'wheel', dx, dy }); },
+    },
+  };
+  const locators = queues.map((queue, index) => ({
+    // SETTLE reports whether the element really stopped; only a SNAPSHOT is a measurement.
+    evaluate: async (fn) => (fn === SNAPSHOT ? (queue.length > 1 ? queue.shift() : queue[0]) : stops),
+    boundingBox: async () => boxes[index] ?? null,
+    scrollIntoViewIfNeeded: async () => { sent.push({ kind: 'jump' }); },
+  }));
+  const scope = buildContext({
+    page, outDir: PROJECT, marks: [], hotkeys: [], notes: [], dialogs: [], startedAt: Date.now(),
+    pace: FAST.pace, viewport: FAST.viewport, captions: { enabled: false },
+    human: createHuman({ pace: FAST.pace, viewport: FAST.viewport, seed: 'pointer' }),
+    terminal: { term: {}, isOpen: () => false }, redactions: [], capture: {}, helpers: {},
+  });
+  return { scope, locators, sent };
+}
+
+// Where an element stands, as SNAPSHOT reports it: nothing scrollable around it, so a helper that
+// wants to scroll to it has nothing to turn and leaves it where it is.
+const standingAt = (rect, { maxTop = 0 } = {}) => ({
+  target: rect,
+  view: FAST.viewport,
+  frames: [{
+    rect: { top: 0, left: 0, width: FAST.viewport.width, height: FAST.viewport.height },
+    scrollTop: 0, scrollLeft: 0, maxTop, maxLeft: 0,
+  }],
+  header: 0,
+  inFrame: false,
+});
+
+const centreOf = (rect) => ({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+const lastMoveBefore = (sent, kind) => {
+  const at = sent.findIndex((event) => event.kind === kind);
+  return sent.slice(0, at).filter((event) => event.kind === 'move').pop();
+};
+
+test('moveTo with no target size at all goes ahead', async () => {
+  // The guard is about a value that is not a number of pixels; leaving it out is how most calls
+  // are written, and Fitts's law falls back to a default size for them.
+  const { scope } = pointerScope();
+  await assert.doesNotReject(() => scope.moveTo(100, 100));
+});
+
+test('a drag onto another element presses on the handle, not on what the page moved under it', async () => {
+  // Both ends are measured before the button goes down, and the far end is measured where it
+  // stands. Measuring it by scrolling to it would move the handle the press is aimed at.
+  const handle = { top: 400, left: 200, width: 200, height: 20 };
+  const onto = { top: 380, left: 700, width: 120, height: 60 };
+  const { scope, locators, sent } = pointerScope([standingAt(handle), standingAt(onto)]);
+
+  await scope.drag(locators[0], locators[1]);
+
+  assert.deepEqual(lastMoveBefore(sent, 'down'), { kind: 'move', ...centreOf(handle) });
+  assert.deepEqual(lastMoveBefore(sent, 'up'), { kind: 'move', ...centreOf(onto) });
+  assert.equal(sent.filter((event) => event.kind === 'wheel').length, 0, 'the page was scrolled mid-drag');
+});
+
+test('a drag onto something outside the frame is refused, not scrolled to', async () => {
+  const handle = { top: 400, left: 200, width: 200, height: 20 };
+  // The page has room to scroll to it, which is what makes the refusal a decision rather than a
+  // dead end: bringing it into the frame is possible, and it would cost the handle its position.
+  const offScreen = { top: 1900, left: 200, width: 120, height: 60 };
+  const { scope, locators, sent } = pointerScope([
+    standingAt(handle), standingAt(offScreen, { maxTop: 4000 }),
+  ]);
+
+  await assert.rejects(() => scope.drag(locators[0], locators[1]), /frame/);
+  assert.equal(sent.filter((event) => event.kind === 'down').length, 0, 'the button went down anyway');
+});
+
+test('a drag with nowhere named says so instead of computing NaN', async () => {
+  const { scope, locators } = pointerScope([standingAt({ top: 400, left: 200, width: 200, height: 20 })]);
+  await assert.rejects(() => scope.drag(locators[0], { to: 'the right' }), /drag\(\)/);
+});
+
+test('the helpers that move the pointer are all in the scope', () => {
+  const scope = scopeFrom({});
+  for (const name of ['moveTo', 'drag', 'scrollTo', 'click']) {
+    assert.equal(typeof scope[name], 'function', name);
+  }
+});
+
+
+// ---------- coming to rest, on a page that was still moving when it was measured ----------
+
+// The heading that keeps a coasting page from being wheeled backwards is right for reaching
+// something to press and wrong for arriving somewhere: it will happily call an overshoot "arrived"
+// while the section sits with its first rows off the top of the frame. These two pin the line
+// between the callers.
+const scrolling = (rect, { scrollTop = 0, maxTop = 4000 } = {}) => ({
+  target: rect,
+  view: FAST.viewport,
+  frames: [{
+    rect: { top: 0, left: 0, width: FAST.viewport.width, height: FAST.viewport.height },
+    scrollTop, scrollLeft: 0, maxTop, maxLeft: 0,
+  }],
+  inFrame: false,
+});
+
+const OVERSHOT = [
+  scrolling({ top: 1400, left: 0, width: 1280, height: 300 }),                      // below the fold
+  scrolling({ top: -40, left: 0, width: 1280, height: 300 }, { scrollTop: 1300 }),  // carried past
+  scrolling({ top: 154, left: 0, width: 1280, height: 300 }, { scrollTop: 1106 }),  // at rest
+];
+const wheeledBack = (sent) => sent.some((event) => event.kind === 'wheel' && event.dy < 0);
+
+test('scrollTo corrects an overshoot once the page has stopped', async () => {
+  const { scope, locators, sent } = pointerScope([OVERSHOT]);
+  await scope.scrollTo(locators[0], { pause: 0 });
+  assert.ok(wheeledBack(sent), 'the section was left hanging off the top of the frame');
+});
+
+test('click leaves an overshoot alone: it only has to reach something it can press', async () => {
+  const { scope, locators, sent } = pointerScope([OVERSHOT]);
+  await scope.click(locators[0], { pause: 0 });
+  assert.equal(wheeledBack(sent), false, 'the page slid back for a press that could already land');
+});
+
+test('an element the pinned header covers is refused, not pressed through the header', async () => {
+  // Nothing can scroll, so it stays where it is: on screen, and under the band the page keeps
+  // pinned over the top of the frame.
+  const covered = scrolling({ top: 20, left: 0, width: 400, height: 40 }, { maxTop: 0 });
+  const { scope, locators, sent } = pointerScope([covered], { header: 96 });
+
+  await assert.rejects(() => scope.click(locators[0]), /header/);
+  assert.equal(sent.filter((event) => event.kind === 'down').length, 0);
+});
+
+test('an element the header covers half of is pressed on the half below it', async () => {
+  const half = scrolling({ top: 60, left: 0, width: 400, height: 120 }, { maxTop: 0 });
+  const { scope, locators, sent } = pointerScope([half], { header: 96 });
+
+  await scope.click(locators[0], { pause: 0 });
+  const pressedAt = lastMoveBefore(sent, 'down');
+  assert.ok(pressedAt.y > 96, `pressed at ${pressedAt.y}, inside the header band`);
+  assert.ok(pressedAt.y < 180, `pressed at ${pressedAt.y}, below the element`);
+});
+
+
+test('an element inside an iframe is judged against the page\'s header, not its own document\'s', () => {
+  // The snapshot of an element in a frame is measured in that frame; the header is measured in the
+  // page, because that is where the mouse is and where the header that can cover it lives.
+  const inFrame = { ...scrolling({ top: 20, left: 100, width: 200, height: 40 }, { maxTop: 0 }), inFrame: true };
+  const { scope, locators } = pointerScope([inFrame], {
+    header: 96,
+    boxes: [{ x: 100, y: 20, width: 200, height: 40 }],
+  });
+
+  return assert.rejects(() => scope.click(locators[0]), /header/);
+});
+
+test('a sliver too small to aim at is not blamed on a header the page does not have', async () => {
+  const sliver = scrolling({ top: 799.6, left: 0, width: 400, height: 100 }, { maxTop: 0 });
+  const { scope, locators } = pointerScope([sliver], { header: 0 });
+
+  await assert.rejects(() => scope.click(locators[0]), (error) => {
+    assert.match(error.message, /not visible/);
+    assert.doesNotMatch(error.message, /header/);
+    return true;
+  });
+});
+
+test('scrollTo keeps correcting while the page keeps coming up short', async () => {
+  // One correction is not enough on a page whose wheel deltas do not land on the resting place:
+  // giving up after it would fall through to the jump, which knows nothing about the header.
+  const { scope, locators, sent } = pointerScope([[
+    scrolling({ top: 1400, left: 0, width: 1280, height: 300 }),
+    scrolling({ top: -40, left: 0, width: 1280, height: 300 }, { scrollTop: 1300 }),
+    scrolling({ top: 30, left: 0, width: 1280, height: 300 }, { scrollTop: 1230 }),
+    scrolling({ top: 200, left: 0, width: 1280, height: 300 }, { scrollTop: 1060 }),
+  ]], { header: 96 });
+
+  await scope.scrollTo(locators[0], { pause: 0 });
+  assert.equal(sent.filter((event) => event.kind === 'jump').length, 0, 'it gave up and jumped');
+});
+
+test('after a jump, a scroll that has to arrive moves out from under the header', async () => {
+  // A pane no wheel can reach: every measurement comes back the same, so the wheel is abandoned for
+  // the jump — which leaves the element against the top edge, behind the header.
+  // Behind the header, on a page that has room to scroll it clear: the hop is possible, the wheel
+  // just never achieves it.
+  const stuck = scrolling({ top: 20, left: 0, width: 1280, height: 300 }, { scrollTop: 500 });
+  const { scope, locators, sent } = pointerScope([[
+    stuck, stuck, stuck, stuck,
+    scrolling({ top: 200, left: 0, width: 1280, height: 300 }, { scrollTop: 307 }),
+  ]], { header: 96 });
+
+  await scope.scrollTo(locators[0], { pause: 0 });
+  const jumpedAt = sent.findIndex((event) => event.kind === 'jump');
+  assert.ok(jumpedAt >= 0, 'the wheel was never abandoned, so this checks nothing');
+  assert.ok(sent.slice(jumpedAt).some((event) => event.kind === 'wheel'), 'nothing made up for the header');
+});
+
+
+test('a page that never holds still is left where it is, rather than corrected into a bounce', async () => {
+  // The wait for the page to stop ran out with the element still moving, so a correction would be
+  // planned from a position it is already leaving — which is the bounce, for the whole budget.
+  const { scope, locators, sent } = pointerScope([OVERSHOT], { stops: false });
+  await scope.scrollTo(locators[0], { pause: 0 });
+  assert.equal(wheeledBack(sent), false, 'it corrected against a page that was still moving');
+});
+
+
+test('a page that never holds still keeps its resting place instead of being cut to', async () => {
+  // Still short at the last measurement, and the page was never seen to stop. Correcting it was
+  // refused on exactly that measurement, so jumping on the strength of it would be the same
+  // untrustworthy reading taken twice — and a jump is a cut in the video.
+  const short = scrolling({ top: 30, left: 0, width: 1280, height: 300 }, { scrollTop: 1230 });
+  const { scope, locators, sent } = pointerScope([[
+    scrolling({ top: 1400, left: 0, width: 1280, height: 300 }),
+    short, short, short, short,
+  ]], { header: 96, stops: false });
+
+  await scope.scrollTo(locators[0], { pause: 0 });
+  assert.equal(sent.filter((event) => event.kind === 'jump').length, 0, 'it cut to the element');
+});
+
+
+// What the operator is told about a video kept from a take that did not finish. The recording
+// ending at its own time limit is a second thing that went wrong, far from the failure the error
+// names, and the file cannot say which of the two it stopped for.
+
+const failureSaid = (endedEarly) => {
+  const outDir = fs.mkdtempSync(path.join(PROJECT, 'ended-early-'));
+  const raw = path.join(outDir, 'take.raw.mp4');
+  // A real recording, because the sentence only appears once there is a video to say it about.
+  execFileSync('ffmpeg', ['-y', '-v', 'error', '-f', 'lavfi',
+    '-i', 'testsrc=size=64x64:rate=10:duration=0.5', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', raw]);
+
+  return failedTakeError({ error: new Error('locator.click: Timeout 30000ms exceeded'), raw, endedEarly }, {
+    outDir, name: 'take', marks: [], trimAt: 0, videoOpts: { preset: 'ultrafast', crf: 28 },
+    redactions: { all: () => [] }, at: 30, maxSeconds: 600,
+  }).message;
+};
+
+test('a recording that ran out at its own limit is named beside the failure, not as it', () => {
+  const said = failureSaid(true);
+  assert.match(said, /take-failed\.mp4/);
+  assert.match(said, /600s/);
+  assert.match(said, /Timeout 30000ms exceeded/);
+});
+
+test('a recording the take stopped is handed over without that explanation', () => {
+  const said = failureSaid(false);
+  assert.match(said, /take-failed\.mp4/);
+  assert.doesNotMatch(said, /600s/);
 });

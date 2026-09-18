@@ -6,7 +6,7 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 const {
   HELP_ENV, sleep, watchProblems, assertOutsideSkill, resolveSettings,
-  loadProjectConfig, resolveApp, launchBrowser, prepareApp, signIn, makeAccountStore, ROOT,
+  loadProjectConfig, resolveApp, launchBrowser, prepareApp, signIn, makeAccountStore, ROOT, openPage,
 } = require('./session');
 const { createHuman, resolvePause } = require('./human');
 const { createCaptions } = require('./captions');
@@ -17,6 +17,7 @@ const {
   createRedactions, buildFilter, shiftTime, unionBox, padBox,
 } = require('./redaction');
 const { createCapture } = require('./capture');
+const lock = require('./lock');
 
 const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
@@ -100,6 +101,16 @@ function buildContext({
   }
 
   async function moveTo(x, y, targetSize) {
+    // How long the move takes is worked out from this number, and anything that is not one makes
+    // that duration NaN. The move then never finishes on the clock and the failure surfaces from
+    // inside the cursor interpolation, several frames away from the call that caused it.
+    if (targetSize !== undefined && !Number.isFinite(targetSize)) {
+      throw new Error(
+        `moveTo's third argument is the size of what is being aimed at, in pixels, and it was ` +
+        `given ${JSON.stringify(targetSize)}.\nPass a number, or leave it out — a bounding box ` +
+        'goes in as Math.min(box.width, box.height).'
+      );
+    }
     const from = page.__cursor || human.restingPoint();
     const plan = human.movePlan(from, { x, y }, targetSize);
     page.__cursor = { x, y };
@@ -126,13 +137,26 @@ function buildContext({
   // instead of turning the wheel at nothing.
   const MAX_HOPS = 4;
 
-  const measure = (locator) => locator.evaluate(scroll.SNAPSHOT);
+  // One measurement: where the element and its panes stand, plus how deep the band is that the page
+  // keeps pinned over the top. The header comes from the page rather than from the element's own
+  // document, because that is the frame the mouse is driven in — and an element inside an <iframe>
+  // can sit behind the page's header just as easily as anything else.
+  const measure = async (locator) => {
+    const [snapshot, header] = await Promise.all([
+      locator.evaluate(scroll.SNAPSHOT),
+      page.evaluate(scroll.HEADER),
+    ]);
+    return { ...snapshot, header };
+  };
   // Two still frames is enough to tell "the scroll has finished" from "between two steps of it",
-  // and the timeout keeps a page that animates something forever from holding the take.
-  const settle = (locator) => locator.evaluate(scroll.SETTLE, { stillFrames: 2, timeoutMs: 600 });
+  // and the timeout keeps a page that animates something forever from holding the take. It has to
+  // outlast a momentum scroller's easing: measuring while the page is still coasting reads a
+  // distance the coast is already covering, and the next hop then scrolls it a second time.
+  const settle = (locator) =>
+    locator.evaluate(scroll.SETTLE, { stillFrames: 2, timeoutMs: pace.scrollSettleMs });
   const panelDepth = async () => (terminal.isOpen() ? terminal.panelHeight() : 0);
-  const nextHop = async (snapshot) =>
-    scroll.planHop(snapshot, { cursor: page.__cursor, avoidBottom: await panelDepth() });
+  const nextHop = async (snapshot, heading = 0) =>
+    scroll.planHop(snapshot, { cursor: page.__cursor, avoidBottom: await panelDepth(), heading });
 
   // The wheel, turned over time rather than in one delta. Same interpolation as a cursor move and
   // for the same reason: each round trip to the browser costs more than one frame, so what is
@@ -160,7 +184,11 @@ function buildContext({
 
   // Scroll until the element can be clicked, one pane at a time, and leave it settled: nothing
   // downstream may read a position while the page is still moving.
-  async function bringIntoView(locator) {
+  //
+  // `restAt` is for a caller that has to come to rest somewhere exact rather than merely reach
+  // something it can press: it spends one more hop, after the travelling is over, with the heading
+  // no longer holding a correction back.
+  async function bringIntoView(locator, { restAt = false } = {}) {
     let snapshot = await measure(locator);
 
     // Measured inside an <iframe>, those coordinates belong to that frame, while page.mouse works
@@ -173,55 +201,155 @@ function buildContext({
       return measure(locator);
     }
 
-    for (let hop = 0; hop < MAX_HOPS; hop++) {
-      const plan = await nextHop(snapshot);
-      if (!plan) return snapshot;
 
+    // Whether the page was still moving the last time this waited for it. `settle` waits for the
+    // element to hold still and gives up at a ceiling, and those two endings mean opposite things
+    // to anything that measures afterwards.
+    let stopped = true;
+
+    // One turn of the wheel, left settled, measured again.
+    const turn = async (plan) => {
       // The wheel is delivered wherever the pointer stands, so it goes over the pane that has to
       // move — which is also what a person does before scrolling one panel of a page.
       await moveTo(plan.pointer.x, plan.pointer.y);
       await wheelBy(plan.dx, plan.dy);
-      await settle(locator);
+      stopped = await settle(locator);
       await sleep(human.wait(pace.afterScrollMs));
+      return measure(locator);
+    };
 
-      const landed = await measure(locator);
-      const stuck = Math.abs(landed.target.top - snapshot.target.top) < 1
-        && Math.abs(landed.target.left - snapshot.target.left) < 1;
-      snapshot = landed;
-      if (stuck) break;
-    }
+    // Hop towards the element until there is nothing left to do, the page stops answering the
+    // wheel, or the budget runs out.
+    //
+    // `holdHeading` is what keeps a page that is still coasting from being wheeled back over ground
+    // it is about to cover by itself, and it is right for reaching something to press. It is wrong
+    // for arriving: what it holds back is an element left a little past where it belongs, even
+    // behind the header, which is exactly the correction a scroll that has to COME TO REST needs.
+    // A run without it goes second, and only once the page has been seen to stop — planned from a
+    // position the page is still leaving, a correction is the bounce over again, and a page that
+    // never holds still (a carousel, a spinner beside the element) would bounce through the whole
+    // budget. There, a resting place a little off is the better of the two.
+    const travel = async (from, { holdHeading }) => {
+      let at = from;
+      let heading = 0;
+      for (let hop = 0; hop < MAX_HOPS; hop++) {
+        const plan = await nextHop(at, holdHeading ? heading : 0);
+        if (!plan) break;
+        if (holdHeading) heading = heading || Math.sign(plan.dy);
 
-    if (!(await nextHop(snapshot))) return snapshot;
+        const landed = await turn(plan);
+        const stuck = Math.abs(landed.target.top - at.target.top) < 1
+          && Math.abs(landed.target.left - at.target.left) < 1;
+        at = landed;
+        if (stuck) break;
+      }
+      return { at, heading };
+    };
+
+    const travelled = await travel(snapshot, { holdHeading: true });
+    snapshot = travelled.at;
+    if (restAt && stopped) snapshot = (await travel(snapshot, { holdHeading: false })).at;
+
+    // The same gate as the correction above: a page that was never seen to stop keeps the heading
+    // here too. Dropping it after refusing to correct on that measurement would mean distrusting
+    // the measurement and then jumping on the strength of it — and the jump is a cut in the video,
+    // which is worse than the resting place that refusal settled for.
+    if (!(await nextHop(snapshot, restAt && stopped ? 0 : travelled.heading))) return snapshot;
 
     // Nothing a wheel can reach will finish this: a pane that swallows the event, or a container
     // the app scrolls with its own script and hidden overflow. Take the jump rather than click at
     // something off the frame — a video that cuts to the action still shows the action.
     await locator.scrollIntoViewIfNeeded();
-    await settle(locator);
-    return measure(locator);
+    stopped = await settle(locator);
+    snapshot = await measure(locator);
+
+    // The browser scrolls the least it can, which leaves the element against the top edge of the
+    // frame — behind the header, on a page that pins one. The jump knows nothing about that band,
+    // so a run that has to come to rest makes it up afterwards rather than reporting that the
+    // element never arrived.
+    if (restAt && stopped) snapshot = (await travel(snapshot, { holdHeading: false })).at;
+    return snapshot;
   }
 
-  async function click(locator, { pause } = {}) {
-    const found = await bringIntoView(locator);
-    // Inside a frame the only position page.mouse can use is the one Playwright converts, and it
-    // knows nothing of the panes clipping the element; everywhere else the visible part is what a
-    // click may aim at.
-    const box = found.inFrame ? await locator.boundingBox() : scroll.visibleBox(found);
-    if (!box || box.width < 1 || box.height < 1) {
+  // Travel to something and stop on it. `click` already scrolls to what it clicks, so this is for
+  // the part of a page that holds nothing to click — a section of a long page that is only there
+  // to be read. Written by hand out of page.mouse.wheel it is a loop that re-measures the target
+  // between turns, which on a page with a momentum scroller reads a distance the coast is already
+  // covering: the page then overshoots and slides back, and the video shows the bounce.
+  async function scrollTo(locator, { pause } = {}) {
+    const found = await bringIntoView(locator, { restAt: true });
+    if (!found.inFrame && !reachable(found, scroll.visibleBox(found))) {
       throw new Error(
-        'The element to click is not visible: no part of it is on screen, and scrolling to it did ' +
-        'not change that.\nClicking it anyway would put the cursor outside the frame, and the video ' +
-        'would show no action at all.'
+        'The element to scroll to did not come to rest anywhere a viewer can read it: no part of ' +
+        'it is in the frame below whatever the page keeps pinned over the top.\n' +
+        'Check the locator, or reach it through something inside the same pane.'
       );
     }
-    // A click under the open terminal panel would work and would not be visible: the video shows
+    // Arriving at a section is an action whose result is the section itself, so the default is the
+    // wait for something that has to be read rather than the beat after an ordinary click.
+    await sleep(human.wait(resolvePause(pause, pace, pace.afterClickObserveMs)));
+  }
+
+  // Where a helper may aim at an element: the part of it a viewer can see, once the page has been
+  // scrolled so that there is one. Every pointer action goes through this, because an action
+  // outside the frame — or behind the panel drawn over it — is an action the video does not show.
+  // The part of an element a pointer may use: what is on screen, less the band the page keeps
+  // pinned over the top of the frame. What a header covers is visible and out of reach — a press
+  // aimed under it lands on the header — so it is no part of the aim. The terminal panel is the
+  // same thing at the other edge, refused rather than trimmed because the panel is the runner's
+  // own and a step script can close it.
+  function reachable(found, box) {
+    if (!box) return null;
+    const top = Math.max(box.y, found.header || 0);
+    const height = box.y + box.height - top;
+    if (height < 1 || box.width < 1) return null;
+    return { x: box.x, y: top, width: box.width, height };
+  }
+
+  // `bringIn: false` measures the element where it stands instead of scrolling to it, for the far
+  // end of a drag: the near end was measured already, and scrolling now would move it out from
+  // under the press. A drag is only recordable with both ends in the frame at once anyway — the
+  // cursor has to be seen travelling between them.
+  async function aimBox(locator, action, { bringIn = true } = {}) {
+    const found = bringIn ? await bringIntoView(locator) : await measure(locator);
+    // Inside a frame the only position page.mouse can use is the one Playwright converts, and it
+    // knows nothing of the panes clipping the element; everywhere else the visible part is what a
+    // pointer may aim at.
+    const seen = found.inFrame ? await locator.boundingBox() : scroll.visibleBox(found);
+    const box = reachable(found, seen);
+    // Only when the header is what took it away. `reachable` also returns nothing for a sliver of
+    // an element too small to aim at, and that has a message of its own below — one that names the
+    // right cause instead of blaming a header the page may not even have.
+    if (!box && seen && found.header > 0 && seen.y + seen.height <= found.header) {
+      throw new Error(
+        `The element to ${action} is behind the header the page keeps pinned over the top of the ` +
+        'frame: it is on screen and the pointer cannot get to it — a press aimed there lands on ' +
+        'the header.\nReach it from a place that leaves it below the header, or record the page ' +
+        'with the header out of the way.'
+      );
+    }
+    if (!box || box.width < 1 || box.height < 1) {
+      throw new Error(bringIn
+        ? `The element to ${action} is not visible: no part of it is on screen, and scrolling to it ` +
+          'did not change that.\nActing on it anyway would put the cursor outside the frame, and the ' +
+          'video would show no action at all.'
+        : `The element to ${action} is not in the frame, and scrolling to it here would move what ` +
+          'the drag already has hold of.\nBring both ends into view first — scrollTo() a place that ' +
+          'holds them together, or drag by { dx, dy } instead.');
+    }
+    // An action under the open terminal panel would work and would not be visible: the video shows
     // the panel where the button was, and the reviewer is left with a result and no action.
     if (terminal.isOpen() && isBehindPanel(box, viewport.height, await terminal.panelHeight())) {
       throw new Error(
-        'The element to click is behind the terminal panel, so the click would not be visible ' +
+        `The element to ${action} is behind the terminal panel, so it would not be visible ` +
         'in the recording.\nCall term.close() before operating on the bottom of the page.'
       );
     }
+    return box;
+  }
+
+  async function click(locator, { pause } = {}) {
+    const box = await aimBox(locator, 'click');
     const cx = box.x + box.width / 2;
     const cy = box.y + box.height / 2;
     // The click does not land dead centre: a human hand lands slightly off centre, and the larger
@@ -237,6 +365,44 @@ function buildContext({
     await sleep(human.wait(resolvePause(pause, pace, pace.afterClickMs)));
     // After a navigation the fake cursor is redrawn from its default position, so it has to be resynced
     await page.mouse.move(tx + 0.5, ty + 0.5);
+  }
+
+  // Where a drag ends. Three forms, because a drag is asked for in three ways: onto another
+  // element, to a point on the page, or by an offset from where the handle started.
+  async function dropPoint(to, from) {
+    if (to && typeof to.boundingBox === 'function') {
+      const onto = await aimBox(to, 'drop onto', { bringIn: false });
+      return { x: onto.x + onto.width / 2, y: onto.y + onto.height / 2, size: Math.min(onto.width, onto.height) };
+    }
+    if (to && Number.isFinite(to.x) && Number.isFinite(to.y)) return { x: to.x, y: to.y };
+    if (to && (Number.isFinite(to.dx) || Number.isFinite(to.dy))) {
+      return { x: from.x + (to.dx || 0), y: from.y + (to.dy || 0) };
+    }
+    throw new Error(
+      `drag() does not know where to drop: ${JSON.stringify(to)}\n` +
+      'Pass a locator to drop onto, { x, y } for a point on the page, or { dx, dy } for an offset ' +
+      'from where the drag started.'
+    );
+  }
+
+  // Dragging a handle along a timeline, a control point on an overlay, the thumb of a slider. Built
+  // out of the same interpolated move as a click, because the cursor being visible the whole way is
+  // the reason every action goes through a helper.
+  async function drag(locator, to, { pause } = {}) {
+    const box = await aimBox(locator, 'drag');
+    const from = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+    const target = await dropPoint(to, from);
+
+    const reach = await moveTo(from.x, from.y, Math.min(box.width, box.height));
+    await sleep(human.aimDelay(reach));
+    await page.mouse.down();
+    await sleep(human.wait(pace.clickHoldMs));
+    await moveTo(target.x, target.y, target.size);
+    // Held before the button comes up: a drop in the same instant as the arrival reads as a jump,
+    // and the frame that shows where it landed is the one a reviewer stops on.
+    await sleep(human.wait(pace.dragHoldMs));
+    await page.mouse.up();
+    await sleep(human.wait(resolvePause(pause, pace, pace.afterClickMs)));
   }
 
   // Click the field, then type. The typing rhythm is uneven: slower at spaces and after punctuation,
@@ -534,24 +700,25 @@ function buildContext({
       // Padded in page coordinates, then moved into the frame the video actually holds: for a
       // window recording that is the whole window, in physical pixels.
       if (box) entry.box = capture.pageToFrame(padBox(box, REDACT_PADDING, viewport));
-      // Leaving `from` unset drops the entry, so a step script that threw halfway does not blur
-      // everything after the point it failed.
-      if (!failed) {
-        if (locator && !box) {
-          throw new Error(
-            'redact() could not measure the element at either end of the stretch, so there is ' +
-            'nothing to cover.\nKeep it on screen for the duration, or pass \'frame\' to cover the ' +
-            'whole frame instead.'
-          );
-        }
-        entry.from = start;
-        entry.to = since();
+      // The stretch is closed either way, and where the step script threw is where it ends — so
+      // nothing after the failure is blurred, and nothing the step script was covering when it
+      // failed is left uncovered in the video kept from the attempt. A stretch whose element could
+      // not be measured keeps its whole-frame box, which is the safe direction on a take nobody
+      // watched before it was written.
+      redactions.close(entry, start, since());
+      if (!failed && locator && !box) {
+        throw new Error(
+          'redact() could not measure the element at either end of the stretch, so there is ' +
+          'nothing to cover.\nKeep it on screen for the duration, or pass \'frame\' to cover the ' +
+          'whole frame instead.'
+        );
       }
     }
   }
 
   const scope = {
     page, mark, click, type, select, upload, hotkey, note, shot, redact, dialog, sleep, moveTo,
+    scrollTo, drag,
     term: terminal.term,
   };
 
@@ -675,6 +842,46 @@ function buildNoteSection(notes, trimAt, removed = []) {
   if (!shown.length) return '';
   const rows = shown.map((n) => `- ${fmt(n.at)}  ${n.text}`);
   return `## Captions shown in the video\n\n${rows.join('\n')}\n\n`;
+}
+
+// What is left of a take that failed: the recording up to the point it stopped, and an error that
+// says where that was.
+//
+// The raw capture does not survive as itself. It is the backend's own file — `page@<hash>.webm` for
+// a page recording — and nothing about it says which run wrote it or why it stopped, so a directory
+// collects one per attempt and none of them can be told from another. Encoded, it is a video of the
+// flow up to the failure, which is the one thing worth having from a take that did not finish.
+function failedTakeError({ error, raw, endedEarly }, { outDir, name, marks, trimAt, videoOpts, redactions, at, maxSeconds }) {
+  let partial = null;
+  if (raw) {
+    try {
+      const filter = buildFilter(redactions.all(), trimAt);
+      partial = encodeMp4(outDir, `${name}-failed`, raw, trimAt, videoOpts, filter);
+    } catch {
+      // Too short to hold a frame, or cut off mid-fragment. Either way it is not evidence, and
+      // leaving it behind is what filled the directory in the first place.
+      try { fs.unlinkSync(raw); } catch { /* already gone */ }
+    }
+  }
+
+  const step = marks.length
+    ? `step ${marks.length}, "${marks[marks.length - 1].label}"`
+    : 'the opening of the take, before the first mark()';
+  const said = String((error && error.message) || error);
+  let left = partial
+    ? `What was recorded before it stopped: ${partial}`
+    : 'Nothing had been recorded, so there is no video of the attempt.';
+  // The recorder stopping at its own limit is not what failed the take, and the two moments are
+  // nowhere near each other: without this the video ends mid-flow and the error names a step that
+  // happened after it, with nothing saying why.
+  if (partial && endedEarly) {
+    left += `\nIt ends at recording.screenCapture.maxSeconds (${maxSeconds}s), where the recorder ` +
+      'stopped on its own — before the failure above, which is the other reason there is no take.';
+  }
+
+  const failed = new Error(`The take failed ${fmt(at)} in, during ${step}:\n${said}\n\n${left}`);
+  failed.cause = error;
+  return failed;
 }
 
 function encodeMp4(outDir, name, webm, trimAt, video, filter) {
@@ -923,6 +1130,14 @@ async function main() {
   const name = process.env.VIDEO_NAME || steps.name || 'evidence';
   fs.mkdirSync(outDir, { recursive: true });
 
+  // Held for the whole take, and taken before anything is moved or removed: archiving the previous
+  // run renames and deletes files another take may be writing into at that moment, which is the
+  // kind of damage this lock exists to prevent. Released however this process ends — the exit
+  // handler covers the ordinary path and the failed one, and the interrupt handler below covers the
+  // signal, which runs no exit handler at all.
+  const releaseLock = lock.acquire(ROOT, { outDir });
+  process.once('exit', releaseLock);
+
   archivePreviousRun(outDir, name, settings.output.overwrite);
 
   const fixes = await prepareApp({ appConfig, name: app, baseUrl });
@@ -977,7 +1192,7 @@ async function main() {
   // across every take, so the runbook keeps its promise that re-running produces this same recording.
   const human = createHuman({ pace, viewport, seed: name });
 
-  await page.goto(`${baseUrl}${steps.start || '/'}`, { waitUntil: 'networkidle' });
+  await openPage(page, `${baseUrl}${steps.start || '/'}`);
   await sleep(pace.settleMs);
 
   // Park the cursor somewhere off centre before the video starts. Without this the first frame has the
@@ -1022,6 +1237,8 @@ async function main() {
   // afterwards to die the way it would have: an interrupt has already abandoned the encode, so
   // there is nothing left here worth keeping the process alive for.
   const onInterrupt = () => {
+    capture.killNow();
+    releaseLock();
     runCaseDisposers(caseDisposers);
     process.kill(process.pid, 'SIGINT');
   };
@@ -1035,14 +1252,34 @@ async function main() {
     capturesBrowserUi: capture.mode !== 'page',
   });
   ctx.baseUrl = baseUrl;
+  let failure = null;
   try {
     await steps.run(ctx);
+  } catch (error) {
+    // Nothing else is tidied up first. Recording the screen, every second between the failure and
+    // the stop is a second of whatever else is on the operator's display; the recorder is stopped
+    // before the shell is closed, the cases are cleaned up or the error is dressed up for reading.
+    let stopped = { file: null, endedEarly: false };
+    try {
+      stopped = await capture.abort();
+    } catch {
+      // The take is already lost; what matters is that the recorder is no longer writing.
+    }
+    failure = { error, raw: stopped.file, endedEarly: stopped.endedEarly };
   } finally {
     // A step script that throws halfway must not leave a shell — or whatever it was running —
     // alive on the machine after the runner has gone.
     await terminal.dispose();
     process.off('SIGINT', onInterrupt);
     runCaseDisposers(caseDisposers);
+  }
+
+  if (failure) {
+    await browser.close().catch(() => { /* the abort above may already have taken it */ });
+    throw failedTakeError(failure, {
+      outDir, name, marks, trimAt, videoOpts, redactions, at: (Date.now() - startedAt) / 1000,
+      maxSeconds: settings.recording.screenCapture.maxSeconds,
+    });
   }
 
   await sleep(pace.tailMs);
@@ -1053,7 +1290,7 @@ async function main() {
   if (steps.fullPageShot !== false) {
     const shotContext = await browser.newContext({ viewport, locale: settings.recording.locale, storageState });
     const shotPage = await shotContext.newPage();
-    await shotPage.goto(`${baseUrl}${steps.fullPageShot || steps.start || '/'}`, { waitUntil: 'networkidle' });
+    await openPage(shotPage, `${baseUrl}${steps.fullPageShot || steps.start || '/'}`);
     await shotPage.screenshot({ path: path.join(outDir, '99-full-page.png'), fullPage: true });
     await shotContext.close();
   }
@@ -1139,6 +1376,7 @@ module.exports = {
   // Exported for the unit tests: pure helpers that decide timings, timeline rows and the
   // .gitignore hints, none of which need a browser to be checked.
   fmt, keyCaps, readingTime, runCaseDisposers, buildTimeline, buildHotkeySection, buildNoteSection,
+  failedTakeError,
   buildCommandSection, buildDialogSection, buildRedactionSection, buildRemovedSection, placeAt,
   ignoreHints,
   // Re-exported where the pacing tests already look for it; it lives in human.js with the rest

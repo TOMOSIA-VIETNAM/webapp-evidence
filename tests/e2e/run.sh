@@ -173,6 +173,48 @@ awk -v y="$PANEL_LUMA" 'BEGIN { exit (y < 70) ? 0 : 1 }' \
 [ -f "$OUT_DIR/$NAME-console.log" ] \
   && fail "the demo app reported page errors: $(cat "$OUT_DIR/$NAME-console.log")"
 
+# What a step script gets back when it asks what is on a screen. The selector has to match on the
+# text in the markup: the export button is uppercased by CSS, and a name read off the screen
+# resolves against nothing while looking exactly like a name that would.
+step "Checking the probe prints selectors that resolve"
+PROBE="$OUT_DIR/.inspect"
+BASE_URL="$BASE_URL" node "$SKILL/scripts/inspect.js" / >"$PROBE" 2>&1 \
+  || fail "inspect.js exited non-zero: $(cat "$PROBE")"
+grep -qF 'name: "Export report"' "$PROBE" \
+  || fail "the probe did not print the button's name as the DOM holds it: $(grep -i export "$PROBE")"
+# And a name carrying an apostrophe comes out as a string a step script can be pasted with.
+grep -qF 'name: "Don'"'"'t save"' "$PROBE" \
+  || fail "the probe did not escape an apostrophe in a name: $(grep -i save "$PROBE")"
+grep -qF 'on screen: EXPORT REPORT' "$PROBE" \
+  || fail "the probe never says the screen shows something else"
+
+# A take that fails. The recording stops where the flow did, what was recorded is handed over as a
+# video rather than as the backend's own file under a name nobody can place, and the error says
+# which step it died in — none of which the passing take above can show.
+step "Checking a take that fails stops where it failed"
+FAIL_OUT="$OUT_DIR/failed"
+FAIL_LOG="$OUT_DIR/.failed"
+mkdir -p "$FAIL_OUT"
+set +e
+BASE_URL="$BASE_URL" OUT_DIR="$FAIL_OUT" CAPTIONS=off \
+  node "$SKILL/scripts/record.js" "$REPO/tests/e2e/failing-steps.js" >"$FAIL_LOG" 2>&1
+FAIL_STATUS=$?
+set -e
+[ "$FAIL_STATUS" -ne 0 ] || fail "a step script that threw still reported success"
+grep -qF 'Search, and then stop on purpose' "$FAIL_LOG" \
+  || fail "the failure never names the step it happened in: $(cat "$FAIL_LOG")"
+grep -qF 'stopped here on purpose' "$FAIL_LOG" \
+  || fail "the failure lost what the step script actually said: $(cat "$FAIL_LOG")"
+[ -z "$(find "$FAIL_OUT" -maxdepth 1 -name '*.webm' | awk 'NR==1')" ] \
+  || fail "the raw capture was left behind in $FAIL_OUT"
+PARTIAL="$(find "$FAIL_OUT" -maxdepth 1 -name '*-failed.mp4' | awk 'NR==1')"
+[ -n "$PARTIAL" ] || fail "nothing was kept of what the failed take did record"
+PARTIAL_DURATION=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$PARTIAL")
+# It holds the flow up to the failure and nothing after it: the failure is what stops the recorder,
+# so a file much longer than the take itself means it went on recording without one.
+awk -v d="$PARTIAL_DURATION" 'BEGIN { exit (d < 30) ? 0 : 1 }' \
+  || fail "the failed take left ${PARTIAL_DURATION}s of video, so the recorder outlived the take"
+
 printf '\nPASSED\n'
 printf '  video     %s (%s bytes, %.1fs)\n' "$VIDEO" "$SIZE" "$DURATION"
 printf '  runbook   %s\n' "$RUNBOOK"

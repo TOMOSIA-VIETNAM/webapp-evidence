@@ -9,6 +9,8 @@ The module returns `{ app, name, start, run(ctx) }`. Inside `run`, use the helpe
 | `mark('purpose')` | Marks a span in the timeline. Name it by **purpose** — one group of actions — not one per click |
 | `click(locator, { pause })` | Scrolls to the element if it is off screen, moves the cursor to it with momentum, then clicks (with a ripple effect). `pause` is the wait afterwards: `'quick'` / `'normal'` / `'observe'` or a number of ms |
 | `type(locator, text)` | Clicks into the field, then types character by character |
+| `scrollTo(locator, { pause })` | Travels to something there is nothing to click on — a section of a long page — and comes to rest on it. Same `pause` vocabulary as `click`, defaulting to the wait for something that has to be read |
+| `drag(locator, to, { pause })` | Drags a handle: a slider's thumb, a control point, a row being reordered. `to` is a locator to drop onto — already in the frame, since the cursor has to be seen travelling to it — or `{ x, y }` for a point on the page, or `{ dx, dy }` for an offset from where it started |
 | `select(locator, 'label')` | Opens a `<select>` inside the page and picks the option |
 | `upload(locator, path)` | Loads a file into a file input, then pauses so the filename becomes visible |
 | `hotkey('ControlOrMeta+C', { label, target })` | Presses a shortcut and shows a key hint overlay in the video |
@@ -30,9 +32,24 @@ script, and it only shows up when someone watches the video back.
 | `locator.selectOption(...)` | `select(locator, 'label')` |
 | `locator.setInputFiles(path)` | `upload(locator, path)` |
 | `page.keyboard.press('Meta+C')` | `hotkey('ControlOrMeta+C', { label: 'コピー' })` |
+| `page.mouse.down()` / `up()` around a move | `drag(locator, { dx: 120 })` — the same interpolated path as a click, so the handle is seen travelling |
 | a click that raises `alert`/`confirm` | `dialog(async () => click(locator))` — see below |
 | `locator.scrollIntoViewIfNeeded()` | nothing — `click(locator)` already scrolls to what it clicks |
-| `page.mouse.wheel(...)`, `scrollIntoView()` | nothing — scrolling by hand moves the page between two frames, leaving the cursor travelling towards something that was not on screen |
+| `page.mouse.wheel(...)`, `scrollIntoView()` | `scrollTo(locator)`, or nothing at all where the next step is a `click` — scrolling by hand moves the page between two frames, leaving the cursor travelling towards something that was not on screen |
+
+### Reaching a part of the page with nothing to click in it
+
+`click` scrolls to what it clicks, which covers most of a take. A tour of a long page is the case it
+does not: several sections hold nothing interactive, and they still have to come into the frame.
+That is `scrollTo(locator)` — it turns the wheel the way `click` does, comes to rest with the
+section whole in the frame and clear of any header the page keeps pinned over the top, and waits
+for the page to stop moving before the next step runs.
+
+Do not write that loop by hand. On a page running a momentum scroller — Lenis, Locomotive, or
+`scroll-behavior: smooth` — re-measuring the target between two wheel turns reads a distance the
+coast is already covering, so the loop keeps scrolling, overshoots, and corrects back upwards. The
+video shows the page jerking past the section and sliding back, and the seconds it spends
+oscillating read as dead time.
 
 The helpers' default pacing is already tuned for a viewer to keep up. When it needs adjusting: hold a
 modal or dialog for at least 4s before closing it. Write `mark()` in the language the MR reviewer

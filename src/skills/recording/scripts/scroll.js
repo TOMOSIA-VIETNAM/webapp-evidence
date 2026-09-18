@@ -49,11 +49,22 @@ function shortfall({ start, size, frameStart, frameSize, scrollPos, scrollMax })
   // it does not decide what counts as out of view.
   if (start >= frameStart && start + size <= frameStart + frameSize) return 0;
 
-  const wanted = size >= frameSize - 2 * MARGIN
+  let wanted;
+  if (size >= frameSize - 2 * MARGIN) {
     // Longer than the space it has to fit in — there is no placing it, so line its leading edge
     // up with the pane's, which is where reading it starts.
-    ? start - (frameStart + MARGIN)
-    : start - (frameStart + frameSize * FOCUS - size / 2);
+    wanted = start - (frameStart + MARGIN);
+  } else {
+    // It fits, so it comes to rest whole. The focus line is where a hand stops for something
+    // small, but a section most of a screen tall placed by its middle hangs off one end: the
+    // frame then holds the tail of what came before and the start of what comes next, and the
+    // thing travelled to is in neither. Clamping the resting place to the pane's own bounds is
+    // what turns that into an arrival.
+    const focused = frameStart + frameSize * FOCUS - size / 2;
+    const earliest = frameStart + MARGIN;
+    const latest = frameStart + frameSize - MARGIN - size;
+    wanted = start - Math.min(Math.max(focused, earliest), latest);
+  }
   return Math.round(Math.max(-scrollPos, Math.min(wanted, scrollMax - scrollPos)));
 }
 
@@ -76,10 +87,24 @@ function pointerFor(place, { cursor }) {
 // One hop at a time, innermost pane outwards: a pane can only be scrolled while it is on screen,
 // so when it is not, what holds it moves first and the pane itself waits for the next hop. That
 // is also the order a person works in — scroll the page to the list, then scroll the list.
-function planHop({ target, view, frames }, { cursor = null, avoidBottom = 0 } = {}) {
-  // What any pane has to work with: the frame, less the terminal panel drawn over the bottom of
-  // it. Scrolling something to a place the panel covers would only earn a refusal to click it.
-  const room = { top: 0, left: 0, width: view.width, height: Math.max(0, view.height - avoidBottom) };
+function planHop({ target, view, frames, header = 0 }, { cursor = null, avoidBottom = 0, heading = 0 } = {}) {
+  // What any pane has to work with: the frame, less the header the page keeps pinned over the top
+  // of it and the terminal panel drawn over the bottom. Scrolling something to a place either one
+  // covers puts it on screen and out of reach — under the panel it earns a refusal to click, under
+  // the header it is simply not there to read.
+  const top = Math.max(0, Math.min(header, view.height));
+  const room = {
+    top, left: 0, width: view.width, height: Math.max(0, view.height - top - avoidBottom),
+  };
+
+  // A page running a momentum scroller is still travelling when the wheel stops, so it settles a
+  // little past what was asked for. Turning the wheel back for that is the overshoot-and-correct
+  // a viewer reads as the page jerking past a section and sliding back, and it buys nothing while
+  // the element is somewhere it can be seen and clicked. `heading` is the direction already
+  // turned in; a hop against it is only made when the page carried the element out of sight.
+  const seen = visibleBox({ target, view, frames });
+  const holdHeading = heading !== 0 && !!seen
+    && !!intersect({ top: seen.y, left: seen.x, width: seen.width, height: seen.height }, room);
 
   let focus = target;
   for (const frame of frames) {
@@ -88,11 +113,12 @@ function planHop({ target, view, frames }, { cursor = null, avoidBottom = 0 } = 
     // no one can see.
     const place = intersect(frame.rect, room);
     if (place) {
-      const dy = shortfall({
+      let dy = shortfall({
         start: focus.top, size: focus.height,
         frameStart: place.top, frameSize: place.height,
         scrollPos: frame.scrollTop, scrollMax: frame.maxTop,
       });
+      if (holdHeading && Math.sign(dy) === -heading) dy = 0;
       const dx = shortfall({
         start: focus.left, size: focus.width,
         frameStart: place.left, frameSize: place.width,
@@ -124,6 +150,44 @@ function visibleBox({ target, view, frames }) {
   if (!box) return null;
   return { x: box.left, y: box.top, width: box.width, height: box.height };
 }
+
+// How deep the band is that the page keeps pinned over the top of the frame. Whatever comes to rest
+// under it is on screen and unreadable, so it is measured rather than passed in: a number in a step
+// script is a magic number, and it is wrong the day the design changes.
+//
+// Its own round trip rather than part of the snapshot below, because it has to be measured in the
+// frame the mouse is driven in. Measured inside an <iframe> it would report that document's own
+// pinned elements, in that document's coordinates, and the page's real header — the one an element
+// in the frame can just as easily end up behind — would be invisible. Runs in the page; stands
+// alone for the same reason as SNAPSHOT.
+const HEADER = () => {
+  const view = window.innerHeight;
+  // A header does not have to sit flush against the edge: `position: sticky; top: 8px` is an
+  // ordinary floating bar, and one row of pixels at the very top would find the page behind it and
+  // report no header at all. So a thin band is sampled, and what counts as "over the top edge" is a
+  // share of the frame rather than the first pixel of it. A bar pinned halfway down, or to the
+  // bottom, is still nothing to do with this.
+  // The deepest row reaches as far as the test below accepts, so nothing is turned away for
+  // sitting between two samples: a bar has to be found before its top edge can be judged.
+  const rows = [1, Math.round(view * 0.02), Math.round(view * 0.05), Math.round(view * 0.09)];
+  let depth = 0;
+  for (const y of rows) {
+    for (const share of [0.5, 0.08, 0.92]) {
+      const at = document.elementsFromPoint(Math.round(window.innerWidth * share), y) || [];
+      for (const node of at) {
+        const position = getComputedStyle(node).position;
+        if (position !== 'fixed' && position !== 'sticky') continue;
+        const rect = node.getBoundingClientRect();
+        if (rect.top > view * 0.1) continue;   // pinned somewhere else, not over the top edge
+        depth = Math.max(depth, rect.bottom);
+      }
+    }
+  }
+  // Something pinned over a third of the frame is a banner, an overlay or a modal rather than a
+  // header. Treating it as one would leave too little room to rest anything in, and the page would
+  // be scrolled to a place no better than where it started.
+  return depth > view / 3 ? 0 : Math.round(Math.max(0, depth));
+};
 
 // Measure the element and every pane between it and the window, in one round trip. Runs in the
 // page, so it stands alone: nothing in this module is in scope there.
@@ -173,6 +237,10 @@ const SNAPSHOT = (el) => {
 // about to leave — the cursor then travels to where it was, not to where it will be. Watching the
 // element itself covers every way it can be moving, whichever pane is animating and whoever
 // started it. Runs in the page; stands alone for the same reason as SNAPSHOT.
+// Resolves true when the element really did stop, false when the wait ran out with it still
+// moving — a carousel, a spinner beside it, a scroller whose easing outlasts the ceiling. A caller
+// deciding whether to measure and correct has to tell those apart: a correction planned from a
+// position the page is still leaving is the bounce all over again.
 const SETTLE = (el, { stillFrames, timeoutMs }) => new Promise((resolve) => {
   // The deadline is kept on a timer rather than counted inside the frame callback: a tab the
   // browser has stopped drawing runs no frames at all, and waiting for one that never comes would
@@ -180,8 +248,8 @@ const SETTLE = (el, { stillFrames, timeoutMs }) => new Promise((resolve) => {
   // never settles — a spinner, a carousel — does not leave one turning for the rest of the take,
   // with another added at every click.
   let running = true;
-  const finish = () => { running = false; clearTimeout(deadline); resolve(); };
-  const deadline = setTimeout(finish, timeoutMs);
+  const finish = (stopped) => { running = false; clearTimeout(deadline); resolve(stopped); };
+  const deadline = setTimeout(() => finish(false), timeoutMs);
 
   let previous = null;
   let still = 0;
@@ -194,10 +262,10 @@ const SETTLE = (el, { stillFrames, timeoutMs }) => new Promise((resolve) => {
       still = 0;
     }
     previous = rect;
-    if (still >= stillFrames) return finish();
+    if (still >= stillFrames) return finish(true);
     requestAnimationFrame(step);
   };
   requestAnimationFrame(step);
 });
 
-module.exports = { planHop, visibleBox, intersect, SNAPSHOT, SETTLE, FOCUS, MARGIN };
+module.exports = { planHop, visibleBox, intersect, SNAPSHOT, SETTLE, HEADER, FOCUS, MARGIN };
