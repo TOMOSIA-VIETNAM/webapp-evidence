@@ -201,13 +201,19 @@ function buildContext({
       return measure(locator);
     }
 
+
+    // Whether the page was still moving the last time this waited for it. `settle` waits for the
+    // element to hold still and gives up at a ceiling, and those two endings mean opposite things
+    // to anything that measures afterwards.
+    let stopped = true;
+
     // One turn of the wheel, left settled, measured again.
     const turn = async (plan) => {
       // The wheel is delivered wherever the pointer stands, so it goes over the pane that has to
       // move — which is also what a person does before scrolling one panel of a page.
       await moveTo(plan.pointer.x, plan.pointer.y);
       await wheelBy(plan.dx, plan.dy);
-      await settle(locator);
+      stopped = await settle(locator);
       await sleep(human.wait(pace.afterScrollMs));
       return measure(locator);
     };
@@ -219,8 +225,10 @@ function buildContext({
     // it is about to cover by itself, and it is right for reaching something to press. It is wrong
     // for arriving: what it holds back is an element left a little past where it belongs, even
     // behind the header, which is exactly the correction a scroll that has to COME TO REST needs.
-    // A run without it goes second, on a page that has already stopped moving, where the reason for
-    // holding anything back is gone.
+    // A run without it goes second, and only once the page has been seen to stop — planned from a
+    // position the page is still leaving, a correction is the bounce over again, and a page that
+    // never holds still (a carousel, a spinner beside the element) would bounce through the whole
+    // budget. There, a resting place a little off is the better of the two.
     const travel = async (from, { holdHeading }) => {
       let at = from;
       let heading = 0;
@@ -240,7 +248,7 @@ function buildContext({
 
     const travelled = await travel(snapshot, { holdHeading: true });
     snapshot = travelled.at;
-    if (restAt) snapshot = (await travel(snapshot, { holdHeading: false })).at;
+    if (restAt && stopped) snapshot = (await travel(snapshot, { holdHeading: false })).at;
 
     if (!(await nextHop(snapshot, restAt ? 0 : travelled.heading))) return snapshot;
 
@@ -248,14 +256,14 @@ function buildContext({
     // the app scrolls with its own script and hidden overflow. Take the jump rather than click at
     // something off the frame — a video that cuts to the action still shows the action.
     await locator.scrollIntoViewIfNeeded();
-    await settle(locator);
+    stopped = await settle(locator);
     snapshot = await measure(locator);
 
     // The browser scrolls the least it can, which leaves the element against the top edge of the
     // frame — behind the header, on a page that pins one. The jump knows nothing about that band,
     // so a run that has to come to rest makes it up afterwards rather than reporting that the
     // element never arrived.
-    if (restAt) snapshot = (await travel(snapshot, { holdHeading: false })).at;
+    if (restAt && stopped) snapshot = (await travel(snapshot, { holdHeading: false })).at;
     return snapshot;
   }
 

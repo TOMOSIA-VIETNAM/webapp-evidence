@@ -10,11 +10,13 @@
      afterwards measures one the element is about to leave. */
   html { scroll-behavior: smooth; }
   body { margin: 0; background: #f6f7f9; color: #1c2024; }
-  /* Pinned, the way a marketing page or an app shell keeps its title bar in place. It covers the
-     top band of the frame, so anything the runner leaves resting under it is on screen and
-     unreadable — which is what the check on the section below measures. */
+  /* Pinned, the way a marketing page or an app shell keeps its title bar in place, and floating a
+     few pixels clear of the edge the way plenty of them do. It covers the top band of the frame, so
+     anything the runner leaves resting under it is on screen and unreadable — which is what the
+     check on the section below measures. The gap is part of the check: a header found only when it
+     sits flush against the edge is a header missed on every page like this one. */
   header { background: #1f2937; color: #fff; padding: 14px 24px; font-weight: 600;
-           position: sticky; top: 0; z-index: 5; }
+           position: sticky; top: 8px; z-index: 5; }
   nav { background: #374151; color: #d1d5db; padding: 8px 24px; font-size: 13px; }
   nav a { color: #d1d5db; margin-right: 16px; text-decoration: none; }
   main { padding: 24px; max-width: 900px; }
@@ -107,10 +109,19 @@
                 onclick=&quot;this.textContent='Report confirmed'&quot;&gt;Confirm the report&lt;/button&gt;"></iframe>
   </section>
 
+  <!-- Distance, so that reaching the section below is a scroll and not a no-op: a check on where a
+       scroll came to rest proves nothing about a section that was already in the frame. -->
+  <div style="height:700px"></div>
+
   <section id="summary">
     <h3>Quarter summary</h3>
     <p>Nothing here is interactive. A tour of this page has to stop on it all the same.</p>
   </section>
+
+  <!-- Page left after the section, so it can be scrolled to the top band of the frame rather than
+       coming to a stop against the end of the document — which would decide the resting place for
+       the runner and leave the check below proving nothing. -->
+  <div style="height:900px"></div>
 </main>
 
 <dialog id="detail">

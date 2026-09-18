@@ -457,7 +457,7 @@ test('moveTo refuses a bounding box where it expects a number of pixels', async 
 // here — what is being pinned down is which coordinates the helpers compute, and from what.
 const FAST = resolveSettings({ recording: { speed: 'fast' } }).recording;
 
-function pointerScope(snapshots = [], { header = 0, boxes = [] } = {}) {
+function pointerScope(snapshots = [], { header = 0, boxes = [], stops = true } = {}) {
   const sent = [];
   // A sequence per locator: each measurement takes the next one, and the last stands for every
   // measurement after it. That is what makes a page still moving when it was measured expressible
@@ -476,7 +476,8 @@ function pointerScope(snapshots = [], { header = 0, boxes = [] } = {}) {
   };
   const locators = queues.map((queue, index) => ({
     // SETTLE waits for the page to stop and reports nothing; only a SNAPSHOT is a measurement.
-    evaluate: async (fn) => (fn === SNAPSHOT ? (queue.length > 1 ? queue.shift() : queue[0]) : undefined),
+    // SETTLE reports whether the element really stopped; only a SNAPSHOT is a measurement.
+    evaluate: async (fn) => (fn === SNAPSHOT ? (queue.length > 1 ? queue.shift() : queue[0]) : stops),
     boundingBox: async () => boxes[index] ?? null,
     scrollIntoViewIfNeeded: async () => { sent.push({ kind: 'jump' }); },
   }));
@@ -663,4 +664,13 @@ test('after a jump, a scroll that has to arrive moves out from under the header'
   const jumpedAt = sent.findIndex((event) => event.kind === 'jump');
   assert.ok(jumpedAt >= 0, 'the wheel was never abandoned, so this checks nothing');
   assert.ok(sent.slice(jumpedAt).some((event) => event.kind === 'wheel'), 'nothing made up for the header');
+});
+
+
+test('a page that never holds still is left where it is, rather than corrected into a bounce', async () => {
+  // The wait for the page to stop ran out with the element still moving, so a correction would be
+  // planned from a position it is already leaving — which is the bounce, for the whole budget.
+  const { scope, locators, sent } = pointerScope([OVERSHOT], { stops: false });
+  await scope.scrollTo(locators[0], { pause: 0 });
+  assert.equal(wheeledBack(sent), false, 'it corrected against a page that was still moving');
 });

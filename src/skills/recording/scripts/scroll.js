@@ -161,21 +161,30 @@ function visibleBox({ target, view, frames }) {
 // in the frame can just as easily end up behind — would be invisible. Runs in the page; stands
 // alone for the same reason as SNAPSHOT.
 const HEADER = () => {
+  const view = window.innerHeight;
+  // A header does not have to sit flush against the edge: `position: sticky; top: 8px` is an
+  // ordinary floating bar, and one row of pixels at the very top would find the page behind it and
+  // report no header at all. So a thin band is sampled, and what counts as "over the top edge" is a
+  // share of the frame rather than the first pixel of it. A bar pinned halfway down, or to the
+  // bottom, is still nothing to do with this.
+  const rows = [1, Math.round(view * 0.02), Math.round(view * 0.05)];
   let depth = 0;
-  for (const share of [0.5, 0.08, 0.92]) {
-    const at = document.elementsFromPoint(Math.round(window.innerWidth * share), 1) || [];
-    for (const node of at) {
-      const position = getComputedStyle(node).position;
-      if (position !== 'fixed' && position !== 'sticky') continue;
-      const rect = node.getBoundingClientRect();
-      if (rect.top > 1) continue;    // pinned somewhere else, not over the top edge
-      depth = Math.max(depth, rect.bottom);
+  for (const y of rows) {
+    for (const share of [0.5, 0.08, 0.92]) {
+      const at = document.elementsFromPoint(Math.round(window.innerWidth * share), y) || [];
+      for (const node of at) {
+        const position = getComputedStyle(node).position;
+        if (position !== 'fixed' && position !== 'sticky') continue;
+        const rect = node.getBoundingClientRect();
+        if (rect.top > view * 0.1) continue;   // pinned somewhere else, not over the top edge
+        depth = Math.max(depth, rect.bottom);
+      }
     }
   }
   // Something pinned over a third of the frame is a banner, an overlay or a modal rather than a
   // header. Treating it as one would leave too little room to rest anything in, and the page would
   // be scrolled to a place no better than where it started.
-  return depth > window.innerHeight / 3 ? 0 : Math.round(Math.max(0, depth));
+  return depth > view / 3 ? 0 : Math.round(Math.max(0, depth));
 };
 
 // Measure the element and every pane between it and the window, in one round trip. Runs in the
@@ -226,6 +235,10 @@ const SNAPSHOT = (el) => {
 // about to leave — the cursor then travels to where it was, not to where it will be. Watching the
 // element itself covers every way it can be moving, whichever pane is animating and whoever
 // started it. Runs in the page; stands alone for the same reason as SNAPSHOT.
+// Resolves true when the element really did stop, false when the wait ran out with it still
+// moving — a carousel, a spinner beside it, a scroller whose easing outlasts the ceiling. A caller
+// deciding whether to measure and correct has to tell those apart: a correction planned from a
+// position the page is still leaving is the bounce all over again.
 const SETTLE = (el, { stillFrames, timeoutMs }) => new Promise((resolve) => {
   // The deadline is kept on a timer rather than counted inside the frame callback: a tab the
   // browser has stopped drawing runs no frames at all, and waiting for one that never comes would
@@ -233,8 +246,8 @@ const SETTLE = (el, { stillFrames, timeoutMs }) => new Promise((resolve) => {
   // never settles — a spinner, a carousel — does not leave one turning for the rest of the take,
   // with another added at every click.
   let running = true;
-  const finish = () => { running = false; clearTimeout(deadline); resolve(); };
-  const deadline = setTimeout(finish, timeoutMs);
+  const finish = (stopped) => { running = false; clearTimeout(deadline); resolve(stopped); };
+  const deadline = setTimeout(() => finish(false), timeoutMs);
 
   let previous = null;
   let still = 0;
@@ -247,7 +260,7 @@ const SETTLE = (el, { stillFrames, timeoutMs }) => new Promise((resolve) => {
       still = 0;
     }
     previous = rect;
-    if (still >= stillFrames) return finish();
+    if (still >= stillFrames) return finish(true);
     requestAnimationFrame(step);
   };
   requestAnimationFrame(step);
