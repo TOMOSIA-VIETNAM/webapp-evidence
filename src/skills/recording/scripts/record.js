@@ -174,7 +174,11 @@ function buildContext({
 
   // Scroll until the element can be clicked, one pane at a time, and leave it settled: nothing
   // downstream may read a position while the page is still moving.
-  async function bringIntoView(locator) {
+  //
+  // `restAt` is for a caller that has to come to rest somewhere exact rather than merely reach
+  // something it can press: it spends one more hop, after the travelling is over, with the heading
+  // no longer holding a correction back.
+  async function bringIntoView(locator, { restAt = false } = {}) {
     let snapshot = await measure(locator);
 
     // Measured inside an <iframe>, those coordinates belong to that frame, while page.mouse works
@@ -192,26 +196,40 @@ function buildContext({
     // about to cover by itself.
     let heading = 0;
 
-    for (let hop = 0; hop < MAX_HOPS; hop++) {
-      const plan = await nextHop(snapshot, heading);
-      if (!plan) return snapshot;
-      heading = heading || Math.sign(plan.dy);
-
+    // One turn of the wheel, left settled, measured again.
+    const turn = async (plan) => {
       // The wheel is delivered wherever the pointer stands, so it goes over the pane that has to
       // move — which is also what a person does before scrolling one panel of a page.
       await moveTo(plan.pointer.x, plan.pointer.y);
       await wheelBy(plan.dx, plan.dy);
       await settle(locator);
       await sleep(human.wait(pace.afterScrollMs));
+      return measure(locator);
+    };
 
-      const landed = await measure(locator);
+    for (let hop = 0; hop < MAX_HOPS; hop++) {
+      const plan = await nextHop(snapshot, heading);
+      if (!plan) break;
+      heading = heading || Math.sign(plan.dy);
+
+      const landed = await turn(plan);
       const stuck = Math.abs(landed.target.top - snapshot.target.top) < 1
         && Math.abs(landed.target.left - snapshot.target.left) < 1;
       snapshot = landed;
       if (stuck) break;
     }
 
-    if (!(await nextHop(snapshot, heading))) return snapshot;
+    // The heading exists to keep a page that is still coasting from being wheeled back over ground
+    // it is about to cover by itself. Once the travelling has finished that reason is gone, while
+    // what it was holding back — an element left a little past where it belongs, even behind the
+    // header — is exactly what a scroll that has to COME TO REST cannot keep. So the last word goes
+    // to one hop with nothing held back, on a page that has already stopped moving.
+    if (restAt) {
+      const correction = await nextHop(snapshot);
+      if (correction) snapshot = await turn(correction);
+    }
+
+    if (!(await nextHop(snapshot, restAt ? 0 : heading))) return snapshot;
 
     // Nothing a wheel can reach will finish this: a pane that swallows the event, or a container
     // the app scrolls with its own script and hidden overflow. Take the jump rather than click at
@@ -227,11 +245,12 @@ function buildContext({
   // between turns, which on a page with a momentum scroller reads a distance the coast is already
   // covering: the page then overshoots and slides back, and the video shows the bounce.
   async function scrollTo(locator, { pause } = {}) {
-    const found = await bringIntoView(locator);
-    if (!found.inFrame && !scroll.visibleBox(found)) {
+    const found = await bringIntoView(locator, { restAt: true });
+    if (!found.inFrame && !reachable(found, scroll.visibleBox(found))) {
       throw new Error(
-        'The element to scroll to is not visible: no part of it is on screen, and scrolling to it ' +
-        'did not change that.\nCheck the locator, or reach it through something inside the same pane.'
+        'The element to scroll to did not come to rest anywhere a viewer can read it: no part of ' +
+        'it is in the frame below whatever the page keeps pinned over the top.\n' +
+        'Check the locator, or reach it through something inside the same pane.'
       );
     }
     // Arriving at a section is an action whose result is the section itself, so the default is the
@@ -242,6 +261,19 @@ function buildContext({
   // Where a helper may aim at an element: the part of it a viewer can see, once the page has been
   // scrolled so that there is one. Every pointer action goes through this, because an action
   // outside the frame — or behind the panel drawn over it — is an action the video does not show.
+  // The part of an element a pointer may use: what is on screen, less the band the page keeps
+  // pinned over the top of the frame. What a header covers is visible and out of reach — a press
+  // aimed under it lands on the header — so it is no part of the aim. The terminal panel is the
+  // same thing at the other edge, refused rather than trimmed because the panel is the runner's
+  // own and a step script can close it.
+  function reachable(found, box) {
+    if (!box) return null;
+    const top = Math.max(box.y, found.header || 0);
+    const height = box.y + box.height - top;
+    if (height < 1 || box.width < 1) return null;
+    return { x: box.x, y: top, width: box.width, height };
+  }
+
   // `bringIn: false` measures the element where it stands instead of scrolling to it, for the far
   // end of a drag: the near end was measured already, and scrolling now would move it out from
   // under the press. A drag is only recordable with both ends in the frame at once anyway — the
@@ -251,7 +283,16 @@ function buildContext({
     // Inside a frame the only position page.mouse can use is the one Playwright converts, and it
     // knows nothing of the panes clipping the element; everywhere else the visible part is what a
     // pointer may aim at.
-    const box = found.inFrame ? await locator.boundingBox() : scroll.visibleBox(found);
+    const seen = found.inFrame ? await locator.boundingBox() : scroll.visibleBox(found);
+    const box = reachable(found, seen);
+    if (!box && seen) {
+      throw new Error(
+        `The element to ${action} is behind the header the page keeps pinned over the top of the ` +
+        'frame: it is on screen and the pointer cannot get to it — a press aimed there lands on ' +
+        'the header.\nReach it from a place that leaves it below the header, or record the page ' +
+        'with the header out of the way.'
+      );
+    }
     if (!box || box.width < 1 || box.height < 1) {
       throw new Error(bringIn
         ? `The element to ${action} is not visible: no part of it is on screen, and scrolling to it ` +

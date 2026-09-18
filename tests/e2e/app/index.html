@@ -79,8 +79,11 @@
        <span id="ask_result"></span></p>
     <!-- Dragged rather than clicked: a handle is what no other helper reaches. -->
     <label for="rows_shown">Rows shown</label>
-    <p><input type="range" id="rows_shown" name="rows_shown" min="0" max="100" value="10" style="width:260px">
-       <output id="rows_shown_value">10</output></p>
+    <!-- Starting at the middle of its own track: a press at the centre of the element lands on the
+         value it already holds, so the step script's check can only pass on the travel between
+         the press and the release. -->
+    <p><input type="range" id="rows_shown" name="rows_shown" min="0" max="100" value="50" style="width:260px">
+       <output id="rows_shown_value">50</output></p>
     <p><code id="api_key" hidden>demo_key_not_a_real_secret_0000</code></p>
   </fieldset>
 
