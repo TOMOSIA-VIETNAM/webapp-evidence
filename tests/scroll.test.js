@@ -152,3 +152,50 @@ test('two rectangles that only touch do not overlap', () => {
   const b = { top: 100, left: 0, width: 100, height: 100 };
   assert.equal(intersect(a, b), null);
 });
+
+// ---------- where a section comes to rest ----------
+
+test('a section most of a screen tall comes to rest whole, not split across the fold', () => {
+  // Placed by its middle this one hangs off the top: the frame would hold the tail of what came
+  // before it, and the section itself would start below the fold.
+  const target = { top: 1600, left: 0, width: VIEW.width, height: 700 };
+  const { dy } = planHop(snapshot(target, [windowPane()]));
+
+  const landed = target.top - dy;
+  assert.ok(landed >= MARGIN, `rests at ${landed}, above the top of the frame`);
+  assert.ok(landed + target.height <= VIEW.height - MARGIN, `bottom at ${landed + target.height}`);
+});
+
+test('a section short enough to place freely still rests on the focus line', () => {
+  const target = { top: 1600, left: 0, width: VIEW.width, height: 200 };
+  const { dy } = planHop(snapshot(target, [windowPane()]));
+  assert.equal(target.top - dy, Math.round(VIEW.height * FOCUS - target.height / 2));
+});
+
+test('a section is left under the header the page keeps pinned, not behind it', () => {
+  const header = 96;
+  const target = { top: 1600, left: 0, width: VIEW.width, height: 900 };   // taller than the frame
+  const { dy } = planHop({ ...snapshot(target, [windowPane()]), header });
+
+  assert.equal(target.top - dy, header + MARGIN);
+});
+
+test('a section whole on screen but behind the pinned header is brought out from under it', () => {
+  const header = 96;
+  const target = { top: 20, left: 0, width: VIEW.width, height: 300 };
+  const { dy } = planHop({ ...snapshot(target, [windowPane({ scrollTop: 500 })]), header });
+
+  assert.ok(dy < 0, String(dy));
+  assert.ok(target.top - dy >= header, `rests at ${target.top - dy}, under a ${header}px header`);
+});
+
+test('the header and the terminal panel both take their room out of the same frame', () => {
+  const header = 96;
+  const panel = 300;
+  const target = { top: 1400, left: 0, width: VIEW.width, height: 160 };
+  const { dy } = planHop({ ...snapshot(target, [windowPane()]), header }, { avoidBottom: panel });
+
+  const landed = target.top - dy;
+  assert.ok(landed >= header, `rests at ${landed}, behind the header`);
+  assert.ok(landed + target.height <= VIEW.height - panel, `rests at ${landed}, under the panel`);
+});

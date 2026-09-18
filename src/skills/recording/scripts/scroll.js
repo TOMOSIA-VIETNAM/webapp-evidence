@@ -49,11 +49,22 @@ function shortfall({ start, size, frameStart, frameSize, scrollPos, scrollMax })
   // it does not decide what counts as out of view.
   if (start >= frameStart && start + size <= frameStart + frameSize) return 0;
 
-  const wanted = size >= frameSize - 2 * MARGIN
+  let wanted;
+  if (size >= frameSize - 2 * MARGIN) {
     // Longer than the space it has to fit in — there is no placing it, so line its leading edge
     // up with the pane's, which is where reading it starts.
-    ? start - (frameStart + MARGIN)
-    : start - (frameStart + frameSize * FOCUS - size / 2);
+    wanted = start - (frameStart + MARGIN);
+  } else {
+    // It fits, so it comes to rest whole. The focus line is where a hand stops for something
+    // small, but a section most of a screen tall placed by its middle hangs off one end: the
+    // frame then holds the tail of what came before and the start of what comes next, and the
+    // thing travelled to is in neither. Clamping the resting place to the pane's own bounds is
+    // what turns that into an arrival.
+    const focused = frameStart + frameSize * FOCUS - size / 2;
+    const earliest = frameStart + MARGIN;
+    const latest = frameStart + frameSize - MARGIN - size;
+    wanted = start - Math.min(Math.max(focused, earliest), latest);
+  }
   return Math.round(Math.max(-scrollPos, Math.min(wanted, scrollMax - scrollPos)));
 }
 
@@ -76,10 +87,15 @@ function pointerFor(place, { cursor }) {
 // One hop at a time, innermost pane outwards: a pane can only be scrolled while it is on screen,
 // so when it is not, what holds it moves first and the pane itself waits for the next hop. That
 // is also the order a person works in — scroll the page to the list, then scroll the list.
-function planHop({ target, view, frames }, { cursor = null, avoidBottom = 0 } = {}) {
-  // What any pane has to work with: the frame, less the terminal panel drawn over the bottom of
-  // it. Scrolling something to a place the panel covers would only earn a refusal to click it.
-  const room = { top: 0, left: 0, width: view.width, height: Math.max(0, view.height - avoidBottom) };
+function planHop({ target, view, frames, header = 0 }, { cursor = null, avoidBottom = 0 } = {}) {
+  // What any pane has to work with: the frame, less the header the page keeps pinned over the top
+  // of it and the terminal panel drawn over the bottom. Scrolling something to a place either one
+  // covers puts it on screen and out of reach — under the panel it earns a refusal to click, under
+  // the header it is simply not there to read.
+  const top = Math.max(0, Math.min(header, view.height));
+  const room = {
+    top, left: 0, width: view.width, height: Math.max(0, view.height - top - avoidBottom),
+  };
 
   let focus = target;
   for (const frame of frames) {
@@ -131,6 +147,27 @@ const SNAPSHOT = (el) => {
   const rectOf = (r) => ({ top: r.top, left: r.left, width: r.width, height: r.height });
   const frames = [];
 
+  // How deep the band is that the page keeps pinned over the top of the frame. Whatever comes to
+  // rest under it is on screen and unreadable, so it is measured here rather than passed in: a
+  // number in a step script is a magic number, and it is wrong the day the design changes.
+  const headerDepth = () => {
+    let depth = 0;
+    for (const share of [0.5, 0.08, 0.92]) {
+      const at = document.elementsFromPoint(Math.round(window.innerWidth * share), 1) || [];
+      for (const node of at) {
+        const position = getComputedStyle(node).position;
+        if (position !== 'fixed' && position !== 'sticky') continue;
+        const rect = node.getBoundingClientRect();
+        if (rect.top > 1) continue;    // pinned somewhere else, not over the top edge
+        depth = Math.max(depth, rect.bottom);
+      }
+    }
+    // Something pinned over a third of the frame is a banner, an overlay or a modal rather than a
+    // header. Treating it as one would leave too little room to rest anything in, and the page
+    // would be scrolled to a place no better than where it started.
+    return depth > window.innerHeight / 3 ? 0 : Math.round(Math.max(0, depth));
+  };
+
   for (let node = el.parentElement; node; node = node.parentElement) {
     const style = getComputedStyle(node);
     // `hidden` and `clip` overflow can be scrolled by a script but not by a wheel, and this plan
@@ -162,6 +199,7 @@ const SNAPSHOT = (el) => {
     target: rectOf(el.getBoundingClientRect()),
     view: { width: window.innerWidth, height: window.innerHeight },
     frames,
+    header: headerDepth(),
     // Everything above was measured in this frame. Inside an <iframe> that is not the frame the
     // mouse is driven in, and the chain of panes ends at this document rather than at the page.
     inFrame: window !== window.top,
