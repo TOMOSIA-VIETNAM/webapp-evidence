@@ -58,8 +58,8 @@ a test loading it sets `PROJECT_ROOT` to a scratch dir before the `require`.
 
 ## Two things that break invisibly
 
-**The README demo.** `docs/demo/record.sh` records saucedemo.com and prints the runbook the README
-quotes. Re-run it instead of editing the quote. Its gif is encoded wider than the width the README
+**The README demo.** `docs/demo/record.sh` records open-pr.vercel.app and prints the runbook the
+README quotes. Re-run it instead of editing the quote. Its gif is encoded wider than the width the README
 displays it at — scaled up by a browser, a gif goes soft, and no encoding effort undoes that.
 
 **The four READMEs** are one document. Prose is translated; commands, paths and the runbook excerpt

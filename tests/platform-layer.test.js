@@ -339,7 +339,7 @@ test('a translation keeps the commands and the demo the English one shows', () =
     const body = read(file);
     assert.equal(fences(body), fences(english), `${file} has a different number of code blocks`);
     assert.ok(body.includes('claude plugin install webapp-evidence@webapp-evidence'), `${file} lost the install command`);
-    assert.ok(body.includes('./docs/demo/saucedemo.gif'), `${file} lost the demo recording`);
+    assert.ok(body.includes('./docs/demo/site-tour.gif'), `${file} lost the demo recording`);
     assert.ok(body.includes('/webapp-evidence:recording'), `${file} lost the invocation`);
   }
 });
@@ -417,9 +417,9 @@ test('every demo file the READMEs link to exists', () => {
 test('the demo gif is wider than the width the README displays it at', () => {
   // A gif narrower than its display width gets scaled UP by the browser, and the text in it goes
   // soft — which is exactly how the first one shipped. Wider means the browser scales down.
-  const gif = fs.readFileSync(path.join(REPO, 'docs/demo/saucedemo.gif'));
+  const gif = fs.readFileSync(path.join(REPO, 'docs/demo/site-tour.gif'));
   const width = gif.readUInt16LE(6);   // logical screen width, bytes 6-7 of the GIF header
-  const displayed = Number(read('README.md').match(/saucedemo\.gif" width="(\d+)"/)[1]);
+  const displayed = Number(read('README.md').match(/site-tour\.gif" width="(\d+)"/)[1]);
   assert.ok(width >= displayed, `gif is ${width}px but shown at ${displayed}px`);
 });
 
