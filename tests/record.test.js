@@ -475,7 +475,6 @@ function pointerScope(snapshots = [], { header = 0, boxes = [], stops = true } =
     },
   };
   const locators = queues.map((queue, index) => ({
-    // SETTLE waits for the page to stop and reports nothing; only a SNAPSHOT is a measurement.
     // SETTLE reports whether the element really stopped; only a SNAPSHOT is a measurement.
     evaluate: async (fn) => (fn === SNAPSHOT ? (queue.length > 1 ? queue.shift() : queue[0]) : stops),
     boundingBox: async () => boxes[index] ?? null,
@@ -673,4 +672,19 @@ test('a page that never holds still is left where it is, rather than corrected i
   const { scope, locators, sent } = pointerScope([OVERSHOT], { stops: false });
   await scope.scrollTo(locators[0], { pause: 0 });
   assert.equal(wheeledBack(sent), false, 'it corrected against a page that was still moving');
+});
+
+
+test('a page that never holds still keeps its resting place instead of being cut to', async () => {
+  // Still short at the last measurement, and the page was never seen to stop. Correcting it was
+  // refused on exactly that measurement, so jumping on the strength of it would be the same
+  // untrustworthy reading taken twice — and a jump is a cut in the video.
+  const short = scrolling({ top: 30, left: 0, width: 1280, height: 300 }, { scrollTop: 1230 });
+  const { scope, locators, sent } = pointerScope([[
+    scrolling({ top: 1400, left: 0, width: 1280, height: 300 }),
+    short, short, short, short,
+  ]], { header: 96, stops: false });
+
+  await scope.scrollTo(locators[0], { pause: 0 });
+  assert.equal(sent.filter((event) => event.kind === 'jump').length, 0, 'it cut to the element');
 });

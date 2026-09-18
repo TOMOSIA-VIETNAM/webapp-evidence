@@ -250,7 +250,11 @@ function buildContext({
     snapshot = travelled.at;
     if (restAt && stopped) snapshot = (await travel(snapshot, { holdHeading: false })).at;
 
-    if (!(await nextHop(snapshot, restAt ? 0 : travelled.heading))) return snapshot;
+    // The same gate as the correction above: a page that was never seen to stop keeps the heading
+    // here too. Dropping it after refusing to correct on that measurement would mean distrusting
+    // the measurement and then jumping on the strength of it — and the jump is a cut in the video,
+    // which is worse than the resting place that refusal settled for.
+    if (!(await nextHop(snapshot, restAt && stopped ? 0 : travelled.heading))) return snapshot;
 
     // Nothing a wheel can reach will finish this: a pane that swallows the event, or a container
     // the app scrolls with its own script and hidden overflow. Take the jump rather than click at
