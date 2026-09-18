@@ -351,9 +351,10 @@ test('a browser that is already gone does not stop the abort from finishing', as
   assert.equal((await capture.abort()).file, null);
 });
 
-test('a recorder that stopped at its own time limit says so when the take is aborted', async () => {
-  // The take failed later, and the video ends where the limit fell: two moments far apart, so
-  // whoever reports the failure has to be able to tell them apart.
+test('aborting reports that the recorder had not stopped on its own', async () => {
+  // The flag says the recording ended at its own time limit rather than where the take did — two
+  // moments far apart, which whoever reports the failure has to be able to tell apart. Here nothing
+  // reached that limit, and abort() has to say so rather than leave the caller guessing.
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'evidence-abort-'));
   const { capture } = pageCapture(dir, { video: () => null });
   assert.equal((await capture.abort()).endedEarly, false);

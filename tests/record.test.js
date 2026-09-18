@@ -7,6 +7,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 
 // session.js refuses to run from inside the skill directory, and this repository IS that
 // directory. Point it at a scratch project before the module is loaded.
@@ -687,4 +688,35 @@ test('a page that never holds still keeps its resting place instead of being cut
 
   await scope.scrollTo(locators[0], { pause: 0 });
   assert.equal(sent.filter((event) => event.kind === 'jump').length, 0, 'it cut to the element');
+});
+
+
+// What the operator is told about a video kept from a take that did not finish. The recording
+// ending at its own time limit is a second thing that went wrong, far from the failure the error
+// names, and the file cannot say which of the two it stopped for.
+
+const failureSaid = (endedEarly) => {
+  const outDir = fs.mkdtempSync(path.join(PROJECT, 'ended-early-'));
+  const raw = path.join(outDir, 'take.raw.mp4');
+  // A real recording, because the sentence only appears once there is a video to say it about.
+  execFileSync('ffmpeg', ['-y', '-v', 'error', '-f', 'lavfi',
+    '-i', 'testsrc=size=64x64:rate=10:duration=0.5', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', raw]);
+
+  return failedTakeError({ error: new Error('locator.click: Timeout 30000ms exceeded'), raw, endedEarly }, {
+    outDir, name: 'take', marks: [], trimAt: 0, videoOpts: { preset: 'ultrafast', crf: 28 },
+    redactions: { all: () => [] }, at: 30, maxSeconds: 600,
+  }).message;
+};
+
+test('a recording that ran out at its own limit is named beside the failure, not as it', () => {
+  const said = failureSaid(true);
+  assert.match(said, /take-failed\.mp4/);
+  assert.match(said, /600s/);
+  assert.match(said, /Timeout 30000ms exceeded/);
+});
+
+test('a recording the take stopped is handed over without that explanation', () => {
+  const said = failureSaid(false);
+  assert.match(said, /take-failed\.mp4/);
+  assert.doesNotMatch(said, /600s/);
 });

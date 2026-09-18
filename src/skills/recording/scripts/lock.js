@@ -43,26 +43,37 @@ function readHolder(file) {
   }
 }
 
+// What the run holding the lock is doing, in the words of whoever reads the refusal. Probing a
+// screen takes the same lock as recording, and naming the wrong one sends the reader looking for a
+// take that does not exist — which is the kind of misdirection this lock exists to end.
+const DOING = {
+  take: { held: 'A take is already recording this project', is: 'a take' },
+  probe: { held: 'A screen is already being probed in this project', is: 'a probe' },
+};
+
 function refusal(holder, file) {
+  const doing = DOING[holder.kind] || DOING.take;
   const since = holder.startedAt ? Math.round((Date.now() - holder.startedAt) / 1000) : null;
   const when = since === null ? '' : `, started ${since}s ago`;
   const where = holder.outDir ? `, writing to ${holder.outDir}` : '';
   return new Error(
-    `Another take is already recording this project (process ${holder.pid}${when}${where}).\n` +
-    'Two takes share the application\'s build cache and development-server state even when each ' +
+    `${doing.held} (process ${holder.pid}${when}${where}).\n` +
+    'Two runs share the application\'s build cache and development-server state even when each ' +
     'has its own port, and what that does to the one that loses the race is a blank page, or a 404 ' +
     'from a route the application defines — neither of which points at the other run.\n' +
-    `Wait for it to finish, or stop it and record again. If process ${holder.pid} is not a take, ` +
+    `Wait for it to finish, or stop it and run again. If process ${holder.pid} is not ${doing.is}, ` +
     `delete ${file}.`
   );
 }
 
 // Take the lock, or refuse with what is holding it. Returns a release function; calling it more
 // than once, or after another run has taken the lock over, does nothing.
-function acquire(projectRoot, { outDir = null, pid = process.pid } = {}) {
+function acquire(projectRoot, { outDir = null, pid = process.pid, kind = 'take' } = {}) {
   fs.mkdirSync(DIR, { recursive: true });
   const file = fileFor(projectRoot);
-  const mine = JSON.stringify({ pid, outDir, startedAt: Date.now(), project: path.resolve(projectRoot) });
+  const mine = JSON.stringify({
+    pid, outDir, kind, startedAt: Date.now(), project: path.resolve(projectRoot),
+  });
 
   for (let attempt = 0; attempt < 2; attempt++) {
     try {

@@ -268,7 +268,7 @@ function watchProblems(page) {
 async function openSession({ config, app }) {
   const settings = resolveSettings(config);
   const { name, appConfig, baseUrl } = resolveApp(config, app);
-  const release = lock.acquire(ROOT);
+  const release = lock.acquire(ROOT, { kind: 'probe' });
   const fixes = await prepareApp({ appConfig, name, baseUrl });
   const browser = await launchBrowser(settings);
   const storageState = await signIn({ browser, appConfig, name, baseUrl, settings });

@@ -79,3 +79,29 @@ test('this process counts as running, and one that never existed does not', () =
   assert.equal(isRunning(0), false);
   assert.equal(isRunning(-1), false);
 });
+
+test('a probe holding the lock is not reported as a take that is recording', () => {
+  // `inspect.js` takes the same lock as a recording, so the refusal a take gets has to name what is
+  // really there — otherwise it sends the reader looking for a take that does not exist.
+  const root = project();
+  const release = acquire(root, { kind: 'probe' });
+  try {
+    assert.throws(() => acquire(root, { pid: process.pid + 1 }), (error) => {
+      assert.match(error.message, /prob/i);
+      assert.doesNotMatch(error.message, /take is already recording/);
+      return true;
+    });
+  } finally {
+    release();
+  }
+});
+
+test('a take holding the lock is named as one', () => {
+  const root = project();
+  const release = acquire(root);
+  try {
+    assert.throws(() => acquire(root, { pid: process.pid + 1 }), /take/);
+  } finally {
+    release();
+  }
+});
