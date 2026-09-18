@@ -51,7 +51,8 @@ const DEFAULTS = {
       // outlast the easing of a momentum scroller (Lenis, Locomotive, `scroll-behavior: smooth`):
       // a position read while the page is still coasting is one it is about to leave, and scrolling
       // to it again overshoots and corrects back. Only a ceiling — a page that has stopped is
-      // measured at once.
+      // measured at once — and the one value here that `speed` leaves alone, because it is the
+      // page's easing being waited out, not a pace the recording chose.
       scrollSettleMs: 1800,
       beforeClickMs: 250,     // aiming before the click; short slides aim faster automatically
       clickHoldMs: 85,        // how long the mouse button is held
@@ -73,8 +74,8 @@ const DEFAULTS = {
       afterCommandMs: 1600,   // hold after a command finishes, so its output can be read
       // The terminal panel is sized to the command it is showing and reveals long output by
       // moving a window down it, and both of those are paced for a viewer rather than measured
-      // out by a machine. Everything here scales with `speed` like the waits above it, so a take
-      // recorded fast scrolls proportionally faster.
+      // out by a machine. These scale with `speed` like the waits above them, so a take recorded
+      // fast scrolls proportionally faster; the ceiling on waiting for the page does not.
       panelGrowMs: 220,       // the panel opening up; fast enough not to delay the output it is making room for
       panelShrinkMs: 320,     // and settling back, slower — a panel that snaps down reads as a glitch
       panelSettleMs: 500,     // new content is held still this long before the window moves on, so the eye reaches it
@@ -210,12 +211,20 @@ function speedToRate(speed) {
   return rate;
 }
 
+// Waits belong to the runner and scale with the speed it records at. A ceiling on waiting for the
+// PAGE does not: how long a momentum scroller eases for is the page's business, and a take recorded
+// at twice the speed does not make it settle any sooner. Scaled along with the rest, a fast take
+// stops waiting before the page has stopped moving — and everything that reads a position
+// afterwards is reading one the page is about to leave.
+const TIMEOUTS = new Set(['scrollSettleMs']);
+
 function applySpeed(pace, speed) {
   // Double the speed means every wait becomes half as long
   const factor = 1 / speedToRate(speed);
   if (factor === 1) return pace;
   const scaled = { ...pace };
   for (const [key, value] of Object.entries(pace)) {
+    if (TIMEOUTS.has(key)) continue;
     if (key.endsWith('Ms') && typeof value === 'number') scaled[key] = Math.round(value * factor);
   }
   return scaled;

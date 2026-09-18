@@ -160,3 +160,24 @@ test('padding never takes the rectangle outside the frame', () => {
   assert.ok(padded.x + padded.width <= 110);
   assert.ok(padded.y + padded.height <= 30);
 });
+
+test('a stretch that opened and closed in the same instant still reaches the encode', () => {
+  // `redact('frame', …)` has nothing to measure, so nothing between the two clock readings costs a
+  // round trip: a body that throws on its first line closes the stretch on the millisecond it
+  // opened. Given no width it would be filtered out, and the frame it was covering would be in the
+  // video kept from the failed attempt.
+  const redactions = createRedactions();
+  const entry = redactions.open({ mode: 'box', box: null });
+  redactions.close(entry, 12.5, 12.5);
+
+  const [kept] = redactions.all();
+  assert.ok(kept, 'the stretch never reached the encode');
+  assert.ok(kept.to > kept.from, `${kept.from} → ${kept.to}`);
+});
+
+test('a stretch with real duration keeps the end it was given', () => {
+  const redactions = createRedactions();
+  const entry = redactions.open({ mode: 'blur', box: null });
+  redactions.close(entry, 2, 9);
+  assert.deepEqual(redactions.all().map((e) => [e.from, e.to]), [[2, 9]]);
+});

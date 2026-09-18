@@ -705,8 +705,7 @@ function buildContext({
       // failed is left uncovered in the video kept from the attempt. A stretch whose element could
       // not be measured keeps its whole-frame box, which is the safe direction on a take nobody
       // watched before it was written.
-      entry.from = start;
-      entry.to = since();
+      redactions.close(entry, start, since());
       if (!failed && locator && !box) {
         throw new Error(
           'redact() could not measure the element at either end of the stretch, so there is ' +
@@ -1124,13 +1123,15 @@ async function main() {
   const name = process.env.VIDEO_NAME || steps.name || 'evidence';
   fs.mkdirSync(outDir, { recursive: true });
 
-  archivePreviousRun(outDir, name, settings.output.overwrite);
-
-  // Held for the whole take. Released however this process ends — the exit handler covers the
-  // ordinary path and the failed one, and the interrupt handler below covers the signal, which
-  // runs no exit handler at all.
+  // Held for the whole take, and taken before anything is moved or removed: archiving the previous
+  // run renames and deletes files another take may be writing into at that moment, which is the
+  // kind of damage this lock exists to prevent. Released however this process ends — the exit
+  // handler covers the ordinary path and the failed one, and the interrupt handler below covers the
+  // signal, which runs no exit handler at all.
   const releaseLock = lock.acquire(ROOT, { outDir });
   process.once('exit', releaseLock);
+
+  archivePreviousRun(outDir, name, settings.output.overwrite);
 
   const fixes = await prepareApp({ appConfig, name: app, baseUrl });
   const browser = await launchBrowser(settings);

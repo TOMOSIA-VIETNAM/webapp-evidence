@@ -167,7 +167,9 @@ const HEADER = () => {
   // report no header at all. So a thin band is sampled, and what counts as "over the top edge" is a
   // share of the frame rather than the first pixel of it. A bar pinned halfway down, or to the
   // bottom, is still nothing to do with this.
-  const rows = [1, Math.round(view * 0.02), Math.round(view * 0.05)];
+  // The deepest row reaches as far as the test below accepts, so nothing is turned away for
+  // sitting between two samples: a bar has to be found before its top edge can be judged.
+  const rows = [1, Math.round(view * 0.02), Math.round(view * 0.05), Math.round(view * 0.09)];
   let depth = 0;
   for (const y of rows) {
     for (const share of [0.5, 0.08, 0.92]) {

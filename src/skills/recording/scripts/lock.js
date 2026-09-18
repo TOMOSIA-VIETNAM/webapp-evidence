@@ -90,4 +90,4 @@ function release(file, pid = process.pid) {
   try { fs.unlinkSync(file); } catch { /* already gone */ }
 }
 
-module.exports = { acquire, release, fileFor, isRunning, DIR };
+module.exports = { acquire, fileFor, isRunning };

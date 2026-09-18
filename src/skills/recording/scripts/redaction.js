@@ -23,6 +23,13 @@ const seconds = (value) => Number(value.toFixed(3));
 // past the page-load wait first, so everything here is rebased on that same point.
 const rebase = (at, trimAt) => Math.max(0, at - trimAt);
 
+// A stretch that opened and closed inside the same millisecond still covered a real frame: a step
+// script that threw on its first line, with nothing in between that costs a round trip to measure.
+// With no width at all it falls out of `all()` below and reaches the encode as nothing, so what it
+// was covering is in the video kept from the attempt. Held to the shortest stretch that covers a
+// frame at any rate this records at.
+const MIN_STRETCH = 0.05;
+
 function createRedactions() {
   const entries = [];
   return {
@@ -34,6 +41,12 @@ function createRedactions() {
       const entry = { mode, box, from: null, to: null };
       entries.push(entry);
       return entry;
+    },
+    // Where a stretch ends. An entry never closed stays out of `all()` — nothing reaches the encode
+    // from a redaction whose steps were never reached at all.
+    close(entry, from, to) {
+      entry.from = from;
+      entry.to = Math.max(to, from + MIN_STRETCH);
     },
     all: () => entries.filter((e) => e.from !== null && e.to !== null && e.to > e.from),
   };

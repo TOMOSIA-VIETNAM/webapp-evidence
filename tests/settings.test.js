@@ -257,3 +257,16 @@ test('CAPTURE from the environment picks the backend, and a typo there is refuse
   assert.equal(resolve({}, { CAPTURE: 'window' }).result.recording.capture, 'window');
   assert.throws(() => resolve({}, { CAPTURE: 'windows' }), /recording.capture/);
 });
+
+test('recording faster does not shorten the wait for the page to stop moving', () => {
+  // Every other pace value is the runner's own and scales; this one is a ceiling on a momentum
+  // scroller's easing, which belongs to the page and does not care how fast the take is recorded.
+  // Scaled down with the rest, a fast take stops waiting while the page is still travelling.
+  const normal = resolveSettings({}).recording.pace;
+  const fast = resolveSettings({ recording: { speed: 'fast' } }).recording.pace;
+  const faster = resolveSettings({ recording: { speed: 5 } }).recording.pace;
+
+  assert.equal(fast.scrollSettleMs, normal.scrollSettleMs);
+  assert.equal(faster.scrollSettleMs, normal.scrollSettleMs);
+  assert.ok(fast.afterClickMs < normal.afterClickMs, 'the ordinary waits stopped scaling');
+});
