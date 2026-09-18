@@ -123,8 +123,12 @@ test('a window hanging off the edge of the display is clamped to it', () => {
 
 // ---------- stopping the recorder ----------
 
-// The real waits are seconds long, which is right for a recorder and wrong for a test suite
-const FAST = { quietMs: 20, termMs: 20 };
+// The real waits are seconds long, which is right for a recorder and wrong for a test suite. What
+// they cannot be is close to how long the recorder below takes to die: a window 15ms wider than
+// that exit is a window a busy machine closes first, and the escalation under test fires one step
+// too far. The gap here is an order of magnitude, so the result says which branch ran rather than
+// how loaded the machine was.
+const FAST = { quietMs: 30, termMs: 400 };
 
 function fakeRecorder({ respondsTo }) {
   const child = new EventEmitter();
