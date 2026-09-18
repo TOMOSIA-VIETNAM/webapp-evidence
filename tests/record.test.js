@@ -331,7 +331,7 @@ test('the reader is told the video is shorter than what was recorded', () => {
 const { buildContext } = require('../src/skills/recording/scripts/record');
 const { createTerminal } = require('../src/skills/recording/scripts/terminal');
 const { createHuman } = require('../src/skills/recording/scripts/human');
-const { SNAPSHOT } = require('../src/skills/recording/scripts/scroll');
+const { SNAPSHOT, HEADER } = require('../src/skills/recording/scripts/scroll');
 const { resolveSettings } = require('../src/skills/recording/scripts/settings');
 
 const scopeFrom = (helpers) => buildContext({
@@ -457,13 +457,16 @@ test('moveTo refuses a bounding box where it expects a number of pixels', async 
 // here — what is being pinned down is which coordinates the helpers compute, and from what.
 const FAST = resolveSettings({ recording: { speed: 'fast' } }).recording;
 
-function pointerScope(snapshots = []) {
+function pointerScope(snapshots = [], { header = 0, boxes = [] } = {}) {
   const sent = [];
   // A sequence per locator: each measurement takes the next one, and the last stands for every
   // measurement after it. That is what makes a page still moving when it was measured expressible
   // here — one snapshot for where it was, the next for where it ended up.
   const queues = snapshots.map((entry) => (Array.isArray(entry) ? [...entry] : [entry]));
   const page = {
+    // The header is measured in the page rather than in the element's own document, so it is the
+    // page that answers for it.
+    evaluate: async (fn) => (fn === HEADER ? header : undefined),
     mouse: {
       async move(x, y) { sent.push({ kind: 'move', x, y }); },
       async down() { sent.push({ kind: 'down' }); },
@@ -471,11 +474,11 @@ function pointerScope(snapshots = []) {
       async wheel(dx, dy) { sent.push({ kind: 'wheel', dx, dy }); },
     },
   };
-  const locators = queues.map((queue) => ({
+  const locators = queues.map((queue, index) => ({
     // SETTLE waits for the page to stop and reports nothing; only a SNAPSHOT is a measurement.
     evaluate: async (fn) => (fn === SNAPSHOT ? (queue.length > 1 ? queue.shift() : queue[0]) : undefined),
-    boundingBox: async () => null,
-    scrollIntoViewIfNeeded: async () => {},
+    boundingBox: async () => boxes[index] ?? null,
+    scrollIntoViewIfNeeded: async () => { sent.push({ kind: 'jump' }); },
   }));
   const scope = buildContext({
     page, outDir: PROJECT, marks: [], hotkeys: [], notes: [], dialogs: [], startedAt: Date.now(),
@@ -558,14 +561,13 @@ test('the helpers that move the pointer are all in the scope', () => {
 // something to press and wrong for arriving somewhere: it will happily call an overshoot "arrived"
 // while the section sits with its first rows off the top of the frame. These two pin the line
 // between the callers.
-const scrolling = (rect, { scrollTop = 0, maxTop = 4000, header = 0 } = {}) => ({
+const scrolling = (rect, { scrollTop = 0, maxTop = 4000 } = {}) => ({
   target: rect,
   view: FAST.viewport,
   frames: [{
     rect: { top: 0, left: 0, width: FAST.viewport.width, height: FAST.viewport.height },
     scrollTop, scrollLeft: 0, maxTop, maxLeft: 0,
   }],
-  header,
   inFrame: false,
 });
 
@@ -591,19 +593,74 @@ test('click leaves an overshoot alone: it only has to reach something it can pre
 test('an element the pinned header covers is refused, not pressed through the header', async () => {
   // Nothing can scroll, so it stays where it is: on screen, and under the band the page keeps
   // pinned over the top of the frame.
-  const covered = scrolling({ top: 20, left: 0, width: 400, height: 40 }, { maxTop: 0, header: 96 });
-  const { scope, locators, sent } = pointerScope([covered]);
+  const covered = scrolling({ top: 20, left: 0, width: 400, height: 40 }, { maxTop: 0 });
+  const { scope, locators, sent } = pointerScope([covered], { header: 96 });
 
   await assert.rejects(() => scope.click(locators[0]), /header/);
   assert.equal(sent.filter((event) => event.kind === 'down').length, 0);
 });
 
 test('an element the header covers half of is pressed on the half below it', async () => {
-  const half = scrolling({ top: 60, left: 0, width: 400, height: 120 }, { maxTop: 0, header: 96 });
-  const { scope, locators, sent } = pointerScope([half]);
+  const half = scrolling({ top: 60, left: 0, width: 400, height: 120 }, { maxTop: 0 });
+  const { scope, locators, sent } = pointerScope([half], { header: 96 });
 
   await scope.click(locators[0], { pause: 0 });
   const pressedAt = lastMoveBefore(sent, 'down');
   assert.ok(pressedAt.y > 96, `pressed at ${pressedAt.y}, inside the header band`);
   assert.ok(pressedAt.y < 180, `pressed at ${pressedAt.y}, below the element`);
+});
+
+
+test('an element inside an iframe is judged against the page\'s header, not its own document\'s', () => {
+  // The snapshot of an element in a frame is measured in that frame; the header is measured in the
+  // page, because that is where the mouse is and where the header that can cover it lives.
+  const inFrame = { ...scrolling({ top: 20, left: 100, width: 200, height: 40 }, { maxTop: 0 }), inFrame: true };
+  const { scope, locators } = pointerScope([inFrame], {
+    header: 96,
+    boxes: [{ x: 100, y: 20, width: 200, height: 40 }],
+  });
+
+  return assert.rejects(() => scope.click(locators[0]), /header/);
+});
+
+test('a sliver too small to aim at is not blamed on a header the page does not have', async () => {
+  const sliver = scrolling({ top: 799.6, left: 0, width: 400, height: 100 }, { maxTop: 0 });
+  const { scope, locators } = pointerScope([sliver], { header: 0 });
+
+  await assert.rejects(() => scope.click(locators[0]), (error) => {
+    assert.match(error.message, /not visible/);
+    assert.doesNotMatch(error.message, /header/);
+    return true;
+  });
+});
+
+test('scrollTo keeps correcting while the page keeps coming up short', async () => {
+  // One correction is not enough on a page whose wheel deltas do not land on the resting place:
+  // giving up after it would fall through to the jump, which knows nothing about the header.
+  const { scope, locators, sent } = pointerScope([[
+    scrolling({ top: 1400, left: 0, width: 1280, height: 300 }),
+    scrolling({ top: -40, left: 0, width: 1280, height: 300 }, { scrollTop: 1300 }),
+    scrolling({ top: 30, left: 0, width: 1280, height: 300 }, { scrollTop: 1230 }),
+    scrolling({ top: 200, left: 0, width: 1280, height: 300 }, { scrollTop: 1060 }),
+  ]], { header: 96 });
+
+  await scope.scrollTo(locators[0], { pause: 0 });
+  assert.equal(sent.filter((event) => event.kind === 'jump').length, 0, 'it gave up and jumped');
+});
+
+test('after a jump, a scroll that has to arrive moves out from under the header', async () => {
+  // A pane no wheel can reach: every measurement comes back the same, so the wheel is abandoned for
+  // the jump — which leaves the element against the top edge, behind the header.
+  // Behind the header, on a page that has room to scroll it clear: the hop is possible, the wheel
+  // just never achieves it.
+  const stuck = scrolling({ top: 20, left: 0, width: 1280, height: 300 }, { scrollTop: 500 });
+  const { scope, locators, sent } = pointerScope([[
+    stuck, stuck, stuck, stuck,
+    scrolling({ top: 200, left: 0, width: 1280, height: 300 }, { scrollTop: 307 }),
+  ]], { header: 96 });
+
+  await scope.scrollTo(locators[0], { pause: 0 });
+  const jumpedAt = sent.findIndex((event) => event.kind === 'jump');
+  assert.ok(jumpedAt >= 0, 'the wheel was never abandoned, so this checks nothing');
+  assert.ok(sent.slice(jumpedAt).some((event) => event.kind === 'wheel'), 'nothing made up for the header');
 });

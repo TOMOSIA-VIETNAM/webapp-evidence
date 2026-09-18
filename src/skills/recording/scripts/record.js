@@ -137,7 +137,17 @@ function buildContext({
   // instead of turning the wheel at nothing.
   const MAX_HOPS = 4;
 
-  const measure = (locator) => locator.evaluate(scroll.SNAPSHOT);
+  // One measurement: where the element and its panes stand, plus how deep the band is that the page
+  // keeps pinned over the top. The header comes from the page rather than from the element's own
+  // document, because that is the frame the mouse is driven in — and an element inside an <iframe>
+  // can sit behind the page's header just as easily as anything else.
+  const measure = async (locator) => {
+    const [snapshot, header] = await Promise.all([
+      locator.evaluate(scroll.SNAPSHOT),
+      page.evaluate(scroll.HEADER),
+    ]);
+    return { ...snapshot, header };
+  };
   // Two still frames is enough to tell "the scroll has finished" from "between two steps of it",
   // and the timeout keeps a page that animates something forever from holding the take. It has to
   // outlast a momentum scroller's easing: measuring while the page is still coasting reads a
@@ -191,11 +201,6 @@ function buildContext({
       return measure(locator);
     }
 
-    // The direction the wheel has already been turned in. Kept for the whole of one bringIntoView
-    // so that a page still coasting when it was measured is not wheeled back over ground it is
-    // about to cover by itself.
-    let heading = 0;
-
     // One turn of the wheel, left settled, measured again.
     const turn = async (plan) => {
       // The wheel is delivered wherever the pointer stands, so it goes over the pane that has to
@@ -207,36 +212,51 @@ function buildContext({
       return measure(locator);
     };
 
-    for (let hop = 0; hop < MAX_HOPS; hop++) {
-      const plan = await nextHop(snapshot, heading);
-      if (!plan) break;
-      heading = heading || Math.sign(plan.dy);
+    // Hop towards the element until there is nothing left to do, the page stops answering the
+    // wheel, or the budget runs out.
+    //
+    // `holdHeading` is what keeps a page that is still coasting from being wheeled back over ground
+    // it is about to cover by itself, and it is right for reaching something to press. It is wrong
+    // for arriving: what it holds back is an element left a little past where it belongs, even
+    // behind the header, which is exactly the correction a scroll that has to COME TO REST needs.
+    // A run without it goes second, on a page that has already stopped moving, where the reason for
+    // holding anything back is gone.
+    const travel = async (from, { holdHeading }) => {
+      let at = from;
+      let heading = 0;
+      for (let hop = 0; hop < MAX_HOPS; hop++) {
+        const plan = await nextHop(at, holdHeading ? heading : 0);
+        if (!plan) break;
+        if (holdHeading) heading = heading || Math.sign(plan.dy);
 
-      const landed = await turn(plan);
-      const stuck = Math.abs(landed.target.top - snapshot.target.top) < 1
-        && Math.abs(landed.target.left - snapshot.target.left) < 1;
-      snapshot = landed;
-      if (stuck) break;
-    }
+        const landed = await turn(plan);
+        const stuck = Math.abs(landed.target.top - at.target.top) < 1
+          && Math.abs(landed.target.left - at.target.left) < 1;
+        at = landed;
+        if (stuck) break;
+      }
+      return { at, heading };
+    };
 
-    // The heading exists to keep a page that is still coasting from being wheeled back over ground
-    // it is about to cover by itself. Once the travelling has finished that reason is gone, while
-    // what it was holding back — an element left a little past where it belongs, even behind the
-    // header — is exactly what a scroll that has to COME TO REST cannot keep. So the last word goes
-    // to one hop with nothing held back, on a page that has already stopped moving.
-    if (restAt) {
-      const correction = await nextHop(snapshot);
-      if (correction) snapshot = await turn(correction);
-    }
+    const travelled = await travel(snapshot, { holdHeading: true });
+    snapshot = travelled.at;
+    if (restAt) snapshot = (await travel(snapshot, { holdHeading: false })).at;
 
-    if (!(await nextHop(snapshot, restAt ? 0 : heading))) return snapshot;
+    if (!(await nextHop(snapshot, restAt ? 0 : travelled.heading))) return snapshot;
 
     // Nothing a wheel can reach will finish this: a pane that swallows the event, or a container
     // the app scrolls with its own script and hidden overflow. Take the jump rather than click at
     // something off the frame — a video that cuts to the action still shows the action.
     await locator.scrollIntoViewIfNeeded();
     await settle(locator);
-    return measure(locator);
+    snapshot = await measure(locator);
+
+    // The browser scrolls the least it can, which leaves the element against the top edge of the
+    // frame — behind the header, on a page that pins one. The jump knows nothing about that band,
+    // so a run that has to come to rest makes it up afterwards rather than reporting that the
+    // element never arrived.
+    if (restAt) snapshot = (await travel(snapshot, { holdHeading: false })).at;
+    return snapshot;
   }
 
   // Travel to something and stop on it. `click` already scrolls to what it clicks, so this is for
@@ -285,7 +305,10 @@ function buildContext({
     // pointer may aim at.
     const seen = found.inFrame ? await locator.boundingBox() : scroll.visibleBox(found);
     const box = reachable(found, seen);
-    if (!box && seen) {
+    // Only when the header is what took it away. `reachable` also returns nothing for a sliver of
+    // an element too small to aim at, and that has a message of its own below — one that names the
+    // right cause instead of blaming a header the page may not even have.
+    if (!box && seen && found.header > 0 && seen.y + seen.height <= found.header) {
       throw new Error(
         `The element to ${action} is behind the header the page keeps pinned over the top of the ` +
         'frame: it is on screen and the pointer cannot get to it — a press aimed there lands on ' +

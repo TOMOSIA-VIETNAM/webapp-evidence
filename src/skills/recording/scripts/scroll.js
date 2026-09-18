@@ -151,32 +151,38 @@ function visibleBox({ target, view, frames }) {
   return { x: box.left, y: box.top, width: box.width, height: box.height };
 }
 
+// How deep the band is that the page keeps pinned over the top of the frame. Whatever comes to rest
+// under it is on screen and unreadable, so it is measured rather than passed in: a number in a step
+// script is a magic number, and it is wrong the day the design changes.
+//
+// Its own round trip rather than part of the snapshot below, because it has to be measured in the
+// frame the mouse is driven in. Measured inside an <iframe> it would report that document's own
+// pinned elements, in that document's coordinates, and the page's real header — the one an element
+// in the frame can just as easily end up behind — would be invisible. Runs in the page; stands
+// alone for the same reason as SNAPSHOT.
+const HEADER = () => {
+  let depth = 0;
+  for (const share of [0.5, 0.08, 0.92]) {
+    const at = document.elementsFromPoint(Math.round(window.innerWidth * share), 1) || [];
+    for (const node of at) {
+      const position = getComputedStyle(node).position;
+      if (position !== 'fixed' && position !== 'sticky') continue;
+      const rect = node.getBoundingClientRect();
+      if (rect.top > 1) continue;    // pinned somewhere else, not over the top edge
+      depth = Math.max(depth, rect.bottom);
+    }
+  }
+  // Something pinned over a third of the frame is a banner, an overlay or a modal rather than a
+  // header. Treating it as one would leave too little room to rest anything in, and the page would
+  // be scrolled to a place no better than where it started.
+  return depth > window.innerHeight / 3 ? 0 : Math.round(Math.max(0, depth));
+};
+
 // Measure the element and every pane between it and the window, in one round trip. Runs in the
 // page, so it stands alone: nothing in this module is in scope there.
 const SNAPSHOT = (el) => {
   const rectOf = (r) => ({ top: r.top, left: r.left, width: r.width, height: r.height });
   const frames = [];
-
-  // How deep the band is that the page keeps pinned over the top of the frame. Whatever comes to
-  // rest under it is on screen and unreadable, so it is measured here rather than passed in: a
-  // number in a step script is a magic number, and it is wrong the day the design changes.
-  const headerDepth = () => {
-    let depth = 0;
-    for (const share of [0.5, 0.08, 0.92]) {
-      const at = document.elementsFromPoint(Math.round(window.innerWidth * share), 1) || [];
-      for (const node of at) {
-        const position = getComputedStyle(node).position;
-        if (position !== 'fixed' && position !== 'sticky') continue;
-        const rect = node.getBoundingClientRect();
-        if (rect.top > 1) continue;    // pinned somewhere else, not over the top edge
-        depth = Math.max(depth, rect.bottom);
-      }
-    }
-    // Something pinned over a third of the frame is a banner, an overlay or a modal rather than a
-    // header. Treating it as one would leave too little room to rest anything in, and the page
-    // would be scrolled to a place no better than where it started.
-    return depth > window.innerHeight / 3 ? 0 : Math.round(Math.max(0, depth));
-  };
 
   for (let node = el.parentElement; node; node = node.parentElement) {
     const style = getComputedStyle(node);
@@ -209,7 +215,6 @@ const SNAPSHOT = (el) => {
     target: rectOf(el.getBoundingClientRect()),
     view: { width: window.innerWidth, height: window.innerHeight },
     frames,
-    header: headerDepth(),
     // Everything above was measured in this frame. Inside an <iframe> that is not the frame the
     // mouse is driven in, and the chain of panes ends at this document rather than at the page.
     inFrame: window !== window.top,
@@ -248,4 +253,4 @@ const SETTLE = (el, { stillFrames, timeoutMs }) => new Promise((resolve) => {
   requestAnimationFrame(step);
 });
 
-module.exports = { planHop, visibleBox, intersect, SNAPSHOT, SETTLE, FOCUS, MARGIN };
+module.exports = { planHop, visibleBox, intersect, SNAPSHOT, SETTLE, HEADER, FOCUS, MARGIN };
