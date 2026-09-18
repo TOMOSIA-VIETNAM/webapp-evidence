@@ -24,59 +24,55 @@
   <a href="./README.md">English</a> · <a href="./README.vi-VN.md">Tiếng Việt</a> · <a href="./README.ja-JP.md">日本語</a> · <strong>简体中文</strong>
 </p>
 
-你总要向别人证明应用真的能跑：UAT、交接给另一个团队、报 bug、演示、评审。自己录大概要
-半小时，效果还是不好——截图慢半拍，鼠标乱跳，下拉菜单在画面里打不开，别人看不出你选了什么。
+AI 让改动变快了，证明它能跑却没有变快 —— UAT、交接、缺陷报告和评审要的都是同一样东西，而自己录一遍
+仍然要花半小时。
 
-把流程告诉编码代理就行。它操作 Chrome，返回视频、关键步骤的截图，以及能复现这次录制的 runbook。
-
-## 示例
-
-```
-/webapp-evidence:recording Page: https://open-pr.vercel.app
-Flow:
-1. Open the language menu, go through every language, then come back to English
-2. Hover the moth in the hero, then copy the one-line install command
-3. Read down the page: How it works, the review-round walkthrough and every step of
-   the loop, the feature cards, the token-cost chart
-4. On Install, switch to the Codex and Cursor tabs, then copy the command of the open one
-5. Take the floating button back to the top, print the SEO meta the page serves in a
-   terminal, and close the tour in Japanese
-```
-
-## 结果
+**`webapp-evidence` 替你把这份证据录下来。** 把流程告诉你已经在用的编码 agent，它驱动 Chrome，交回
+视频、关键步骤的截图，以及一份 runbook。
 
 <p align="center">
   <img src="./docs/demo/site-tour.gif" width="820" alt="落地页导览录像：hero 里的飞蛾跟着指针反应，复制一行安装命令后按钮自己确认，接着一路往下读页面 —— How it works、逐步点开的评审轮次讲解，以及功能卡片。">
 </p>
 
-GIF 只是整段录制里的一截 —— 整段做成 GIF 会大上好几倍，README 不该放那种东西。随附 25 张主要步骤截图，以及一份 runbook，对方读完就懂，不必看视频：
+- **一次录制，三种证据** —— 页面、用浏览器自己持有的会话调用的接口，以及它写进数据库的那一行。一个
+  视频，一份 runbook。
+- **看上去像人在操作** —— 指针会移动，敲键盘的节奏不均匀，滚动停在它要去的地方。没有任何跳变。
+- **给的是 runbook，不只是文件** —— 时间线、字幕、执行过的命令、记录到的页面错误，以及再录一次同样
+  内容的命令。
+- **密钥留在外面** —— 模糊、涂黑，或者把那一段直接剪掉，视频和截图一视同仁。
+- **没有东西离开你的机器** —— 没有服务，没有机器人账号；它在你本来就有的 agent CLI 里运行，只针对你
+  指定的站点。
+
+## 一次录制能证明什么
+
+录屏只能证明全栈改动的一半。同一次录制还可以用浏览器已经持有的会话调用 API，并把数据库读回来：
+
+```
+/webapp-evidence:recording Page: https://app.example.com/orders
+Flow:
+1. Create an order for SKU ABC, quantity 2
+2. Call POST /api/orders and show it answering 201
+3. Query the orders table and show the row that appeared
+```
+
+- **页面。** 表单由一个看得见的指针填写并提交，节奏是观看者读得过来的速度。
+- **接口。** 页面上方打开一个终端面板，curl 在里面用浏览器的 Cookie 运行 —— `HTTP 201 in 0.184s`
+  留在画面里。这一步会断言状态码，所以状态不对就是录制失败，而不是把错误当证据发出去。
+- **数据库。** `psql`、`mysql`、一个 rake 任务 —— 你平时自己敲的东西，在同一个面板里执行，新增的那
+  一行与创建它的页面同框。
+
+Cookie 和令牌通过文件交给 curl，并在视频、截图和 runbook 中全部被遮蔽。
+
+## 拿回什么
+
+`<name>.mp4`、按顺序编号的截图，以及 `<name>-runbook.md` —— 让对面的人可以读，而不必看：
 
 ```markdown
 ## Steps in the video
 
-00:00 - 00:01  Hero — the page as it opens
-00:01 - 00:15  Language menu — every language the site ships
-00:15 - 00:19  Back to English — the language the rest of the tour runs in
-00:19 - 00:21  Hero — the moth answers the pointer
 00:21 - 00:26  Hero — copy the one-line install command
-00:26 - 00:32  How it works — the three steps light up under the pointer
-00:32 - 00:36  Review rounds — the walkthrough plays itself
 00:36 - 00:49  Review rounds — every step of the loop, picked by hand
-00:49 - 00:54  Features — the cards warm as the pointer crosses them
-00:54 - 00:56  Token cost — the chart the plugin publishes
-00:56 - 01:03  Install — one panel per agent
-01:03 - 01:05  Install — copy the command of the open panel
-01:05 - 01:09  Footer — the links at the end of the page
-01:09 - 01:13  The floating button flies the reader back to the top
 01:13 - 01:26  The SEO meta the page serves, read straight off the URL
-01:26 - 01:32  Closing on 日本語
-
-## Captions shown in the video
-
-- 00:23  The command is on the clipboard. The button was read back for its "Copied"
-         state, because a blocked clipboard leaves a click that proves nothing.
-- 01:13  The terminal panel runs against the live URL, so these tags come from what
-         the site is serving right now.
 
 ## Commands run in the terminal
 
@@ -87,14 +83,11 @@ GIF 只是整段录制里的一截 —— 整段做成 GIF 会大上好几倍，
 - none
 ```
 
-录制时它也盯着 console 和网络。这一次页面是干净的 —— 这本身就是读者可以核实的说法。出问题时，
-每条错误都会带着状态码和 URL 落在最后那一块里 —— 没人留意的请求返回 401，截图是照不出来的。
+录制过程中它同时盯着控制台和网络，所以没人留意的那个请求返回 401，会带着状态码和 URL 落在最后一块
+里。如果录制就发生在你开发该功能的会话中，agent 会像跑了一轮 e2e 那样回看这些截图和错误，并提出修
+法，而不只是把文件交给你。
 
-如果是在实现功能的同一轮对话里录的，代理会按 e2e 的方式看这些截图和错误日志。401、布局错位或
-溢出——发现问题可以提出修法，不只是把文件交给你。
-
-runbook 里还留着生成这次录制的命令。数据变了、视频坏了、或者想录慢一点，再说一次就行。旧的录制
-会保留为 `v1`、`v2`、……，不会被覆盖。已经发出去的录像，没法再生成同一份文件。
+没有任何东西被提交进 Git。附到工单、MR 还是报告，由你决定。
 
 ## 安装
 
@@ -111,89 +104,56 @@ claude plugin install webapp-evidence@webapp-evidence
 curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash
 ```
 
-它会问你用哪个平台，然后告诉你装到了哪里。录制需要 Chrome、ffmpeg 和 Node——缺哪个，代理会说
-清楚，并提出帮你装上。
+它会询问你用哪个平台，并告诉你文件落在哪里。录制需要 Chrome、ffmpeg 和 Node；缺哪个 agent 会点名，
+并提出替你安装。
 
-要跟着某个分支走或钉在某个版本：
+固定某个发布版，或者跟随某个分支：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash -s -- --ref main
+curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash -s -- --ref v1.1.3
 ```
 
-`--ref v1.2.0` 钉在某个版本，`--ref latest` 回到跟随发布版本；之后每次运行都保持最后一次指定的
-那个。更新用 `~/.webapp-evidence/scripts/install-local.sh --update`，卸载用 `--uninstall --all`。
+`--ref main` 跟随分支，`--ref latest` 回到跟随发布版；之后每次运行都保持最后一次指定的那个。更新用
+`~/.webapp-evidence/scripts/install-local.sh --update`，卸载用 `--uninstall --all`。
 
-## 使用方式
+在哪里输入命令取决于平台：Claude Code 用 `/webapp-evidence:recording`，Cursor、Gemini CLI 和
+Antigravity 用 `/webapp-evidence-recording`，Codex 用 `$webapp-evidence-recording`。
 
-怎么调用，取决于你在哪个工具里：
+## 怎么提要求
 
-| 平台 | 命令 |
-|---|---|
-| Claude Code | `/webapp-evidence:recording` |
-| Cursor, Gemini CLI, Antigravity | `/webapp-evidence-recording` |
-| Codex | `$webapp-evidence-recording` |
+没有语法要学。*“给我刚修的那个页面的证据”* 就能跑，用什么语言写，agent 就用什么语言回。
 
-能跟它要的东西：
-
-| 你想要 | 输入什么 |
+| 你想要 | 这样输入 |
 |---|---|
 | 刚改完的页面的证据 | `/webapp-evidence:recording` —— 它知道你刚在做什么 |
-| 某个 MR 或 PR 的证据 | `/webapp-evidence:recording https://gitlab.example.com/group/admin/-/merge_requests/1783` |
-| 按你的描述录一个页面 | `/webapp-evidence:recording Page: https://app.example.com/search` 然后写步骤，就像上面的例子 |
-| 再录一遍同样的内容 | `/webapp-evidence:recording 再录一遍` —— 命令在 runbook 里，旧的录制不会被覆盖 |
-| 录慢一点 | `/webapp-evidence:recording 录慢一点` |
-| 换一种语言的字幕 | `/webapp-evidence:recording 字幕用日文` —— 按项目记住 |
-| 证明这次点击真的到了后端——任务跑了、文件写了 | `/webapp-evidence:recording 点击 Run sync 之后展示 worker 日志` |
-| 想让下拉菜单或对话框本身进视频，而不是一条字幕 | `/webapp-evidence:recording --screen` —— 把机器交出去约一分钟；不加这个参数它会先问你 |
-| 把敏感信息挡在录制之外 | `/webapp-evidence:recording API key 出现时把它模糊掉` |
-| 给项目配一次，以后录制都已登录 | `/webapp-evidence:recording set up the evidence config for this project` |
+| 给 MR 或 PR 的证据 | `/webapp-evidence:recording https://gitlab.example.com/group/admin/-/merge_requests/1783` |
+| 数据变了之后再录一次同样的 | `/webapp-evidence:recording record that again` —— 旧的保留为 `v1`、`v2`…… |
+| 录慢一点，或换一种字幕语言 | `record it slower`、`captions in Japanese` —— 按项目记住 |
+| 把密钥挡在录制之外 | `blur the API key when it appears` |
+| 让下拉框或对话框本身入镜 | `--screen` —— 录浏览器窗口，所以操作系统画的东西也在画面里 |
+| 无论流程如何都不占用屏幕 | `--headless` —— 默认行为，也是把这个问题直接定下来的方式 |
+| 给 README 用的 gif，自己托管页面用的 webm | `-f gif`、`-f webm` —— 其余情况是 mp4，因为它到哪都能内联播放 |
+| 不看视频也知道里面是什么 | `/webapp-evidence:vision <the mp4>` |
+| 录制一开始就是已登录状态 | `/webapp-evidence:recording set up the evidence config for this project` |
+| 告诉我们哪里不对、还缺什么 | `/webapp-evidence:feedback` |
 
-步骤用你平时用的那种语言写就行，代理也用同一种语言回你。也没有语法要记——说“给我刚修好的那个
-界面的证据”，一样能跑。
-
-## 拿到录制之后
-
-| 你想要 | 命令 |
-|---|---|
-| 一个 gif，放进 README 或任何只渲染图片的地方 | `/webapp-evidence:recording -f gif` |
-| 一个 webm，放到你自己的页面上 | `/webapp-evidence:recording -f webm` |
-| 不看视频也知道里面发生了什么 | `/webapp-evidence:vision <the mp4>` |
-| 反馈一个问题，或者提一个缺的功能 | `/webapp-evidence:feedback` |
-
-默认仍然是 mp4：它在 merge request、issue 和各种聊天工具里都能直接播放，也是三种格式里最小的。
-同一段录制转成 gif 会大好几倍，所以这一步是先问你一句，而不是给你一个意外。
-
-`vision` 存在的原因是代理看不了视频。它把视频拼成图片网格——每隔几秒一帧，每帧标着
-`mm:ss`——然后当图片来读。所以结论会是“00:14 处标题压住了表格”：一个你能自己回看核对、也能和
-runbook 对上的时刻。它还能发现没人想到要截图的东西：过渡途中错位的布局，闪一下就没了的横幅。
-
-这是它从上面那段录制里生成的两张图：
-**[第 1 张](./docs/demo/vision-sheet-01.png)**（00:00–00:38）·
-**[第 2 张](./docs/demo/vision-sheet-02.png)**（00:40–01:18）·
-**[第 3 张](./docs/demo/vision-sheet-03.png)**（01:20–01:32）。
+`vision` 存在是因为 agent 看不了视频。它把视频铺成一张张图 —— 每隔几秒一帧，每帧都打上 `mm:ss` ——
+所以结论会是“00:14 处表头压住了表格”，这个时间点你可以自己核对，也能对上 runbook。上面那次录制生成
+的图：
+**[1](./docs/demo/vision-sheet-01.png)** ·
+**[2](./docs/demo/vision-sheet-02.png)** ·
+**[3](./docs/demo/vision-sheet-03.png)**。
 
 ## 限制
 
-它录的是页面，不是你的屏幕。操作系统画的东西进不了视频：`<select>` 下拉菜单、文件选择框、
-`confirm`/`alert` 对话框。这些时刻会配一条字幕说明选了什么，再加一张之后状态的截图。用 JS 做的
-模态框、日期选择器和下拉菜单都能正常录进去。
+它录的是页面，不是你的屏幕，所以操作系统画的东西进不了视频：`<select>` 下拉框、文件选择框、
+`confirm`/`alert` 对话框。每一个都会配一条说明选了什么的字幕，以及紧接其后的状态截图；模态框、日期
+选择器和 JS 写的下拉框都能正常录到。当这些对话框本身*就是*证据时，`--screen` 改为录制浏览器窗口 ——
+这需要一块屏幕、你的许可，以及录制期间不碰这台机器，所以 agent 会先问。
 
-如果要展示的正是这些对话框，它可以改成录浏览器窗口，那样对话框就在视频里了。这需要一块屏幕、
-相应权限，而且整段录制期间不能碰这台机器，所以不是默认行为——代理会先问你，屏幕上也会弹出一条
-提示，告诉你问题在哪里。想直接指定就用 `/webapp-evidence:recording --screen`。
-
-屏幕上出现的敏感信息可以模糊、涂黑，或者把那一段从录制里剪掉——描述流程时说一声即可，截图也
-会同样处理。
-
-如果证据根本不在页面上——任务跑过了、文件写好了——某一步可以在页面上方打开一个终端面板，
-把真实的命令和真实的输出录进同一个视频。只支持按行输出的命令：`vim`、`less`、`htop` 不行。
-
-录制只针对你指定的站点，不碰别的。
-
-视频和截图不进 Git。贴到工单、MR/PR 还是报告，由你自己决定。
+终端面板只接受按行输出的命令：`vim`、`less` 和 `htop` 除外。
 
 ---
 
-上面那段录制是本仓库 runner 的真实输出：`docs/demo/record.sh` 从
-`docs/demo/site-tour-steps.js` 生成。想改这个技能本身，见
-**[CONTRIBUTING.md](./CONTRIBUTING.md)**。
+上面的录制是本仓库 runner 的真实产物：`docs/demo/record.sh` 从 `docs/demo/site-tour-steps.js` 生
+成。想改动技能本身，见 **[CONTRIBUTING.md](./CONTRIBUTING.md)**。
