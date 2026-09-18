@@ -6,8 +6,8 @@
 </p>
 
 <p align="center">
-  <strong>手順を伝えると、録画が返ってきます。</strong><br>
-  <sub>コマンド 1 つで Web アプリを録画し、動画・スクリーンショット・runbook を返します。UAT、引き継ぎ、バグ報告、レビュー向け。</sub><br>
+  <strong>操作を伝えれば、録画が返ってくる。</strong><br>
+  <sub>コマンド 1 つで Web アプリを録画し、動画・スクリーンショット・ランブックを返します。UAT、引き継ぎ、バグ報告、レビューに。</sub><br>
   <code>/webapp-evidence:recording</code>
 </p>
 
@@ -24,82 +24,10 @@
   <a href="./README.md">English</a> · <a href="./README.vi-VN.md">Tiếng Việt</a> · <strong>日本語</strong> · <a href="./README.zh-Hans.md">简体中文</a>
 </p>
 
-アプリがちゃんと動くところを見せる場面は必ず来ます。UAT、別チームへの引き継ぎ、バグ
-報告、デモ、レビュー。自分で録ると 30 分くらいかかっても、スクリーンショットは遅れ、マウスは
-飛び、ドロップダウンは映像に出ないので何を選んだのか分かりません。
-
-手順をコーディングエージェントに伝えてください。Chrome を操作して、動画、主要なステップの
-スクリーンショット、同じ録画を再現できる runbook を返します。
-
-## 例
-
-```
-/webapp-evidence:recording Page: https://open-pr.vercel.app
-Flow:
-1. Open the language menu, go through every language, then come back to English
-2. Hover the moth in the hero, then copy the one-line install command
-3. Read down the page: How it works, the review-round walkthrough and every step of
-   the loop, the feature cards, the token-cost chart
-4. On Install, switch to the Codex and Cursor tabs, then copy the command of the open one
-5. Take the floating button back to the top, print the SEO meta the page serves in a
-   terminal, and close the tour in Japanese
-```
-
-## 出力
-
-<p align="center">
-  <img src="./docs/demo/site-tour.gif" width="820" alt="ランディングページのツアー録画。ヒーローの蛾がポインターに反応し、ワンライナーのインストールコマンドをコピーしてボタンがそれを確認、そのまま How it works、レビューラウンドのウォークスルーを 1 ステップずつ、機能カードへとページを読み下ろします。">
-</p>
-
-GIF は長いテイクの一部です。全体を GIF にすると数倍の大きさになり、README に置くものではありません。主要ステップのスクリーンショット 25 枚と、見る代わりに読める runbook が付きます:
-
-```markdown
-## Steps in the video
-
-00:00 - 00:01  Hero — the page as it opens
-00:01 - 00:15  Language menu — every language the site ships
-00:15 - 00:19  Back to English — the language the rest of the tour runs in
-00:19 - 00:21  Hero — the moth answers the pointer
-00:21 - 00:26  Hero — copy the one-line install command
-00:26 - 00:32  How it works — the three steps light up under the pointer
-00:32 - 00:36  Review rounds — the walkthrough plays itself
-00:36 - 00:49  Review rounds — every step of the loop, picked by hand
-00:49 - 00:54  Features — the cards warm as the pointer crosses them
-00:54 - 00:56  Token cost — the chart the plugin publishes
-00:56 - 01:03  Install — one panel per agent
-01:03 - 01:05  Install — copy the command of the open panel
-01:05 - 01:09  Footer — the links at the end of the page
-01:09 - 01:13  The floating button flies the reader back to the top
-01:13 - 01:26  The SEO meta the page serves, read straight off the URL
-01:26 - 01:32  Closing on 日本語
-
-## Captions shown in the video
-
-- 00:23  The command is on the clipboard. The button was read back for its "Copied"
-         state, because a blocked clipboard leaves a click that proves nothing.
-- 01:13  The terminal panel runs against the live URL, so these tags come from what
-         the site is serving right now.
-
-## Commands run in the terminal
-
-- 01:24  `curl -s https://open-pr.vercel.app/ | grep -oE '<title>[^<]*</title>|…'` — exit 0
-
-## Page errors recorded during the take
-
-- none
-```
-
-録画中はコンソールとネットワークも監視します。このテイクはエラーなしで終わりました。それ自体、
-読み手が確かめられる主張です。エラーが出たときは最後のブロックにステータスと URL ごと並びます。
-誰も見ていなかったリクエストの 401 は、スクリーンショットには写りません。
-
-実装中のセッションで録った場合は、スクリーンショットとエラーログを E2E と同じ目線で見ます。
-401 や、はみ出したり崩れたレイアウト。気づいたものは指摘して、修正案も出せます。ファイルを渡す
-だけではありません。
-
-runbook には、その録画を作ったコマンドも残っています。データが変わった、動画が壊れた、もっと
-ゆっくり見たい、というときはもう一度頼めばいいです。過去の録画は `v1`、`v2`、… として残り、
-上書きされません。一度送った録画は、同じファイルとしては作り直せないからです。
+機能が動くことを示すには画面録画に 30 分ほどかかり、それでも動画は思うように仕上がりません。スク
+リーンショットは一拍遅れ、ポインターは飛び、ドロップダウンは開いたところが映らない。代わりに、操作
+をコーディングエージェントに伝えてください。Chrome を操作し、動画と主要ステップのスクリーンショッ
+ト、そして同じテイクを再現できるランブックを返します。
 
 ## インストール
 
@@ -116,97 +44,133 @@ claude plugin install webapp-evidence@webapp-evidence
 curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash
 ```
 
-どのプラットフォームを使うか聞いたうえで、どこに入れたかを教えてくれます。録画には Chrome、
-ffmpeg、Node が必要です。足りないものがあれば、エージェントが名前を挙げてインストールを提案
-します。
+使っているプラットフォームを聞き、どこに配置したかを教えます。録画には Chrome、ffmpeg、Node が必
+要で、足りないものはエージェントが名前を挙げてインストールを申し出ます。
 
-ブランチを追う、またはバージョンを固定する場合:
+## 最初の録画
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash -s -- --ref main
+ページと手順を、自分の言葉で渡します:
+
+```
+/webapp-evidence:recording Page: https://app.example.com/search
+Flow:
+1. Search for "abc" with status Active
+2. Open the first row, then close the detail panel
+3. Export the result to CSV
 ```
 
-`--ref v1.2.0` はバージョンの固定、`--ref latest` はリリース追従に戻ります。以降の実行は、最後に
-指定されたものをそのまま追い続けます。更新は
-`~/.webapp-evidence/scripts/install-local.sh --update`、削除は `--uninstall --all` です。
+返ってくるのは `<name>.mp4`、連番のスクリーンショット、そして `<name>-runbook.md` — タイムライン、
+字幕、記録されたページエラー、そしてそのテイクを生んだコマンドです。チケットや MR、報告書にそのま
+ま添付してください。Git にコミットされるものはなく、どこかへ送られるものもありません。
 
-## 使い方
+覚えるべき構文はありません。*「さっき直した画面のエビデンスを取って」* で通りますし、書いた言語で
+そのまま返事が来ます。入力する場所:
 
-呼び出し方は使っているプラットフォームによって変わります:
-
-| platform | command |
+| プラットフォーム | コマンド |
 |---|---|
 | Claude Code | `/webapp-evidence:recording` |
 | Cursor, Gemini CLI, Antigravity | `/webapp-evidence-recording` |
 | Codex | `$webapp-evidence-recording` |
 
-頼めることは次のとおりです:
+## 1 つのテイクに、3 種類の証拠
 
-| やりたいこと | 入力するもの |
+画面の録画だけではフルスタックの変更の半分しか示せません。同じテイクの中で、ブラウザーが持っている
+セッションのまま API を呼び、データベースを読み返せます — 動画も 1 本、ランブックも 1 つ:
+
+```
+/webapp-evidence:recording Page: https://app.example.com/orders
+Flow:
+1. Create an order for SKU ABC, quantity 2
+2. Call POST /api/orders and show it answering 201
+3. Query the orders table and show the row that appeared
+```
+
+- **画面。** フォームは見えるポインターが入力して送信します。視聴者が読める速さで。
+- **エンドポイント。** ページの上にターミナルパネルが開き、ブラウザー自身の Cookie で curl が走りま
+  す — `HTTP 201 in 0.184s` が映像に残ります。ステップがステータスを表明するので、違う値ならテイク
+  が失敗し、証拠として出回ることはありません。
+- **データベース。** `psql`、`mysql`、rake タスク — 普段自分で叩くものを、同じパネルで。新しい行が、
+  それを作った画面と同じフレームに並びます。
+
+Cookie とトークンはファイル経由で curl に渡り、動画・スクリーンショット・ランブックのすべてでマス
+クされます。
+
+## テイクの中身
+
+<p align="center">
+  <img src="./docs/demo/site-tour.gif" width="820" alt="ランディングページのツアー録画。ヒーローの蛾がポインターに反応し、ワンライナーのインストールコマンドをコピーしてボタンがそれを確認、そのまま How it works、レビューラウンドのウォークスルーを 1 ステップずつ、機能カードへとページを読み下ろします。">
+</p>
+
+この gif はより長いテイクの一部です。並んで置かれるランブックが動画の内容を説明するので、受け取った
+人は見る代わりに読むこともできます:
+
+```markdown
+## Steps in the video
+
+00:21 - 00:26  Hero — copy the one-line install command
+00:36 - 00:49  Review rounds — every step of the loop, picked by hand
+01:13 - 01:26  The SEO meta the page serves, read straight off the URL
+
+## Commands run in the terminal
+
+- 01:24  `curl -s https://open-pr.vercel.app/ | grep -oE '<title>[^<]*</title>|…'` — exit 0
+
+## Page errors recorded during the take
+
+- none
+```
+
+録画中はコンソールとネットワークも見ています。誰も見ていなかった呼び出しの 401 は、ステータスと
+URL つきで最後のブロックに残ります。機能を作ったセッションでそのまま録画すれば、エージェントはその
+スクリーンショットとエラーを e2e の 1 回分として読み返し、ファイルを渡すだけでなく直し方まで提案し
+ます。
+
+## 頼み方
+
+| やりたいこと | こう打つ |
 |---|---|
-| いま直した画面の証跡 | `/webapp-evidence:recording` — 直前の作業から判断します |
-| MR / PR の証跡 | `/webapp-evidence:recording https://gitlab.example.com/group/admin/-/merge_requests/1783` |
-| 説明したとおりにページを録る | `/webapp-evidence:recording Page: https://app.example.com/search` に続けて手順を、上の例のように |
-| 同じ内容をもう一度 | `/webapp-evidence:recording もう一度録って` — コマンドはランブックにあり、前の録画も残ります |
-| もっとゆっくり録る | `/webapp-evidence:recording もう少しゆっくり録って` |
-| 字幕を別の言語で | `/webapp-evidence:recording 字幕は英語で` — プロジェクトごとに覚えます |
-| クリックがバックエンドまで届いた証拠 — ジョブが動いた、ファイルが書かれた | `/webapp-evidence:recording Run sync を押したあとワーカーのログを見せて` |
-| 字幕ではなく、ドロップダウンやダイアログそのものを動画に入れたい | `/webapp-evidence:recording --screen` — 1 分ほどマシンを預けます。フラグなしなら先に確認されます |
-| 見せてはいけない値を録画から外す | `/webapp-evidence:recording API キーが出るところはぼかして` |
-| 最初に一度だけ設定して、以降はログイン済みで録る | `/webapp-evidence:recording set up the evidence config for this project` |
+| 直したばかりの画面のエビデンス | `/webapp-evidence:recording` — 何を触っていたかは分かっています |
+| MR / PR 用のエビデンス | `/webapp-evidence:recording https://gitlab.example.com/group/admin/-/merge_requests/1783` |
+| データが変わった後、同じテイクをもう一度 | `/webapp-evidence:recording record that again` — 古いテイクは `v1`、`v2`… として残ります |
+| ゆっくり録る、字幕を別の言語に | `/webapp-evidence:recording record it slower`、`captions in Japanese` — プロジェクトごとに覚えます |
+| 秘密の値を録画から外す | `/webapp-evidence:recording blur the API key when it appears` |
+| ドロップダウンやダイアログ自体を映す | `/webapp-evidence:recording --screen` — ブラウザーウィンドウを録るので、OS が描くものも入ります |
+| 内容にかかわらず画面を使わない | `/webapp-evidence:recording --headless` — 既定であり、その判断を先に決めておく方法 |
+| README 用の gif、自分の管理下のページ用の webm | `/webapp-evidence:recording -f gif`、`-f webm` — それ以外は mp4。どこでもそのまま再生されます |
+| 動画を見ずに中身を知る | `/webapp-evidence:vision <the mp4>` |
+| ログイン済みの状態から始まる録画 | `/webapp-evidence:recording set up the evidence config for this project` |
+| おかしい点・足りない点を伝える | `/webapp-evidence:feedback` |
 
-手順は自分が使っている言語で書いてかまいません。エージェントも同じ言語で答えます。覚える構文も
-ないので、「さっき直した画面の証跡を取って」で通じます。
-
-## 録画ができたら
-
-| やりたいこと | コマンド |
-|---|---|
-| README など画像しか表示できない場所に貼る gif がほしい | `/webapp-evidence:recording -f gif` |
-| 自分で管理しているページに置く webm がほしい | `/webapp-evidence:recording -f webm` |
-| 動画を見ずに、何が映っているか知りたい | `/webapp-evidence:vision <mp4 ファイル>` |
-| 不具合を伝える、足りないものを頼む | `/webapp-evidence:feedback` |
-
-既定が mp4 なのは、マージリクエストでも issue でもチャットでもそのまま再生でき、3 つの形式で
-いちばん軽いからです。同じ録画の gif は数倍のサイズになるので、変換は提案するだけで勝手には
-行いません。
-
-`vision` があるのは、エージェントが動画を再生できないからです。数秒に 1 フレーム、`mm:ss` 付きの
-シートに並べて画像として読みます。だから指摘は「00:14 でヘッダーが表とかぶっている」という形に
-なります——自分で確認でき、runbook とも突き合わせられる時刻です。遷移の途中で崩れるレイアウト、
-一瞬だけ出て消えるバナー。誰もスクリーンショットを撮ろうと思わなかったものを拾ってくれます。
-
-上の録画から実際に作られたシートです:
-**[シート 1](./docs/demo/vision-sheet-01.png)**（00:00–00:38）·
-**[シート 2](./docs/demo/vision-sheet-02.png)**（00:40–01:18）·
-**[シート 3](./docs/demo/vision-sheet-03.png)**（01:20–01:32）。
+`vision` があるのは、エージェントが動画を見られないからです。数秒ごとに 1 フレームを切り出し、
+`mm:ss` を焼き込んだシートに並べます。だから指摘は「00:14 でヘッダーが表に重なっている」という形で
+返り、その時刻はランブックと突き合わせて自分で確かめられます。上のテイクから作られたシート:
+**[1](./docs/demo/vision-sheet-01.png)** ·
+**[2](./docs/demo/vision-sheet-02.png)** ·
+**[3](./docs/demo/vision-sheet-03.png)**。
 
 ## 制限
 
-録画対象はページで、画面全体ではありません。OS が描画するものは映像に入りません:
-`<select>` のドロップダウン、ファイル選択ダイアログ、`confirm`/`alert` ダイアログ。これらの
-場面には、何を選んだかを示す字幕と、直後の状態のスクリーンショットが付きます。JS で作られた
-モーダル、日付ピッカー、ドロップダウンは普通に録画されます。
+録るのはページであって、画面ではありません。OS が描くものは映りません: `<select>` のドロップダウ
+ン、ファイル選択ダイアログ、`confirm`/`alert`。それぞれには何を選んだかの字幕と直後の状態のスクリー
+ンショットが付きます。モーダル、日付ピッカー、JS 製のドロップダウンは普通に録れます。そのダイアログ
+自体が証拠になる場合は `--screen` がブラウザーウィンドウを録画します — 画面と許可、そして録画の間
+マシンを触らないことが必要なので、エージェントが先に確認します。
 
-そのダイアログ自体を見せたいときは、ページではなくブラウザのウィンドウを録画できます。その
-場合はダイアログも映像に入ります。ただし画面と権限が要り、録画のあいだマシンに触れられない
-ので、既定にはしていません。実行する前にエージェントが確認しますし、質問の場所を知らせる
-通知が画面に出ます。最初から指定するなら `/webapp-evidence:recording --screen` です。
+ターミナルパネルが扱えるのは行単位の出力です: `vim`、`less`、`htop` は対象外。録画は指定したサイト
+だけを対象にします。
 
-画面に出てしまう値は、ぼかす・塗りつぶす・その区間ごと削る、のいずれかで録画から外せます。
-手順を伝えるときに言ってください。スクリーンショットからも同じように外れます。
+バージョンを固定する、ブランチを追いかける:
 
-証拠がページ上にまったく現れない場合 — ジョブが動いた、ファイルが書かれた — 手順の中で
-ページの上にターミナルパネルを開き、実際のコマンドと実際の出力を同じ動画に収められます。
-行単位の出力だけが対象で、`vim`、`less`、`htop` は使えません。
+```bash
+curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash -s -- --ref main
+```
 
-録画は指定したサイトだけを対象にします。
-
-動画とスクリーンショットは Git に入りません。チケット、MR/PR、報告書のどこに添付するかは自分で
-決めてください。
+`--ref v1.1.3` はリリースを固定し、`--ref latest` はリリース追従に戻します。以降の実行は最後に指定
+したものを保ちます。更新は `~/.webapp-evidence/scripts/install-local.sh --update`、削除は
+`--uninstall --all`。
 
 ---
 
-上の録画は、このリポジトリのランナーによる実際の出力です。`docs/demo/record.sh` が
-`docs/demo/site-tour-steps.js` から生成しています。スキル自体に手を入れたい場合は
+上の録画はこのリポジトリのランナーによる実出力です: `docs/demo/record.sh` が
+`docs/demo/site-tour-steps.js` から生成します。スキル自体に手を入れるなら
 **[CONTRIBUTING.md](./CONTRIBUTING.md)** を参照してください。

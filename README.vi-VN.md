@@ -24,81 +24,10 @@
   <a href="./README.md">English</a> · <strong>Tiếng Việt</strong> · <a href="./README.ja-JP.md">日本語</a> · <a href="./README.zh-Hans.md">简体中文</a>
 </p>
 
-Có lúc bạn cần chứng minh app chạy đúng: UAT, bàn giao cho team khác, báo bug, demo,
-review. Tự quay mất khoảng nửa tiếng mà video vẫn khó xem — screenshot trễ, chuột nhảy lung tung,
-dropdown không mở nên người xem không biết bạn chọn gì.
-
-Mô tả luồng cho coding agent. Nó điều khiển Chrome, trả về video, screenshot các bước chính, và
-runbook để chạy lại đúng lần đó.
-
-## Ví dụ
-
-```
-/webapp-evidence:recording Page: https://open-pr.vercel.app
-Flow:
-1. Open the language menu, go through every language, then come back to English
-2. Hover the moth in the hero, then copy the one-line install command
-3. Read down the page: How it works, the review-round walkthrough and every step of
-   the loop, the feature cards, the token-cost chart
-4. On Install, switch to the Codex and Cursor tabs, then copy the command of the open one
-5. Take the floating button back to the top, print the SEO meta the page serves in a
-   terminal, and close the tour in Japanese
-```
-
-## Kết quả
-
-<p align="center">
-  <img src="./docs/demo/site-tour.gif" width="820" alt="Bản quay tour trang landing: con bướm ở hero phản ứng theo con trỏ, lệnh cài đặt được copy và nút tự xác nhận, rồi trang được đọc dần xuống qua How it works, phần walkthrough review round bấm từng bước, và các card tính năng.">
-</p>
-
-GIF là một đoạn của bản quay dài hơn — làm gif cả bản thì nặng gấp mấy lần, README không phải chỗ cho thứ đó. Kèm theo là 25 screenshot các bước chính và runbook. Người nhận đọc là hiểu, không bắt buộc phải xem video:
-
-```markdown
-## Steps in the video
-
-00:00 - 00:01  Hero — the page as it opens
-00:01 - 00:15  Language menu — every language the site ships
-00:15 - 00:19  Back to English — the language the rest of the tour runs in
-00:19 - 00:21  Hero — the moth answers the pointer
-00:21 - 00:26  Hero — copy the one-line install command
-00:26 - 00:32  How it works — the three steps light up under the pointer
-00:32 - 00:36  Review rounds — the walkthrough plays itself
-00:36 - 00:49  Review rounds — every step of the loop, picked by hand
-00:49 - 00:54  Features — the cards warm as the pointer crosses them
-00:54 - 00:56  Token cost — the chart the plugin publishes
-00:56 - 01:03  Install — one panel per agent
-01:03 - 01:05  Install — copy the command of the open panel
-01:05 - 01:09  Footer — the links at the end of the page
-01:09 - 01:13  The floating button flies the reader back to the top
-01:13 - 01:26  The SEO meta the page serves, read straight off the URL
-01:26 - 01:32  Closing on 日本語
-
-## Captions shown in the video
-
-- 00:23  The command is on the clipboard. The button was read back for its "Copied"
-         state, because a blocked clipboard leaves a click that proves nothing.
-- 01:13  The terminal panel runs against the live URL, so these tags come from what
-         the site is serving right now.
-
-## Commands run in the terminal
-
-- 01:24  `curl -s https://open-pr.vercel.app/ | grep -oE '<title>[^<]*</title>|…'` — exit 0
-
-## Page errors recorded during the take
-
-- none
-```
-
-Trong lúc quay, agent cũng theo dõi console và network. Lần này trang sạch lỗi — bản thân điều đó
-cũng là một khẳng định người đọc kiểm lại được. Khi có lỗi, từng lỗi nằm ở khối cuối kèm status và
-URL — một cú 401 từ request chẳng ai để ý thì screenshot không hiện ra.
-
-Nếu quay ngay trong phiên đang implement, agent nhìn screenshot và log lỗi giống một lượt e2e.
-401, layout trượt hay tràn khi hẹp màn — nó chỉ ra và đề xuất cách sửa, không chỉ đưa file.
-
-Runbook còn lưu đúng lệnh đã tạo ra bản quay. Data đổi, video hỏng, hoặc muốn quay chậm hơn thì gọi
-lại. Bản cũ giữ thành `v1`, `v2`, … không bị ghi đè. Bản đã gửi đi rồi thì không tạo lại được đúng
-file đó.
+Chứng minh một tính năng chạy đúng tốn cỡ nửa tiếng ngồi quay màn hình, mà video ra vẫn khó xem:
+screenshot trễ nhịp, chuột nhảy, dropdown không kịp mở nên người xem không biết bạn chọn gì. Thay vì
+vậy, mô tả luồng cho coding agent. Nó lái Chrome và trả về video, screenshot các bước chính, và một
+runbook để quay lại đúng bản đó.
 
 ## Cài đặt
 
@@ -115,94 +44,131 @@ claude plugin install webapp-evidence@webapp-evidence
 curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash
 ```
 
-Nó hỏi bạn đang dùng nền tảng nào, rồi cho biết đã cài ở đâu. Quay cần Chrome, ffmpeg và Node —
-thiếu cái nào thì agent nói rõ và đề nghị cài giúp.
+Nó hỏi bạn dùng nền tảng nào rồi báo mọi thứ nằm ở đâu. Quay cần Chrome, ffmpeg và Node; thiếu cái
+nào agent gọi tên cái đó và đề nghị cài giúp.
 
-Để bám theo một nhánh hoặc ghim một phiên bản:
+## Bản quay đầu tiên
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash -s -- --ref main
+Đưa trang và các bước, viết theo cách của bạn:
+
+```
+/webapp-evidence:recording Page: https://app.example.com/search
+Flow:
+1. Search for "abc" with status Active
+2. Open the first row, then close the detail panel
+3. Export the result to CSV
 ```
 
-`--ref v1.2.0` ghim một phiên bản, `--ref latest` quay lại theo release; những lần chạy sau giữ đúng
-cái được yêu cầu gần nhất. Update bằng `~/.webapp-evidence/scripts/install-local.sh --update`, gỡ
-bằng `--uninstall --all`.
+Nhận về `<name>.mp4`, các screenshot đánh số, và `<name>-runbook.md` — timeline, caption, lỗi trang
+gặp phải, và lệnh đã tạo ra bản quay. Cứ đính kèm vào ticket, MR hay báo cáo; không có gì bị commit
+vào Git và không có gì được gửi đi đâu.
 
-## Cách dùng
+Không có cú pháp nào phải nhớ: *"lấy evidence cho màn hình tôi vừa sửa"* là đủ, viết bằng ngôn ngữ
+nào agent trả lời bằng ngôn ngữ đó. Gõ ở đâu:
 
-Gọi thế nào thì tuỳ nơi bạn đang ngồi làm:
-
-| platform | command |
+| nền tảng | lệnh |
 |---|---|
 | Claude Code | `/webapp-evidence:recording` |
 | Cursor, Gemini CLI, Antigravity | `/webapp-evidence-recording` |
 | Codex | `$webapp-evidence-recording` |
 
-Những thứ bạn có thể yêu cầu:
+## Một bản quay, ba loại bằng chứng
 
-| Bạn cần | Gõ gì |
+Quay màn hình chỉ chứng minh được một nửa của thay đổi fullstack. Cùng bản quay đó có thể gọi API
+bằng chính session trình duyệt đang giữ, và đọc lại database — một video, một runbook:
+
+```
+/webapp-evidence:recording Page: https://app.example.com/orders
+Flow:
+1. Create an order for SKU ABC, quantity 2
+2. Call POST /api/orders and show it answering 201
+3. Query the orders table and show the row that appeared
+```
+
+- **Màn hình.** Form được điền và submit bởi một con trỏ nhìn thấy được, ở nhịp người xem đọc kịp.
+- **Endpoint.** Một panel terminal mở đè lên trang và curl chạy trong đó với cookie của chính trình
+  duyệt — `HTTP 201 in 0.184s` hiện trên video. Bước này assert status, nên status sai làm hỏng bản
+  quay chứ không đi ra ngoài dưới dạng bằng chứng.
+- **Database.** `psql`, `mysql`, một rake task — thứ bạn vẫn tự chạy, chạy trong đúng panel đó, dòng
+  dữ liệu mới nằm cùng khung hình với màn hình đã tạo ra nó.
+
+Cookie và token tới curl qua file, và được che ở mọi nơi: video, screenshot và runbook.
+
+## Một bản quay trông ra sao
+
+<p align="center">
+  <img src="./docs/demo/site-tour.gif" width="820" alt="Bản quay tour trang landing: con bướm ở hero phản ứng theo con trỏ, lệnh cài đặt được copy và nút tự xác nhận, rồi trang được đọc dần xuống qua How it works, phần walkthrough review round bấm từng bước, và các card tính năng.">
+</p>
+
+Gif này là một đoạn của bản quay dài hơn. Đi kèm nó, runbook nói video cho thấy gì, để người nhận
+đọc bản quay thay vì phải xem:
+
+```markdown
+## Steps in the video
+
+00:21 - 00:26  Hero — copy the one-line install command
+00:36 - 00:49  Review rounds — every step of the loop, picked by hand
+01:13 - 01:26  The SEO meta the page serves, read straight off the URL
+
+## Commands run in the terminal
+
+- 01:24  `curl -s https://open-pr.vercel.app/ | grep -oE '<title>[^<]*</title>|…'` — exit 0
+
+## Page errors recorded during the take
+
+- none
+```
+
+Trong lúc quay nó theo dõi console và network: một lỗi 401 từ request không ai để ý sẽ nằm ở khối
+cuối kèm status và URL. Quay ngay trong session bạn vừa làm tính năng thì agent đọc lại đống
+screenshot và lỗi đó như một lượt e2e, rồi đề xuất cách sửa chứ không chỉ đưa file.
+
+## Các kiểu yêu cầu
+
+| Bạn muốn | Gõ thế này |
 |---|---|
-| Bằng chứng cho màn hình bạn vừa sửa | `/webapp-evidence:recording` — nó biết bạn vừa làm gì |
-| Bằng chứng cho một MR hoặc PR | `/webapp-evidence:recording https://gitlab.example.com/group/admin/-/merge_requests/1783` |
-| Quay một trang theo mô tả của bạn | `/webapp-evidence:recording Page: https://app.example.com/search` rồi liệt kê các bước, như ví dụ ở trên |
-| Quay lại đúng bản cũ | `/webapp-evidence:recording quay lại bản đó` — runbook giữ sẵn lệnh, bản cũ không bị ghi đè |
-| Quay chậm hơn | `/webapp-evidence:recording quay chậm lại` |
-| Chú thích bằng tiếng khác | `/webapp-evidence:recording chú thích tiếng Nhật` — nhớ theo từng dự án |
-| Bằng chứng là cú click đã chạm tới backend — job đã chạy, file đã được ghi | `/webapp-evidence:recording mở log worker sau khi bấm Run sync` |
-| Muốn chính cái dropdown hay hộp thoại nằm trong video, không phải phụ đề mô tả nó | `/webapp-evidence:recording --screen` — giao máy cho nó khoảng một phút; không có cờ này thì nó hỏi trước |
-| Giữ một thông tin nhạy cảm ra khỏi bản quay | `/webapp-evidence:recording làm mờ API key khi nó hiện ra` |
-| Cấu hình dự án một lần, để lần sau quay là đã đăng nhập sẵn | `/webapp-evidence:recording set up the evidence config for this project` |
+| Evidence cho màn hình bạn vừa sửa | `/webapp-evidence:recording` — nó biết bạn đang làm gì |
+| Evidence cho một MR hoặc PR | `/webapp-evidence:recording https://gitlab.example.com/group/admin/-/merge_requests/1783` |
+| Quay lại đúng bản đó sau khi dữ liệu đổi | `/webapp-evidence:recording record that again` — bản cũ giữ lại thành `v1`, `v2`, … |
+| Quay chậm lại, hoặc caption ngôn ngữ khác | `/webapp-evidence:recording record it slower`, `captions in Japanese` — nhớ theo từng project |
+| Giữ một secret ra khỏi bản quay | `/webapp-evidence:recording blur the API key when it appears` |
+| Chính cái dropdown hay dialog có trong video | `/webapp-evidence:recording --screen` — quay cửa sổ trình duyệt, nên thứ hệ điều hành vẽ cũng vào khung |
+| Không đụng tới màn hình, dù luồng là gì | `/webapp-evidence:recording --headless` — mặc định, và là cách chốt thẳng câu hỏi đó |
+| Gif cho README, hoặc webm cho trang bạn tự quản | `/webapp-evidence:recording -f gif`, `-f webm` — còn lại là mp4, vì nó phát inline ở mọi nơi |
+| Biết video cho thấy gì mà không phải xem | `/webapp-evidence:vision <the mp4>` |
+| Bản quay bắt đầu ở trạng thái đã đăng nhập | `/webapp-evidence:recording set up the evidence config for this project` |
+| Báo có thứ sai, hoặc còn thiếu | `/webapp-evidence:feedback` |
 
-Viết các bước bằng ngôn ngữ nào cũng được, agent trả lời đúng ngôn ngữ đó. Cũng chẳng có cú pháp nào
-phải nhớ — nói "lấy evidence cho màn mình vừa sửa" là chạy.
-
-## Khi đã có bản quay
-
-| Bạn cần | Lệnh |
-|---|---|
-| Một file gif, để nhúng README hay chỗ chỉ hiện được ảnh | `/webapp-evidence:recording -f gif` |
-| Một file webm, cho trang web của bạn | `/webapp-evidence:recording -f webm` |
-| Biết video cho thấy gì mà không phải ngồi xem hết | `/webapp-evidence:vision <file mp4>` |
-| Báo một lỗi, hoặc xin thêm thứ còn thiếu | `/webapp-evidence:feedback` |
-
-mp4 vẫn là mặc định: nó phát thẳng trong merge request, trong issue và mọi công cụ chat, lại nhẹ nhất
-trong ba định dạng. Gif của cùng bản quay lớn gấp mấy lần, nên đổi định dạng là thứ agent đề nghị chứ
-không tự làm.
-
-`vision` có mặt vì agent không xem được video. Nó cắt video thành lưới ảnh — vài giây một khung, mỗi
-khung đóng dấu `mm:ss` — rồi đọc như đọc ảnh. Nhờ vậy phát hiện trả về dạng "header đè lên bảng ở
-00:14": một mốc bạn tua lại được và đối chiếu được với runbook. Nó bắt được thứ không ai nghĩ tới
-việc chụp: layout vỡ giữa lúc chuyển cảnh, banner loé lên rồi biến mất.
-
-Đây là hai tấm nó tạo ra từ chính bản quay ở trên:
-**[tấm 1](./docs/demo/vision-sheet-01.png)** (00:00–00:38) ·
-**[tấm 2](./docs/demo/vision-sheet-02.png)** (00:40–01:18) ·
-**[tấm 3](./docs/demo/vision-sheet-03.png)** (01:20–01:32).
+`vision` tồn tại vì agent không xem được video. Nó xếp video thành các tấm — vài giây một khung, mỗi
+khung đóng dấu `mm:ss` — nên phát hiện quay về dạng "header đè lên bảng ở 00:14", một mốc bạn tự
+kiểm tra được và đối chiếu với runbook. Các tấm từ bản quay ở trên:
+**[1](./docs/demo/vision-sheet-01.png)** ·
+**[2](./docs/demo/vision-sheet-02.png)** ·
+**[3](./docs/demo/vision-sheet-03.png)**.
 
 ## Giới hạn
 
-Nó quay trang web, không quay màn hình máy bạn. Thứ do OS vẽ sẽ không vào video: dropdown `<select>`,
-hộp thoại chọn file, `confirm`/`alert`. Những chỗ đó được thay bằng phụ đề nói đã chọn gì, kèm
-screenshot ngay sau đó. Modal, date picker và dropdown viết bằng JS thì quay bình thường.
+Nó quay trang, không quay màn hình của bạn. Thứ hệ điều hành vẽ nằm ngoài video: dropdown
+`<select>`, hộp chọn file, dialog `confirm`/`alert`. Mỗi thứ được thay bằng một caption nói đã chọn
+gì cộng một screenshot ngay sau đó; modal, date picker và dropdown viết bằng JS thì quay bình
+thường. Khi chính mấy dialog đó *là* bằng chứng, `--screen` quay cửa sổ trình duyệt — cách này cần
+màn hình, cần bạn cho phép, và cần để máy yên trong lúc quay, nên agent hỏi trước.
 
-Khi chính hộp thoại đó là thứ cần chứng minh, nó quay được cửa sổ trình duyệt thay vì trang, và lúc
-đó chúng nằm trong video. Cách này cần màn hình, cần quyền, và cần bạn không đụng máy suốt lượt
-quay — nên không phải mặc định. Agent sẽ hỏi bạn trước, và một thông báo hiện lên màn hình chỉ bạn
-chỗ có câu hỏi. Muốn đi thẳng thì gõ `/webapp-evidence:recording --screen`.
+Panel terminal nhận output theo dòng: `vim`, `less` và `htop` nằm ngoài. Một bản quay chỉ chạy vào
+đúng site bạn chỉ định, không đụng gì khác.
 
-Thông tin nhạy cảm hiện trên màn có thể làm mờ, che kín hoặc cắt khỏi bản quay — nói ra khi bạn mô
-tả luồng, và nó cũng được giữ khỏi ảnh chụp.
+Để ghim một version hoặc bám theo branch:
 
-Khi bằng chứng không nằm trên trang — một job đã chạy, một file đã được ghi — một bước có thể mở
-panel terminal đè lên trang, đưa lệnh thật và output thật vào cùng video. Chỉ nhận output theo
-dòng: `vim`, `less`, `htop` không dùng được.
+```bash
+curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash -s -- --ref main
+```
 
-Quay chỉ chạy trên site bạn chỉ định, không gì khác.
-
-Video và screenshot không commit vào Git. Đính vào ticket, MR/PR, báo cáo là việc của bạn.
+`--ref v1.1.3` ghim một release, `--ref latest` quay về nhánh release, và mọi lần chạy sau giữ
+nguyên thứ được yêu cầu gần nhất. Cập nhật bằng
+`~/.webapp-evidence/scripts/install-local.sh --update`, gỡ bằng `--uninstall --all`.
 
 ---
 
 Bản quay ở trên là output thật từ runner của repo này: `docs/demo/record.sh` tạo ra từ
-`docs/demo/site-tour-steps.js`. Muốn contribute skill này thì xem
+`docs/demo/site-tour-steps.js`. Muốn sửa chính skill này thì xem
 **[CONTRIBUTING.md](./CONTRIBUTING.md)**.
