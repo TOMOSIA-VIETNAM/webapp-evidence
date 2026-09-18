@@ -43,6 +43,9 @@
   dialog .body { padding: 18px; font-size: 14px; line-height: 1.5; }
   dialog .actions { padding: 0 18px 18px; text-align: right; }
   .file-row { margin-top: 12px; font-size: 13px; color: #4b5563; }
+  /* The label in the markup is "Export report" and the label on screen is EXPORT REPORT. A probe
+     that prints what it reads off the screen prints a name that matches nothing. */
+  .export { text-transform: uppercase; }
 </style>
 </head>
 <body>
@@ -67,7 +70,14 @@
        <button id="reveal_key" class="secondary" type="button">Reveal API key</button></p>
     <p><button id="ask" class="secondary" type="button">Delete selected</button>
        <button id="notify" class="secondary" type="button">Send notice</button>
+       <!-- No id, so a probe has to name it by its role and its text — which is where the text
+            the screen shows and the text the markup holds part company. -->
+       <button class="secondary export" type="button">Export report</button>
        <span id="ask_result"></span></p>
+    <!-- Dragged rather than clicked: a handle is what no other helper reaches. -->
+    <label for="rows_shown">Rows shown</label>
+    <p><input type="range" id="rows_shown" name="rows_shown" min="0" max="100" value="10" style="width:260px">
+       <output id="rows_shown_value">10</output></p>
     <p><code id="api_key" hidden>demo_key_not_a_real_secret_0000</code></p>
   </fieldset>
 
@@ -113,6 +123,15 @@
   const rows = document.getElementById('rows');
   const table = document.getElementById('results');
   const empty = document.getElementById('empty');
+
+  const rowsShown = document.getElementById('rows_shown');
+  rowsShown.addEventListener('input', () => {
+    document.getElementById('rows_shown_value').textContent = rowsShown.value;
+  });
+
+  document.querySelector('.export').addEventListener('click', () => {
+    document.getElementById('ask_result').textContent = 'Export queued';
+  });
 
   document.getElementById('import_file').addEventListener('change', (e) => {
     const file = e.target.files[0];

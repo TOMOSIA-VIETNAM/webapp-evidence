@@ -10,6 +10,7 @@ The module returns `{ app, name, start, run(ctx) }`. Inside `run`, use the helpe
 | `click(locator, { pause })` | Scrolls to the element if it is off screen, moves the cursor to it with momentum, then clicks (with a ripple effect). `pause` is the wait afterwards: `'quick'` / `'normal'` / `'observe'` or a number of ms |
 | `type(locator, text)` | Clicks into the field, then types character by character |
 | `scrollTo(locator, { pause })` | Travels to something there is nothing to click on — a section of a long page — and comes to rest on it. Same `pause` vocabulary as `click`, defaulting to the wait for something that has to be read |
+| `drag(locator, to, { pause })` | Drags a handle: a slider's thumb, a control point, a row being reordered. `to` is a locator to drop onto, `{ x, y }` for a point on the page, or `{ dx, dy }` for an offset from where it started |
 | `select(locator, 'label')` | Opens a `<select>` inside the page and picks the option |
 | `upload(locator, path)` | Loads a file into a file input, then pauses so the filename becomes visible |
 | `hotkey('ControlOrMeta+C', { label, target })` | Presses a shortcut and shows a key hint overlay in the video |
@@ -31,6 +32,7 @@ script, and it only shows up when someone watches the video back.
 | `locator.selectOption(...)` | `select(locator, 'label')` |
 | `locator.setInputFiles(path)` | `upload(locator, path)` |
 | `page.keyboard.press('Meta+C')` | `hotkey('ControlOrMeta+C', { label: 'コピー' })` |
+| `page.mouse.down()` / `up()` around a move | `drag(locator, { dx: 120 })` — the same interpolated path as a click, so the handle is seen travelling |
 | a click that raises `alert`/`confirm` | `dialog(async () => click(locator))` — see below |
 | `locator.scrollIntoViewIfNeeded()` | nothing — `click(locator)` already scrolls to what it clicks |
 | `page.mouse.wheel(...)`, `scrollIntoView()` | `scrollTo(locator)`, or nothing at all where the next step is a `click` — scrolling by hand moves the page between two frames, leaving the cursor travelling towards something that was not on screen |

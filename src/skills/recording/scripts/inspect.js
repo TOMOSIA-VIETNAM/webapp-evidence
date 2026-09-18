@@ -3,7 +3,7 @@
 // instead of guessing and going through several run-fail-fix rounds.
 // Usage: node inspect.js <path> [--app <app>] [--shot <file.png>] [--limit <n>]
 const path = require('path');
-const { loadProjectConfig, openSession, closeSession, HELP_ENV } = require('./session');
+const { loadProjectConfig, openSession, closeSession, openPage, HELP_ENV } = require('./session');
 
 function parseArgs(argv) {
   const args = { limit: 40 };
@@ -41,8 +41,14 @@ Each line is a selector you can use directly in the step script.`);
 // Prefer stable selectors: id > role with label > name > shortened css
 const COLLECT = (limit, all) => `(() => {
   const out = { buttons: [], inputs: [], selects: [], links: [] };
-  const text = (el) => (el.innerText || el.value || el.getAttribute('aria-label') || el.getAttribute('title') || '')
-    .trim().replace(/\\s+/g, ' ').slice(0, 60);
+  const tidy = (value) => String(value || '').trim().replace(/\\s+/g, ' ').slice(0, 60);
+  // Two readings of the same element, and the difference between them is what makes a printed
+  // selector work or silently never match. Playwright computes an accessible name from the text in
+  // the DOM, where \`text-transform\` does not reach: a name taken off the screen ("SIGN IN") never
+  // resolves against markup that says "Sign in", and passing it as a regex is worse, because regex
+  // name matching is case sensitive and matches nothing without saying so.
+  const text = (el) => tidy(el.textContent || el.value || el.getAttribute('aria-label') || el.getAttribute('title'));
+  const shown = (el) => tidy(el.innerText || el.value || el.getAttribute('aria-label') || el.getAttribute('title'));
   // The shared navigation chrome repeats on every screen, so it is only noise when writing a step script
   const skipChrome = ${all ? 'false' : 'true'};
   const chrome = (el) => skipChrome && !!el.closest('nav, aside, .navbar, .sidebar, header');
@@ -62,7 +68,12 @@ const COLLECT = (limit, all) => `(() => {
 
   document.querySelectorAll('button, input[type=submit], input[type=button], a.btn, [role=button]').forEach((el) => {
     if (visible(el) && !chrome(el) && out.buttons.length < ${limit}) {
-      out.buttons.push({ label: text(el), selector: selectorFor(el, 'button'), disabled: !!el.disabled });
+      const name = text(el);
+      const onScreen = shown(el);
+      out.buttons.push({
+        label: name, selector: selectorFor(el, 'button'), disabled: !!el.disabled,
+        shown: onScreen === name ? null : onScreen,
+      });
     }
   });
 
@@ -88,7 +99,9 @@ const COLLECT = (limit, all) => `(() => {
 
   document.querySelectorAll('a[href]:not(.btn)').forEach((el) => {
     if (visible(el) && !chrome(el) && text(el) && out.links.length < ${limit}) {
-      out.links.push({ label: text(el), href: el.getAttribute('href') });
+      const name = text(el);
+      const onScreen = shown(el);
+      out.links.push({ label: name, href: el.getAttribute('href'), shown: onScreen === name ? null : onScreen });
     }
   });
 
@@ -117,16 +130,19 @@ function print(group, rows, render) {
   const { page, baseUrl } = session;
 
   const url = args.target.startsWith('http') ? args.target : `${baseUrl}${args.target}`;
-  await page.goto(url, { waitUntil: 'networkidle' });
+  await openPage(page, url);
 
   const found = await page.evaluate(COLLECT(args.limit, args.all));
 
   console.log(`# ${url}`);
   console.log(`title: ${await page.title()}`);
-  print('Buttons', found.buttons, (r) => `${r.selector}${r.disabled ? '  [disabled]' : ''}  — ${r.label}`);
+  // The selector matches on the text in the DOM; what is on screen is printed after it when CSS
+  // renders the two differently, so the line can still be found by eye on the page.
+  const asShown = (r) => (r.shown ? `  (on screen: ${r.shown})` : '');
+  print('Buttons', found.buttons, (r) => `${r.selector}${r.disabled ? '  [disabled]' : ''}  — ${r.label}${asShown(r)}`);
   print('Inputs', found.inputs, (r) => `${r.selector}  (${r.type})  — ${r.label}`);
   print('Selects', found.selects, (r) => `${r.selector}  — ${r.label}\n      options: ${r.options.join(' / ')}`);
-  print('Links', found.links, (r) => `${r.href}  — ${r.label}`);
+  print('Links', found.links, (r) => `${r.href}  — ${r.label}${asShown(r)}`);
 
   if (session.problems.length) {
     console.log(`\n## Page errors while opening (${session.problems.length})`);

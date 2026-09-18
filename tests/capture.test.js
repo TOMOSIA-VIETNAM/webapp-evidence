@@ -298,3 +298,55 @@ test('a rectangle redacted in a screen capture clears the browser chrome', () =>
   // The top of the page content, in frame pixels: below the menu bar and the browser's chrome
   assert.equal(inFrame.y, (44 + 80 + 10) * 2);
 });
+
+// ---------- a take that failed ----------
+
+// The recorder is the one thing that does not stop by itself. Left running after a step script
+// threw, a page recording leaks nothing worse than a file nobody can place — but the same path
+// recording a screen goes on writing the operator's desktop until its own time limit, which is
+// minutes of everything they did not agree to hand over. So abort() is what every failure route
+// goes through, and what it leaves behind is checked here.
+const { createCapture } = require('../src/skills/recording/scripts/capture');
+const { DEFAULTS } = require('../src/skills/recording/scripts/settings');
+
+const pageCapture = (dir, page) => {
+  const capture = createCapture({
+    mode: 'page', outDir: dir, name: 'take',
+    settings: DEFAULTS.recording, viewport: DEFAULTS.recording.viewport,
+  });
+  let closed = false;
+  capture.attach({ page, context: { on() {}, close: async () => { closed = true; } } });
+  return { capture, wasClosed: () => closed };
+};
+
+test('aborting hands over what was recorded, under a name that says which take it was', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'evidence-abort-'));
+  const raw = path.join(dir, 'page@8f3c1d9a.webm');
+  fs.writeFileSync(raw, 'a few frames');
+
+  const { capture, wasClosed } = pageCapture(dir, { video: () => ({ path: async () => raw }) });
+  const { file } = await capture.abort();
+
+  assert.equal(wasClosed(), true, 'the browser was left open');
+  assert.equal(file, path.join(dir, 'take.webm'));
+  assert.equal(fs.existsSync(raw), false, 'the backend\'s own file was left beside it');
+});
+
+test('aborting before anything was written says there is nothing, rather than naming a file', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'evidence-abort-'));
+  const { capture } = pageCapture(dir, { video: () => null });
+  assert.equal((await capture.abort()).file, null);
+});
+
+test('a browser that is already gone does not stop the abort from finishing', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'evidence-abort-'));
+  const capture = createCapture({
+    mode: 'page', outDir: dir, name: 'take',
+    settings: DEFAULTS.recording, viewport: DEFAULTS.recording.viewport,
+  });
+  capture.attach({
+    page: { video: () => ({ path: async () => { throw new Error('Target closed'); } }) },
+    context: { on() {}, close: async () => { throw new Error('Target closed'); } },
+  });
+  assert.equal((await capture.abort()).file, null);
+});

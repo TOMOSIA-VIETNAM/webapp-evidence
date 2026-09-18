@@ -60,6 +60,7 @@ Inside `OUT_DIR`:
 | `NN-*.png` | Screenshots, numbered in capture order |
 | `<name>-console.log` | **Only written when the page had errors** — console errors/warnings and requests returning 400 or above |
 | `steps.js` | The step script, so the next run does not start by probing the screen again |
+| `<name>-failed.mp4` | **Only written when a step script threw** — what was recorded before it stopped. There is no runbook for it: the take did not finish |
 
 The runbook is the thing that makes a later re-recording cheap: open it, run the command inside. To
 change what gets recorded, edit `steps.js`, not the runbook — the runbook is regenerated on every
@@ -67,6 +68,26 @@ run.
 
 This directory sits in an already ignored area of the project, so the video and screenshots are
 **not committed**; the user attaches them to the MR/PR themselves.
+
+## When a take fails
+
+The runner stops recording where the flow stopped, keeps what it had as `<name>-failed.mp4`, and
+says which step it died in:
+
+```
+The take failed 00:41 in, during step 2, "Reach the audit trail below the fold":
+locator.click: Timeout 30000ms exceeded.
+
+What was recorded before it stopped: .../user-search-failed.mp4
+```
+
+Read that video before changing the step script: it usually shows the screen the step was waiting
+on, which says whether the selector was wrong or the application never got there. Delete it once the
+take has been re-recorded — it is not evidence of anything and it is not tidied up automatically.
+
+Only one take may run against a project at a time. A second one is refused by name, because two runs
+share the application's build cache and its development server's state even when each has its own
+port, and the take that loses that race fails in ways that point at everything except the other run.
 
 ## Reporting back
 

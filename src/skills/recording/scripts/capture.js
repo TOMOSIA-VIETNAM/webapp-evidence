@@ -398,6 +398,16 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
     attach(parts) {
       page = parts.page;
       context = parts.context;
+      // The recorder crops to a window that stops existing when the browser does, and what it goes
+      // on writing after that is the operator's own display. Whatever ends the take — a step script
+      // that threw, a browser that died — the recording does not outlive the window it was pointed
+      // at. stop() takes the process for itself before closing the context, so this only fires on
+      // the ways out that stop() never reached.
+      context.on('close', () => {
+        const running = ffmpeg;
+        ffmpeg = null;
+        if (running) stopRecorder(running).catch(() => { /* gone, which is the point */ });
+      });
       // Playwright is already recording by the time the page exists, so this is where its clock
       // starts. The page-load wait that follows is trimmed off at encode time.
       openedAt = Date.now();
@@ -537,6 +547,47 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
         );
       }
       return { file };
+    },
+
+    // A take that failed. The recorder stops here and not at its own time limit: recording the
+    // screen, every second between the failure and the stop is a second of whatever else is on the
+    // operator's display, going into a file they agreed to one browser window for. Nothing is
+    // asserted about what was written — the take is already lost — so the only question left is
+    // whether there is a partial recording worth keeping, and the caller is told which.
+    async abort() {
+      const running = ffmpeg;
+      ffmpeg = null;
+      const video = mode === PAGE && page ? page.video() : null;
+
+      if (running) await stopRecorder(running);
+      if (pointerWasAt) movePointer(pointerWasAt);
+      try {
+        await context.close();
+      } catch {
+        // Already gone: whatever ended the take took the browser with it.
+      }
+
+      if (video) {
+        // Playwright writes the file out when the context closes, so its path is only good now.
+        try {
+          const raw = await video.path();
+          if (fs.existsSync(raw)) fs.renameSync(raw, file);
+        } catch {
+          // Nothing was written, which the existence check below reports.
+        }
+      }
+      return { file: fs.existsSync(file) ? file : null };
+    },
+
+    // Kill the recorder from a signal handler, where there is no turn of the event loop left to
+    // await in. Killing rather than asking is what the ordinary stop ends up doing anyway: the
+    // output is written in fragments as it is made, so what was recorded survives either way.
+    killNow() {
+      const running = ffmpeg;
+      ffmpeg = null;
+      if (running) {
+        try { running.kill('SIGKILL'); } catch { /* already gone */ }
+      }
     },
   };
 }

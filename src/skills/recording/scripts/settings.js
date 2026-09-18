@@ -55,6 +55,7 @@ const DEFAULTS = {
       scrollSettleMs: 1800,
       beforeClickMs: 250,     // aiming before the click; short slides aim faster automatically
       clickHoldMs: 85,        // how long the mouse button is held
+      dragHoldMs: 260,        // the beat at the end of a drag, before the button comes up
       afterClickQuickMs: 220, // pause: 'quick' — a click that only moves on, nothing to look at
       afterClickMs: 800,      // the default pause (the click helper can override it per call)
       afterClickObserveMs: 1700, // pause: 'observe' — the result on screen has to be read

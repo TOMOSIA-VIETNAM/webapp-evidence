@@ -12,7 +12,7 @@ module.exports = {
   name: 'e2e-user-search',
   start: '/',
 
-  async run({ page, mark, click, type, select, upload, hotkey, note, shot, scrollTo, sleep, term, redact, api }) {
+  async run({ page, mark, click, type, select, upload, hotkey, note, shot, scrollTo, drag, sleep, term, redact, api }) {
     if (!process.env.DEMO_LOG) throw new Error('DEMO_LOG must point at the demo app\'s log file');
 
     mark('Open the search screen');
@@ -24,6 +24,16 @@ module.exports = {
     await select(page.locator('#q_status_eq'), 'Active');
     await upload(page.locator('#import_file'), path.join(__dirname, 'fixtures', 'sample.csv'));
     await shot('conditions');
+
+    mark('Drag the slider that says how many rows to show');
+    // A handle is what no other helper reaches: click() has nothing to click, and setting the value
+    // through the DOM changes the number on screen with nobody touching it.
+    const before = Number(await page.locator('#rows_shown').inputValue());
+    await drag(page.locator('#rows_shown'), { dx: 90 }, { pause: 'quick' });
+    const after = Number(await page.locator('#rows_shown').inputValue());
+    if (!(after > before)) {
+      throw new Error(`The slider still reads ${after}, so the drag never reached it`);
+    }
 
     mark('Run the search');
     await click(page.getByRole('button', { name: 'Search' }), { pause: 'observe' });

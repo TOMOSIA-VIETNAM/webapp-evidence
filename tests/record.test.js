@@ -16,7 +16,7 @@ process.env.PROJECT_ROOT = PROJECT;
 const {
   fmt, keyCaps, resolvePause, readingTime, buildTimeline, buildHotkeySection, buildNoteSection,
   buildCommandSection, buildRedactionSection, buildRemovedSection, placeAt, runCaseDisposers,
-  ignoreHints, runArtifacts, archivePreviousRun,
+  ignoreHints, runArtifacts, archivePreviousRun, failedTakeError,
 } = require('../src/skills/recording/scripts/record');
 const { DEFAULTS } = require('../src/skills/recording/scripts/settings');
 
@@ -395,4 +395,65 @@ test('cleaning up after the cases runs every one of them, and outlives one that 
 
   assert.equal(results, undefined);
   assert.deepEqual(ran, ['first', 'third']);
+});
+
+
+// ---------- a take that failed ----------
+
+// What the operator is left with when a step script throws. The video is gone either way; what
+// decides whether the failure can be worked on is knowing which step it happened in, because the
+// alternative is counting the screenshots that were written and inferring it.
+
+test('the failure names the step it happened in, and when', () => {
+  const marks = [{ at: 0, label: 'Open the search screen' }, { at: 12, label: 'Reach the audit trail' }];
+  const error = failedTakeError(
+    { error: new Error('locator.click: Timeout 30000ms exceeded'), raw: null },
+    { outDir: PROJECT, name: 'take', marks, trimAt: 0, videoOpts: {}, redactions: { all: () => [] }, at: 41 },
+  );
+
+  assert.match(error.message, /step 2/);
+  assert.match(error.message, /Reach the audit trail/);
+  assert.match(error.message, /00:41/);
+  assert.match(error.message, /Timeout 30000ms exceeded/);
+});
+
+test('a take that failed before its first mark says so rather than naming a step', () => {
+  const error = failedTakeError(
+    { error: new Error('page.goto: net::ERR_CONNECTION_REFUSED'), raw: null },
+    { outDir: PROJECT, name: 'take', marks: [], trimAt: 0, videoOpts: {}, redactions: { all: () => [] }, at: 3 },
+  );
+  assert.match(error.message, /before the first mark/);
+  assert.match(error.message, /ERR_CONNECTION_REFUSED/);
+});
+
+test('the original failure is kept, so nothing about it is lost in the retelling', () => {
+  const cause = new Error('locator.click: Timeout 30000ms exceeded');
+  const error = failedTakeError({ error: cause, raw: null }, {
+    outDir: PROJECT, name: 'take', marks: [], trimAt: 0, videoOpts: {}, redactions: { all: () => [] }, at: 1,
+  });
+  assert.equal(error.cause, cause);
+});
+
+test('with nothing recorded, the operator is told that rather than pointed at a file', () => {
+  const error = failedTakeError({ error: new Error('nope'), raw: null }, {
+    outDir: PROJECT, name: 'take', marks: [], trimAt: 0, videoOpts: {}, redactions: { all: () => [] }, at: 1,
+  });
+  assert.match(error.message, /Nothing had been recorded/);
+});
+
+// ---------- aiming at something that is not a size ----------
+
+test('moveTo refuses a bounding box where it expects a number of pixels', async () => {
+  const scope = scopeFrom({});
+  await assert.rejects(
+    () => scope.moveTo(100, 100, { x: 1, y: 2, width: 40, height: 20 }),
+    /moveTo/,
+  );
+});
+
+test('moveTo without a target size is left alone', () => {
+  const scope = scopeFrom({});
+  assert.equal(typeof scope.moveTo, 'function');
+  assert.equal(typeof scope.drag, 'function');
+  assert.equal(typeof scope.scrollTo, 'function');
 });
