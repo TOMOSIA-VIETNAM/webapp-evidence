@@ -451,9 +451,95 @@ test('moveTo refuses a bounding box where it expects a number of pixels', async 
   );
 });
 
-test('moveTo without a target size is left alone', () => {
+// A page that answers only what the pointer helpers ask it: where the mouse was told to go, and
+// what a measurement of an element returned. Everything the browser does with that is out of scope
+// here — what is being pinned down is which coordinates the helpers compute, and from what.
+const FAST = resolveSettings({ recording: { speed: 'fast' } }).recording;
+
+function pointerScope(snapshots = []) {
+  const sent = [];
+  const page = {
+    mouse: {
+      async move(x, y) { sent.push({ kind: 'move', x, y }); },
+      async down() { sent.push({ kind: 'down' }); },
+      async up() { sent.push({ kind: 'up' }); },
+      async wheel(dx, dy) { sent.push({ kind: 'wheel', dx, dy }); },
+    },
+  };
+  const locators = snapshots.map((snapshot) => ({
+    evaluate: async () => snapshot,
+    boundingBox: async () => null,
+  }));
+  const scope = buildContext({
+    page, outDir: PROJECT, marks: [], hotkeys: [], notes: [], dialogs: [], startedAt: Date.now(),
+    pace: FAST.pace, viewport: FAST.viewport, captions: { enabled: false },
+    human: createHuman({ pace: FAST.pace, viewport: FAST.viewport, seed: 'pointer' }),
+    terminal: { term: {}, isOpen: () => false }, redactions: [], capture: {}, helpers: {},
+  });
+  return { scope, locators, sent };
+}
+
+// Where an element stands, as SNAPSHOT reports it: nothing scrollable around it, so a helper that
+// wants to scroll to it has nothing to turn and leaves it where it is.
+const standingAt = (rect, { maxTop = 0 } = {}) => ({
+  target: rect,
+  view: FAST.viewport,
+  frames: [{
+    rect: { top: 0, left: 0, width: FAST.viewport.width, height: FAST.viewport.height },
+    scrollTop: 0, scrollLeft: 0, maxTop, maxLeft: 0,
+  }],
+  header: 0,
+  inFrame: false,
+});
+
+const centreOf = (rect) => ({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+const lastMoveBefore = (sent, kind) => {
+  const at = sent.findIndex((event) => event.kind === kind);
+  return sent.slice(0, at).filter((event) => event.kind === 'move').pop();
+};
+
+test('moveTo with no target size at all goes ahead', async () => {
+  // The guard is about a value that is not a number of pixels; leaving it out is how most calls
+  // are written, and Fitts's law falls back to a default size for them.
+  const { scope } = pointerScope();
+  await assert.doesNotReject(() => scope.moveTo(100, 100));
+});
+
+test('a drag onto another element presses on the handle, not on what the page moved under it', async () => {
+  // Both ends are measured before the button goes down, and the far end is measured where it
+  // stands. Measuring it by scrolling to it would move the handle the press is aimed at.
+  const handle = { top: 400, left: 200, width: 200, height: 20 };
+  const onto = { top: 380, left: 700, width: 120, height: 60 };
+  const { scope, locators, sent } = pointerScope([standingAt(handle), standingAt(onto)]);
+
+  await scope.drag(locators[0], locators[1]);
+
+  assert.deepEqual(lastMoveBefore(sent, 'down'), { kind: 'move', ...centreOf(handle) });
+  assert.deepEqual(lastMoveBefore(sent, 'up'), { kind: 'move', ...centreOf(onto) });
+  assert.equal(sent.filter((event) => event.kind === 'wheel').length, 0, 'the page was scrolled mid-drag');
+});
+
+test('a drag onto something outside the frame is refused, not scrolled to', async () => {
+  const handle = { top: 400, left: 200, width: 200, height: 20 };
+  // The page has room to scroll to it, which is what makes the refusal a decision rather than a
+  // dead end: bringing it into the frame is possible, and it would cost the handle its position.
+  const offScreen = { top: 1900, left: 200, width: 120, height: 60 };
+  const { scope, locators, sent } = pointerScope([
+    standingAt(handle), standingAt(offScreen, { maxTop: 4000 }),
+  ]);
+
+  await assert.rejects(() => scope.drag(locators[0], locators[1]), /frame/);
+  assert.equal(sent.filter((event) => event.kind === 'down').length, 0, 'the button went down anyway');
+});
+
+test('a drag with nowhere named says so instead of computing NaN', async () => {
+  const { scope, locators } = pointerScope([standingAt({ top: 400, left: 200, width: 200, height: 20 })]);
+  await assert.rejects(() => scope.drag(locators[0], { to: 'the right' }), /drag\(\)/);
+});
+
+test('the helpers that move the pointer are all in the scope', () => {
   const scope = scopeFrom({});
-  assert.equal(typeof scope.moveTo, 'function');
-  assert.equal(typeof scope.drag, 'function');
-  assert.equal(typeof scope.scrollTo, 'function');
+  for (const name of ['moveTo', 'drag', 'scrollTo', 'click']) {
+    assert.equal(typeof scope[name], 'function', name);
+  }
 });

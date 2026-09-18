@@ -242,18 +242,24 @@ function buildContext({
   // Where a helper may aim at an element: the part of it a viewer can see, once the page has been
   // scrolled so that there is one. Every pointer action goes through this, because an action
   // outside the frame — or behind the panel drawn over it — is an action the video does not show.
-  async function aimBox(locator, action) {
-    const found = await bringIntoView(locator);
+  // `bringIn: false` measures the element where it stands instead of scrolling to it, for the far
+  // end of a drag: the near end was measured already, and scrolling now would move it out from
+  // under the press. A drag is only recordable with both ends in the frame at once anyway — the
+  // cursor has to be seen travelling between them.
+  async function aimBox(locator, action, { bringIn = true } = {}) {
+    const found = bringIn ? await bringIntoView(locator) : await measure(locator);
     // Inside a frame the only position page.mouse can use is the one Playwright converts, and it
     // knows nothing of the panes clipping the element; everywhere else the visible part is what a
     // pointer may aim at.
     const box = found.inFrame ? await locator.boundingBox() : scroll.visibleBox(found);
     if (!box || box.width < 1 || box.height < 1) {
-      throw new Error(
-        `The element to ${action} is not visible: no part of it is on screen, and scrolling to it ` +
-        'did not change that.\nActing on it anyway would put the cursor outside the frame, and the ' +
-        'video would show no action at all.'
-      );
+      throw new Error(bringIn
+        ? `The element to ${action} is not visible: no part of it is on screen, and scrolling to it ` +
+          'did not change that.\nActing on it anyway would put the cursor outside the frame, and the ' +
+          'video would show no action at all.'
+        : `The element to ${action} is not in the frame, and scrolling to it here would move what ` +
+          'the drag already has hold of.\nBring both ends into view first — scrollTo() a place that ' +
+          'holds them together, or drag by { dx, dy } instead.');
     }
     // An action under the open terminal panel would work and would not be visible: the video shows
     // the panel where the button was, and the reviewer is left with a result and no action.
@@ -289,7 +295,7 @@ function buildContext({
   // element, to a point on the page, or by an offset from where the handle started.
   async function dropPoint(to, from) {
     if (to && typeof to.boundingBox === 'function') {
-      const onto = await aimBox(to, 'drop onto');
+      const onto = await aimBox(to, 'drop onto', { bringIn: false });
       return { x: onto.x + onto.width / 2, y: onto.y + onto.height / 2, size: Math.min(onto.width, onto.height) };
     }
     if (to && Number.isFinite(to.x) && Number.isFinite(to.y)) return { x: to.x, y: to.y };

@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const { execFileSync } = require('child_process');
 const { chromium } = require('playwright-core');
 const { resolveSettings } = require('./settings');
+const lock = require('./lock');
 
 const VIEWPORT = { width: 1280, height: 800 };
 const SKILL_DIR = path.resolve(__dirname, '..');
@@ -259,9 +260,15 @@ function watchProblems(page) {
 }
 
 // Session used for probing selectors: no recording, just a signed-in page.
+//
+// It takes the same lock a take does, and for the same reason: prepareApp() starts or reuses the
+// application's development server, so a probe running beside a take shares the build cache and the
+// server state with it. The probe is the step before writing a step script, which is exactly when
+// somebody else's take is likely to be running.
 async function openSession({ config, app }) {
   const settings = resolveSettings(config);
   const { name, appConfig, baseUrl } = resolveApp(config, app);
+  const release = lock.acquire(ROOT);
   const fixes = await prepareApp({ appConfig, name, baseUrl });
   const browser = await launchBrowser(settings);
   const storageState = await signIn({ browser, appConfig, name, baseUrl, settings });
@@ -272,12 +279,20 @@ async function openSession({ config, app }) {
   });
   const page = await context.newPage();
   const problems = watchProblems(page);
-  return { browser, context, page, baseUrl, app: name, storageState, fixes, config, settings, problems };
+  return {
+    browser, context, page, baseUrl, app: name, storageState, fixes, config, settings, problems,
+    release,
+  };
 }
 
 async function closeSession(session) {
-  await session.context.close();
-  await session.browser.close();
+  try {
+    await session.context.close();
+    await session.browser.close();
+  } finally {
+    // The browser failing to close is not a reason to leave the project locked for the next run.
+    session.release?.();
+  }
 }
 
 // Opening the screen a take starts on.

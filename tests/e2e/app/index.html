@@ -73,6 +73,9 @@
        <!-- No id, so a probe has to name it by its role and its text — which is where the text
             the screen shows and the text the markup holds part company. -->
        <button class="secondary export" type="button">Export report</button>
+       <!-- An apostrophe in the label: interpolated into a single-quoted selector it would print a
+            line that is not JavaScript. -->
+       <button class="secondary" type="button">Don't save</button>
        <span id="ask_result"></span></p>
     <!-- Dragged rather than clicked: a handle is what no other helper reaches. -->
     <label for="rows_shown">Rows shown</label>

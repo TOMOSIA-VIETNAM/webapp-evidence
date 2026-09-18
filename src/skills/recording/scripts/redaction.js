@@ -26,9 +26,10 @@ const rebase = (at, trimAt) => Math.max(0, at - trimAt);
 function createRedactions() {
   const entries = [];
   return {
-    // `box` is null for a whole frame. `to` is filled in when the stretch ends, so an entry with
-    // no end never reaches the encode: a step script that threw halfway should not silently blur
-    // the rest of the take.
+    // `box` is null for a whole frame. A stretch is closed where it ends, including where a step
+    // script threw inside it — so what was being covered at that moment is covered in the video
+    // kept from the failure, and nothing after it is blurred. An entry left with no end reaches
+    // no encode.
     open({ mode, box }) {
       const entry = { mode, box, from: null, to: null };
       entries.push(entry);

@@ -180,8 +180,11 @@ step "Checking the probe prints selectors that resolve"
 PROBE="$OUT_DIR/.inspect"
 BASE_URL="$BASE_URL" node "$SKILL/scripts/inspect.js" / >"$PROBE" 2>&1 \
   || fail "inspect.js exited non-zero: $(cat "$PROBE")"
-grep -qF "name: 'Export report'" "$PROBE" \
+grep -qF 'name: "Export report"' "$PROBE" \
   || fail "the probe did not print the button's name as the DOM holds it: $(grep -i export "$PROBE")"
+# And a name carrying an apostrophe comes out as a string a step script can be pasted with.
+grep -qF 'name: "Don'"'"'t save"' "$PROBE" \
+  || fail "the probe did not escape an apostrophe in a name: $(grep -i save "$PROBE")"
 grep -qF 'on screen: EXPORT REPORT' "$PROBE" \
   || fail "the probe never says the screen shows something else"
 
