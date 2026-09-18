@@ -32,48 +32,63 @@
 ## 示例
 
 ```
-/webapp-evidence:recording Page: https://www.saucedemo.com
+/webapp-evidence:recording Page: https://open-pr.vercel.app
 Flow:
-1. Log in using standard_user / secret_sauce
-2. Change the sort dropdown to "Price (low to high)"
-3. Add "Sauce Labs Backpack" to the cart, then open the cart
-4. Checkout, fill First Name / Last Name / Zip as Minh / Tang / 700000
-5. Continue, then Finish, and stop at the "Thank you for your order!" screen
+1. Open the language menu, go through every language, then come back to English
+2. Hover the moth in the hero, then copy the one-line install command
+3. Read down the page: How it works, the review-round walkthrough and every step of
+   the loop, the feature cards, the token-cost chart
+4. On Install, switch to the Codex and Cursor tabs, then copy the command of the open one
+5. Take the floating button back to the top, print the SEO meta the page serves in a
+   terminal, and close the tour in Japanese
 ```
 
 ## 结果
 
 <p align="center">
-  <img src="./docs/demo/saucedemo.gif" width="820" alt="Swag Labs 结账流程录像：登录，按价格排序商品（下拉菜单由操作系统绘制、录不进画面，所以底部字幕说明选了哪一项），把背包加入购物车，填写结账表单，完成订单。">
+  <img src="./docs/demo/site-tour.gif" width="820" alt="落地页导览录像：hero 里的飞蛾跟着指针反应，复制一行安装命令后按钮自己确认，接着一路往下读页面 —— How it works、逐步点开的评审轮次讲解，以及功能卡片。">
 </p>
 
-八张关键步骤的截图，外加一份 runbook。收到的人读一遍就够，不一定要看视频：
+GIF 只是整段录制里的一截 —— 整段做成 GIF 会大上好几倍，README 不该放那种东西。随附 25 张主要步骤截图，以及一份 runbook，对方读完就懂，不必看视频：
 
 ```markdown
 ## Steps in the video
 
-00:00 - 00:01  Open the sign-in screen
-00:01 - 00:08  Sign in as standard_user
-00:08 - 00:13  Sort the product list by Price (low to high)
-00:13 - 00:16  Add Sauce Labs Backpack to the cart
-00:16 - 00:19  Open the shopping cart
-00:19 - 00:26  Enter the customer information
-00:26 - 00:29  Review the order summary
-00:29 - 00:36  Finish the order
+00:00 - 00:01  Hero — the page as it opens
+00:01 - 00:15  Language menu — every language the site ships
+00:15 - 00:19  Back to English — the language the rest of the tour runs in
+00:19 - 00:21  Hero — the moth answers the pointer
+00:21 - 00:26  Hero — copy the one-line install command
+00:26 - 00:32  How it works — the three steps light up under the pointer
+00:32 - 00:36  Review rounds — the walkthrough plays itself
+00:36 - 00:49  Review rounds — every step of the loop, picked by hand
+00:49 - 00:54  Features — the cards warm as the pointer crosses them
+00:54 - 00:56  Token cost — the chart the plugin publishes
+00:56 - 01:03  Install — one panel per agent
+01:03 - 01:05  Install — copy the command of the open panel
+01:05 - 01:09  Footer — the links at the end of the page
+01:09 - 01:13  The floating button flies the reader back to the top
+01:13 - 01:26  The SEO meta the page serves, read straight off the URL
+01:26 - 01:32  Closing on 日本語
 
 ## Captions shown in the video
 
-- 00:10  Selected "Price (low to high)". The dropdown menu is drawn by the operating
-         system, so it does not appear in this recording.
-- 00:31  The order is placed on the public saucedemo.com demo site, so no real data
-         is created.
+- 00:23  The command is on the clipboard. The button was read back for its "Copied"
+         state, because a blocked clipboard leaves a click that proves nothing.
+- 01:13  The terminal panel runs against the live URL, so these tags come from what
+         the site is serving right now.
+
+## Commands run in the terminal
+
+- 01:24  `curl -s https://open-pr.vercel.app/ | grep -oE '<title>[^<]*</title>|…'` — exit 0
 
 ## Page errors recorded during the take
 
-- [http 401] https://events.backtrace.io/api/unique-events/submit…
+- none
 ```
 
-录制时它也会看控制台和网络。所以这里能看到页面在返回 401——截图看不出来，一般也不会有人去查。
+录制时它也盯着 console 和网络。这一次页面是干净的 —— 这本身就是读者可以核实的说法。出问题时，
+每条错误都会带着状态码和 URL 落在最后那一块里 —— 没人留意的请求返回 401，截图是照不出来的。
 
 如果是在实现功能的同一轮对话里录的，代理会按 e2e 的方式看这些截图和错误日志。401、布局错位或
 溢出——发现问题可以提出修法，不只是把文件交给你。
@@ -153,8 +168,9 @@ curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/mai
 runbook 对上的时刻。它还能发现没人想到要截图的东西：过渡途中错位的布局，闪一下就没了的横幅。
 
 这是它从上面那段录制里生成的两张图：
-**[第 1 张](./docs/demo/vision-sheet-01.png)**（00:00–00:19）·
-**[第 2 张](./docs/demo/vision-sheet-02.png)**（00:20–00:36）。
+**[第 1 张](./docs/demo/vision-sheet-01.png)**（00:00–00:38）·
+**[第 2 张](./docs/demo/vision-sheet-02.png)**（00:40–01:18）·
+**[第 3 张](./docs/demo/vision-sheet-03.png)**（01:20–01:32）。
 
 ## 限制
 
@@ -179,5 +195,5 @@ runbook 对上的时刻。它还能发现没人想到要截图的东西：过渡
 ---
 
 上面那段录制是本仓库 runner 的真实输出：`docs/demo/record.sh` 从
-`docs/demo/saucedemo-steps.js` 生成。想改这个技能本身，见
+`docs/demo/site-tour-steps.js` 生成。想改这个技能本身，见
 **[CONTRIBUTING.md](./CONTRIBUTING.md)**。
