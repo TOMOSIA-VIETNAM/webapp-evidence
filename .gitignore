@@ -8,6 +8,3 @@ src/skills/recording/scripts/node_modules/
 # a gitlink and the clone that follows has an empty directory where it was.
 .claude/worktrees/
 notebooks/
-
-# The demo mp4 the README links: rebuilt by docs/demo/record.sh, too large to commit.
-docs/demo/site-tour.mp4

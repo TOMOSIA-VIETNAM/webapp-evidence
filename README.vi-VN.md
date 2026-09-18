@@ -59,25 +59,25 @@ GIF là một đoạn của bản quay dài hơn — làm gif cả bản thì n�
 00:00 - 00:01  Hero — the page as it opens
 00:01 - 00:15  Language menu — every language the site ships
 00:15 - 00:19  Back to English — the language the rest of the tour runs in
-00:19 - 00:22  Hero — the moth answers the pointer
-00:22 - 00:27  Hero — copy the one-line install command
-00:27 - 00:32  How it works — the three steps light up under the pointer
-00:32 - 00:37  Review rounds — the walkthrough plays itself
-00:37 - 00:49  Review rounds — every step of the loop, picked by hand
+00:19 - 00:21  Hero — the moth answers the pointer
+00:21 - 00:26  Hero — copy the one-line install command
+00:26 - 00:32  How it works — the three steps light up under the pointer
+00:32 - 00:36  Review rounds — the walkthrough plays itself
+00:36 - 00:49  Review rounds — every step of the loop, picked by hand
 00:49 - 00:54  Features — the cards warm as the pointer crosses them
-00:54 - 00:57  Token cost — the chart the plugin publishes
-00:57 - 01:04  Install — one panel per agent
-01:04 - 01:06  Install — copy the command of the open panel
-01:06 - 01:10  Footer — the links at the end of the page
-01:10 - 01:14  The floating button flies the reader back to the top
-01:14 - 01:27  The SEO meta the page serves, read straight off the URL
-01:27 - 01:33  Closing on 日本語
+00:54 - 00:56  Token cost — the chart the plugin publishes
+00:56 - 01:03  Install — one panel per agent
+01:03 - 01:05  Install — copy the command of the open panel
+01:05 - 01:09  Footer — the links at the end of the page
+01:09 - 01:13  The floating button flies the reader back to the top
+01:13 - 01:26  The SEO meta the page serves, read straight off the URL
+01:26 - 01:32  Closing on 日本語
 
 ## Captions shown in the video
 
 - 00:23  The command is on the clipboard. The button was read back for its "Copied"
          state, because a blocked clipboard leaves a click that proves nothing.
-- 01:14  The terminal panel runs against the live URL, so these tags come from what
+- 01:13  The terminal panel runs against the live URL, so these tags come from what
          the site is serving right now.
 
 ## Commands run in the terminal
