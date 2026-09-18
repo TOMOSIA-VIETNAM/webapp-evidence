@@ -91,11 +91,13 @@ take has been re-recorded — it is not evidence of anything and it is not tidie
 other one holds it:
 
 ```
-Another take is already recording this project (process 51234, started 12s ago, writing to …).
+A take is already recording this project (process 51234, started 12s ago, writing to …).
+A screen is already being probed in this project (process 51234, started 12s ago).
 ```
 
-It is a run that never started rather than one that failed, and probing raises it as readily as
-recording does — both bring up the application's development server, and two runs share its state
+Which of the two appears depends on what is holding the lock; a probe names no directory, because it
+writes nothing. It is a run that never started rather than one that failed, and probing raises it as
+readily as recording does — both bring up the application's development server, and two runs share its state
 and its build cache even when each has its own port. The one that loses that race gets a blank page,
 or a 404 from a route the application defines, which points at everything except the other run.
 
