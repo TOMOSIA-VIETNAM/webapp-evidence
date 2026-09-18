@@ -34,50 +34,64 @@
 ## 例
 
 ```
-/webapp-evidence:recording Page: https://www.saucedemo.com
+/webapp-evidence:recording Page: https://open-pr.vercel.app
 Flow:
-1. Log in using standard_user / secret_sauce
-2. Change the sort dropdown to "Price (low to high)"
-3. Add "Sauce Labs Backpack" to the cart, then open the cart
-4. Checkout, fill First Name / Last Name / Zip as Minh / Tang / 700000
-5. Continue, then Finish, and stop at the "Thank you for your order!" screen
+1. Open the language menu, go through every language, then come back to English
+2. Hover the moth in the hero, then copy the one-line install command
+3. Read down the page: How it works, the review-round walkthrough and every step of
+   the loop, the feature cards, the token-cost chart
+4. On Install, switch to the Codex and Cursor tabs, then copy the command of the open one
+5. Take the floating button back to the top, print the SEO meta the page serves in a
+   terminal, and close the tour in Japanese
 ```
 
 ## 出力
 
 <p align="center">
-  <img src="./docs/demo/saucedemo.gif" width="820" alt="Swag Labs のチェックアウト録画。サインインし、商品を価格順に並べ替え（ドロップダウンは OS が描画するため録画に映らず、選んだ項目は画面下部の字幕で示す）、バックパックをカートに入れ、フォームを埋めて注文を完了します。">
+  <img src="./docs/demo/site-tour.gif" width="820" alt="ランディングページのツアー録画。ヒーローの蛾がポインターに反応し、ワンライナーのインストールコマンドをコピーしてボタンがそれを確認、そのまま How it works、レビューラウンドのウォークスルーを 1 ステップずつ、機能カードへとページを読み下ろします。">
 </p>
 
-主要なステップのスクリーンショットが 8 枚と、runbook が付きます。受け取った人は動画を見なくても
-内容が分かります:
+GIF は長いテイクの一部です。全体を GIF にすると数倍の大きさになり、README に置くものではありません。主要ステップのスクリーンショット 25 枚と、見る代わりに読める runbook が付きます:
 
 ```markdown
 ## Steps in the video
 
-00:00 - 00:01  Open the sign-in screen
-00:01 - 00:08  Sign in as standard_user
-00:08 - 00:13  Sort the product list by Price (low to high)
-00:13 - 00:16  Add Sauce Labs Backpack to the cart
-00:16 - 00:19  Open the shopping cart
-00:19 - 00:26  Enter the customer information
-00:26 - 00:29  Review the order summary
-00:29 - 00:36  Finish the order
+00:00 - 00:01  Hero — the page as it opens
+00:01 - 00:15  Language menu — every language the site ships
+00:15 - 00:19  Back to English — the language the rest of the tour runs in
+00:19 - 00:22  Hero — the moth answers the pointer
+00:22 - 00:27  Hero — copy the one-line install command
+00:27 - 00:32  How it works — the three steps light up under the pointer
+00:32 - 00:37  Review rounds — the walkthrough plays itself
+00:37 - 00:49  Review rounds — every step of the loop, picked by hand
+00:49 - 00:54  Features — the cards warm as the pointer crosses them
+00:54 - 00:57  Token cost — the chart the plugin publishes
+00:57 - 01:04  Install — one panel per agent
+01:04 - 01:06  Install — copy the command of the open panel
+01:06 - 01:10  Footer — the links at the end of the page
+01:10 - 01:14  The floating button flies the reader back to the top
+01:14 - 01:27  The SEO meta the page serves, read straight off the URL
+01:27 - 01:33  Closing on 日本語
 
 ## Captions shown in the video
 
-- 00:10  Selected "Price (low to high)". The dropdown menu is drawn by the operating
-         system, so it does not appear in this recording.
-- 00:31  The order is placed on the public saucedemo.com demo site, so no real data
-         is created.
+- 00:23  The command is on the clipboard. The button was read back for its "Copied"
+         state, because a blocked clipboard leaves a click that proves nothing.
+- 01:14  The terminal panel runs against the live URL, so these tags come from what
+         the site is serving right now.
+
+## Commands run in the terminal
+
+- 01:24  `curl -s https://open-pr.vercel.app/ | grep -oE '<title>[^<]*</title>|…'` — exit 0
 
 ## Page errors recorded during the take
 
-- [http 401] https://events.backtrace.io/api/unique-events/submit…
+- none
 ```
 
-録画中はコンソールとネットワークも見ています。この例ではページが 401 を返していたことが分かり
-ます。スクリーンショットには出ないし、普通は誰もそこを見ません。
+録画中はコンソールとネットワークも監視します。このテイクはエラーなしで終わりました。それ自体、
+読み手が確かめられる主張です。エラーが出たときは最後のブロックにステータスと URL ごと並びます。
+誰も見ていなかったリクエストの 401 は、スクリーンショットには写りません。
 
 実装中のセッションで録った場合は、スクリーンショットとエラーログを E2E と同じ目線で見ます。
 401 や、はみ出したり崩れたレイアウト。気づいたものは指摘して、修正案も出せます。ファイルを渡す
@@ -163,8 +177,9 @@ curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/mai
 一瞬だけ出て消えるバナー。誰もスクリーンショットを撮ろうと思わなかったものを拾ってくれます。
 
 上の録画から実際に作られたシートです:
-**[シート 1](./docs/demo/vision-sheet-01.png)**（00:00–00:19）·
-**[シート 2](./docs/demo/vision-sheet-02.png)**（00:20–00:36）。
+**[シート 1](./docs/demo/vision-sheet-01.png)**（00:00–00:38）·
+**[シート 2](./docs/demo/vision-sheet-02.png)**（00:40–01:18）·
+**[シート 3](./docs/demo/vision-sheet-03.png)**（01:20–01:32）。
 
 ## 制限
 
@@ -193,5 +208,5 @@ curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/mai
 ---
 
 上の録画は、このリポジトリのランナーによる実際の出力です。`docs/demo/record.sh` が
-`docs/demo/saucedemo-steps.js` から生成しています。スキル自体に手を入れたい場合は
+`docs/demo/site-tour-steps.js` から生成しています。スキル自体に手を入れたい場合は
 **[CONTRIBUTING.md](./CONTRIBUTING.md)** を参照してください。

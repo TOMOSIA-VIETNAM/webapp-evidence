@@ -34,49 +34,64 @@ runbook để chạy lại đúng lần đó.
 ## Ví dụ
 
 ```
-/webapp-evidence:recording Page: https://www.saucedemo.com
+/webapp-evidence:recording Page: https://open-pr.vercel.app
 Flow:
-1. Log in using standard_user / secret_sauce
-2. Change the sort dropdown to "Price (low to high)"
-3. Add "Sauce Labs Backpack" to the cart, then open the cart
-4. Checkout, fill First Name / Last Name / Zip as Minh / Tang / 700000
-5. Continue, then Finish, and stop at the "Thank you for your order!" screen
+1. Open the language menu, go through every language, then come back to English
+2. Hover the moth in the hero, then copy the one-line install command
+3. Read down the page: How it works, the review-round walkthrough and every step of
+   the loop, the feature cards, the token-cost chart
+4. On Install, switch to the Codex and Cursor tabs, then copy the command of the open one
+5. Take the floating button back to the top, print the SEO meta the page serves in a
+   terminal, and close the tour in Japanese
 ```
 
 ## Kết quả
 
 <p align="center">
-  <img src="./docs/demo/saucedemo.gif" width="820" alt="Bản quay checkout Swag Labs: đăng nhập, sort sản phẩm theo giá (phụ đề ghi option đã chọn vì dropdown do OS vẽ nên không quay được), thêm balo vào giỏ, điền form checkout rồi hoàn tất đơn.">
+  <img src="./docs/demo/site-tour.gif" width="820" alt="Bản quay tour trang landing: con bướm ở hero phản ứng theo con trỏ, lệnh cài đặt được copy và nút tự xác nhận, rồi trang được đọc dần xuống qua How it works, phần walkthrough review round bấm từng bước, và các card tính năng.">
 </p>
 
-Tám screenshot các bước chính, kèm runbook. Người nhận đọc là hiểu, không bắt buộc phải xem video:
+GIF là một đoạn của bản quay dài hơn — làm gif cả bản thì nặng gấp mấy lần, README không phải chỗ cho thứ đó. Kèm theo là 25 screenshot các bước chính và runbook. Người nhận đọc là hiểu, không bắt buộc phải xem video:
 
 ```markdown
 ## Steps in the video
 
-00:00 - 00:01  Open the sign-in screen
-00:01 - 00:08  Sign in as standard_user
-00:08 - 00:13  Sort the product list by Price (low to high)
-00:13 - 00:16  Add Sauce Labs Backpack to the cart
-00:16 - 00:19  Open the shopping cart
-00:19 - 00:26  Enter the customer information
-00:26 - 00:29  Review the order summary
-00:29 - 00:36  Finish the order
+00:00 - 00:01  Hero — the page as it opens
+00:01 - 00:15  Language menu — every language the site ships
+00:15 - 00:19  Back to English — the language the rest of the tour runs in
+00:19 - 00:22  Hero — the moth answers the pointer
+00:22 - 00:27  Hero — copy the one-line install command
+00:27 - 00:32  How it works — the three steps light up under the pointer
+00:32 - 00:37  Review rounds — the walkthrough plays itself
+00:37 - 00:49  Review rounds — every step of the loop, picked by hand
+00:49 - 00:54  Features — the cards warm as the pointer crosses them
+00:54 - 00:57  Token cost — the chart the plugin publishes
+00:57 - 01:04  Install — one panel per agent
+01:04 - 01:06  Install — copy the command of the open panel
+01:06 - 01:10  Footer — the links at the end of the page
+01:10 - 01:14  The floating button flies the reader back to the top
+01:14 - 01:27  The SEO meta the page serves, read straight off the URL
+01:27 - 01:33  Closing on 日本語
 
 ## Captions shown in the video
 
-- 00:10  Selected "Price (low to high)". The dropdown menu is drawn by the operating
-         system, so it does not appear in this recording.
-- 00:31  The order is placed on the public saucedemo.com demo site, so no real data
-         is created.
+- 00:23  The command is on the clipboard. The button was read back for its "Copied"
+         state, because a blocked clipboard leaves a click that proves nothing.
+- 01:14  The terminal panel runs against the live URL, so these tags come from what
+         the site is serving right now.
+
+## Commands run in the terminal
+
+- 01:24  `curl -s https://open-pr.vercel.app/ | grep -oE '<title>[^<]*</title>|…'` — exit 0
 
 ## Page errors recorded during the take
 
-- [http 401] https://events.backtrace.io/api/unique-events/submit…
+- none
 ```
 
-Trong lúc quay, agent cũng theo dõi console và network. Ví dụ này cho thấy trang đang trả 401 —
-screenshot không hiện, và thường chẳng ai nghĩ tới.
+Trong lúc quay, agent cũng theo dõi console và network. Lần này trang sạch lỗi — bản thân điều đó
+cũng là một khẳng định người đọc kiểm lại được. Khi có lỗi, từng lỗi nằm ở khối cuối kèm status và
+URL — một cú 401 từ request chẳng ai để ý thì screenshot không hiện ra.
 
 Nếu quay ngay trong phiên đang implement, agent nhìn screenshot và log lỗi giống một lượt e2e.
 401, layout trượt hay tràn khi hẹp màn — nó chỉ ra và đề xuất cách sửa, không chỉ đưa file.
@@ -160,8 +175,9 @@ khung đóng dấu `mm:ss` — rồi đọc như đọc ảnh. Nhờ vậy phát
 việc chụp: layout vỡ giữa lúc chuyển cảnh, banner loé lên rồi biến mất.
 
 Đây là hai tấm nó tạo ra từ chính bản quay ở trên:
-**[tấm 1](./docs/demo/vision-sheet-01.png)** (00:00–00:19) ·
-**[tấm 2](./docs/demo/vision-sheet-02.png)** (00:20–00:36).
+**[tấm 1](./docs/demo/vision-sheet-01.png)** (00:00–00:38) ·
+**[tấm 2](./docs/demo/vision-sheet-02.png)** (00:40–01:18) ·
+**[tấm 3](./docs/demo/vision-sheet-03.png)** (01:20–01:32).
 
 ## Giới hạn
 
@@ -188,5 +204,5 @@ Video và screenshot không commit vào Git. Đính vào ticket, MR/PR, báo cá
 ---
 
 Bản quay ở trên là output thật từ runner của repo này: `docs/demo/record.sh` tạo ra từ
-`docs/demo/saucedemo-steps.js`. Muốn contribute skill này thì xem
+`docs/demo/site-tour-steps.js`. Muốn contribute skill này thì xem
 **[CONTRIBUTING.md](./CONTRIBUTING.md)**.
