@@ -350,3 +350,11 @@ test('a browser that is already gone does not stop the abort from finishing', as
   });
   assert.equal((await capture.abort()).file, null);
 });
+
+test('a recorder that stopped at its own time limit says so when the take is aborted', async () => {
+  // The take failed later, and the video ends where the limit fell: two moments far apart, so
+  // whoever reports the failure has to be able to tell them apart.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'evidence-abort-'));
+  const { capture } = pageCapture(dir, { video: () => null });
+  assert.equal((await capture.abort()).endedEarly, false);
+});

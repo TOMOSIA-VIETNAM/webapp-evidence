@@ -26,9 +26,15 @@ const rebase = (at, trimAt) => Math.max(0, at - trimAt);
 // A stretch that opened and closed inside the same millisecond still covered a real frame: a step
 // script that threw on its first line, with nothing in between that costs a round trip to measure.
 // With no width at all it falls out of `all()` below and reaches the encode as nothing, so what it
-// was covering is in the video kept from the attempt. Held to the shortest stretch that covers a
-// frame at any rate this records at.
-const MIN_STRETCH = 0.05;
+// was covering is in the video kept from the attempt.
+//
+// One frame at the slowest rate a recording is allowed to run at, rather than at the rate this one
+// happens to use: a frame of the finished video is a fifth of a second at five frames a second, and
+// a floor shorter than that lands between two frames and covers neither. Covering a fraction of a
+// second more than was asked for is the safe direction, and only a stretch with no length at all is
+// affected either way.
+
+const MIN_STRETCH = 1 / 5;
 
 function createRedactions() {
   const entries = [];

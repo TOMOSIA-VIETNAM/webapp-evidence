@@ -576,7 +576,11 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
           // Nothing was written, which the existence check below reports.
         }
       }
-      return { file: fs.existsSync(file) ? file : null };
+      // `endedEarly` says the recorder had already stopped on its own at its time limit before any
+      // of this: the file is real, and it ends where that limit fell rather than where the take
+      // did. Whoever reports the failure has to say so, or the video and the error point at two
+      // different moments with nothing to explain the gap.
+      return { file: fs.existsSync(file) ? file : null, endedEarly };
     },
 
     // Kill the recorder from a signal handler, where there is no turn of the event loop left to

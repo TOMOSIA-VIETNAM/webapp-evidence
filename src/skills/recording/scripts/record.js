@@ -851,7 +851,7 @@ function buildNoteSection(notes, trimAt, removed = []) {
 // a page recording — and nothing about it says which run wrote it or why it stopped, so a directory
 // collects one per attempt and none of them can be told from another. Encoded, it is a video of the
 // flow up to the failure, which is the one thing worth having from a take that did not finish.
-function failedTakeError({ error, raw }, { outDir, name, marks, trimAt, videoOpts, redactions, at }) {
+function failedTakeError({ error, raw, endedEarly }, { outDir, name, marks, trimAt, videoOpts, redactions, at, maxSeconds }) {
   let partial = null;
   if (raw) {
     try {
@@ -868,9 +868,16 @@ function failedTakeError({ error, raw }, { outDir, name, marks, trimAt, videoOpt
     ? `step ${marks.length}, "${marks[marks.length - 1].label}"`
     : 'the opening of the take, before the first mark()';
   const said = String((error && error.message) || error);
-  const left = partial
+  let left = partial
     ? `What was recorded before it stopped: ${partial}`
     : 'Nothing had been recorded, so there is no video of the attempt.';
+  // The recorder stopping at its own limit is not what failed the take, and the two moments are
+  // nowhere near each other: without this the video ends mid-flow and the error names a step that
+  // happened after it, with nothing saying why.
+  if (partial && endedEarly) {
+    left += `\nIt ends at recording.screenCapture.maxSeconds (${maxSeconds}s), where the recorder ` +
+      'stopped on its own — before the failure above, which is the other reason there is no take.';
+  }
 
   const failed = new Error(`The take failed ${fmt(at)} in, during ${step}:\n${said}\n\n${left}`);
   failed.cause = error;
@@ -1252,13 +1259,13 @@ async function main() {
     // Nothing else is tidied up first. Recording the screen, every second between the failure and
     // the stop is a second of whatever else is on the operator's display; the recorder is stopped
     // before the shell is closed, the cases are cleaned up or the error is dressed up for reading.
-    let stopped = { file: null };
+    let stopped = { file: null, endedEarly: false };
     try {
       stopped = await capture.abort();
     } catch {
       // The take is already lost; what matters is that the recorder is no longer writing.
     }
-    failure = { error, raw: stopped.file };
+    failure = { error, raw: stopped.file, endedEarly: stopped.endedEarly };
   } finally {
     // A step script that throws halfway must not leave a shell — or whatever it was running —
     // alive on the machine after the runner has gone.
@@ -1271,6 +1278,7 @@ async function main() {
     await browser.close().catch(() => { /* the abort above may already have taken it */ });
     throw failedTakeError(failure, {
       outDir, name, marks, trimAt, videoOpts, redactions, at: (Date.now() - startedAt) / 1000,
+      maxSeconds: settings.recording.screenCapture.maxSeconds,
     });
   }
 

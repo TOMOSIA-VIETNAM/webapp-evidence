@@ -85,9 +85,22 @@ Read that video before changing the step script: it usually shows the screen the
 on, which says whether the selector was wrong or the application never got there. Delete it once the
 take has been re-recorded — it is not evidence of anything and it is not tidied up automatically.
 
-Only one take may run against a project at a time. A second one is refused by name, because two runs
-share the application's build cache and its development server's state even when each has its own
-port, and the take that loses that race fails in ways that point at everything except the other run.
+## One project at a time
+
+`record.js` and `inspect.js` both take a lock on the project before they start, and refuse while the
+other one holds it:
+
+```
+Another take is already recording this project (process 51234, started 12s ago, writing to …).
+```
+
+It is a run that never started rather than one that failed, and probing raises it as readily as
+recording does — both bring up the application's development server, and two runs share its state
+and its build cache even when each has its own port. The one that loses that race gets a blank page,
+or a 404 from a route the application defines, which points at everything except the other run.
+
+Wait for the other one, or stop it. The message names the process holding the lock and the file to
+delete if that process is not a run at all.
 
 ## Reporting back
 

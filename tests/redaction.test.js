@@ -181,3 +181,14 @@ test('a stretch with real duration keeps the end it was given', () => {
   redactions.close(entry, 2, 9);
   assert.deepEqual(redactions.all().map((e) => [e.from, e.to]), [[2, 9]]);
 });
+
+test('the floor on a stretch covers a frame at the slowest rate a recording may run at', () => {
+  // `recording.screenCapture.framerate` goes down to 5, where a frame is a fifth of a second. A
+  // floor shorter than the frame it is meant to cover lands between two of them and covers neither.
+  const redactions = createRedactions();
+  const entry = redactions.open({ mode: 'box', box: null });
+  redactions.close(entry, 4, 4);
+
+  const [kept] = redactions.all();
+  assert.ok(kept.to - kept.from >= 1 / 5, `${kept.to - kept.from}s does not reach a frame at 5fps`);
+});
