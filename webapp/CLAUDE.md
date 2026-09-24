@@ -40,3 +40,15 @@ reads at 3.9:1.
 
 `pnpm check`, `pnpm build` and `pnpm check:ui` against `pnpm preview`, all green, and screenshots at
 390, 768 and 1280px looked at — not described.
+
+## Merge and deploy
+
+Vercel blocks a deploy whose HEAD commit email it cannot match to a GitHub account — and a squash
+merge makes GitHub the author, as a `…@users.noreply.github.com` address. So:
+
+- Merge PRs with **rebase** (`gh pr merge --rebase`), never squash: the commits reach `main` with the
+  author's own email. Commit with the repository's configured `user.email`; never override it.
+- Deploy from `main` after merging: `pnpm dlx vercel build --prod`, then
+  `pnpm dlx vercel deploy --prebuilt --prod --archive=tgz`, in `webapp/`.
+- A deploy that sits on "Building…" is blocked, not queued: read its real state from the Vercel API
+  (`readyState`) instead of waiting on the CLI.
