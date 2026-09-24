@@ -93,6 +93,29 @@ for (const path of LOCALES) {
   await page.close()
 }
 
+// The back-to-top firefly flies up and the hero's answers by beating its wings, at the desktop scene
+// and at the phone's badge mark alike — and not at all for a reader who asked for less motion.
+for (const [width, motion] of [[1280, 'no-preference'], [390, 'no-preference'], [1280, 'reduce']]) {
+  const page = await browser.newPage({ viewport: { width, height: 900 }, reducedMotion: motion })
+  await page.goto(BASE + '/', { waitUntil: 'networkidle' })
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
+  const button = page.locator('[data-scroll-top]')
+  await button.waitFor({ state: 'visible' })
+  await page.waitForTimeout(400)
+  await button.click()
+  const greeted = await page
+    .waitForFunction(() => {
+      const mark = [...document.querySelectorAll('[data-hero-mascot] .firefly, [data-hero-mark] .firefly')].find(
+        (m) => m.getClientRects().length > 0,
+      )
+      return mark?.classList.contains('firefly--greet') && getComputedStyle(mark.querySelector('.firefly__wing')).animationName === 'firefly-flap'
+    }, null, { timeout: 3500 })
+    .then(() => true, () => false)
+  if (motion === 'reduce') check(!greeted, `@${width} reduced motion: the hero firefly flapped anyway`)
+  else check(greeted, `@${width}: the hero firefly did not answer the back-to-top button`)
+  await page.close()
+}
+
 // Behaviour, checked once on the English page at desktop width.
 {
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })

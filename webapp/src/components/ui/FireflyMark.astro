@@ -4,7 +4,8 @@
  * split into wings, body and lantern by scripts/sync-upstream.mjs — never redrawn here.
  *
  * `recording` makes the lantern pulse like a record light. `flapOnHover` beats the wings while the
- * pointer is over it. A parent adds `data-firefly-takeoff` to make it beat hard and fly up.
+ * pointer is over it. A parent adds `data-firefly-takeoff` to make it beat hard and fly up, and the
+ * class `firefly--greet` beats the wings three times, which is how the hero answers it.
  */
 import firefly from '../../assets/upstream/firefly.json'
 
@@ -129,10 +130,16 @@ const { viewBox, parts } = firefly
     animation: firefly-takeoff 0.62s var(--ease-ios) forwards;
   }
 
+  /* The mark in the hero answers the one that just flew back up. */
+  .firefly--greet .firefly__wing {
+    animation: firefly-flap 0.36s var(--ease-ios) 3;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     [data-firefly-hover]:hover .firefly__wing,
     [data-firefly-takeoff] .firefly,
-    [data-firefly-takeoff] .firefly .firefly__wing {
+    [data-firefly-takeoff] .firefly .firefly__wing,
+    .firefly--greet .firefly__wing {
       animation: none !important;
     }
   }
