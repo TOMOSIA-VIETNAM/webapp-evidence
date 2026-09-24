@@ -1,0 +1,66 @@
+---
+import { Image } from 'astro:assets'
+import LangSwitcher from './LangSwitcher.astro'
+import Button from './Button.astro'
+import GithubMark from './GithubMark.astro'
+import lockup from '../../assets/upstream/brand/logo-lockup.svg'
+import { localeFromUrl, localePath, useTranslations } from '../../i18n'
+import { REPO_URL } from '../../lib/site'
+import { PLUGIN } from '../../lib/upstream'
+
+const locale = localeFromUrl(Astro.url)
+const t = useTranslations(locale)
+const home = localePath(locale, '/')
+
+const links = [
+  { href: '#uat', label: t('nav.uat') },
+  { href: '#how-it-works', label: t('nav.howItWorks') },
+  { href: '#features', label: t('nav.features') },
+  { href: '#install', label: t('nav.install') },
+]
+---
+
+<header class="fixed inset-x-0 top-0 z-50 px-4 pt-4">
+  <nav
+    class="glass-3 shadow-glass-2 mx-auto flex h-(--nav-height) w-full max-w-page items-center gap-4 rounded-card pr-2 pl-4"
+    aria-label={t('nav.label')}
+  >
+    <a href={home} class="flex min-h-10 shrink-0 items-center gap-2 no-underline">
+      <Image src={lockup} alt={PLUGIN} height={32} class="h-7 w-auto sm:h-8" loading="eager" />
+    </a>
+
+    <ul class="ml-auto hidden items-center gap-1 lg:flex" data-nav-links>
+      {
+        links.map((link) => (
+          <li>
+            <a
+              href={link.href}
+              class="relative isolate flex min-h-10 items-center overflow-hidden rounded-pill px-3 py-2 text-sm font-medium text-ink-muted no-underline transition-colors duration-[var(--duration-fast)] ease-ios hover:text-ink"
+              data-nav-link
+            >
+              <span class="glow-light" aria-hidden="true" data-decorative></span>
+              {link.label}
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+
+    <LangSwitcher class="ml-auto shrink-0 lg:ml-0" />
+    <div class="hidden shrink-0 sm:block">
+      <Button href={REPO_URL} external variant="ghost">
+        <GithubMark class="size-4" />
+        {t('nav.github')}
+      </Button>
+    </div>
+  </nav>
+</header>
+
+<script>
+  import { followGlow } from '../../lib/glow'
+
+  followGlow(
+    document.querySelector<HTMLElement>('[data-nav-links]'),
+    [...document.querySelectorAll<HTMLElement>('[data-nav-link]')],
+  )
+</script>

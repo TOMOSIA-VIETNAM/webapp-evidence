@@ -12,6 +12,7 @@
 </p>
 
 <p align="center">
+  <a href="https://evdrec.vercel.app"><img alt="Website: evdrec.vercel.app" src="https://img.shields.io/badge/website-evdrec.vercel.app-5C8F0F?style=flat-square"></a>
   <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/github/license/TOMOSIA-VIETNAM/webapp-evidence?style=flat-square&color=blue"></a>
   <a href="#cài-đặt"><img alt="Claude Code" src="https://img.shields.io/badge/Claude_Code-supported-D97757?style=flat-square&logo=anthropic&logoColor=white"></a>
   <a href="#cài-đặt"><img alt="Cursor" src="https://img.shields.io/badge/Cursor-supported-000000?style=flat-square&logo=cursor&logoColor=white"></a>
@@ -31,7 +32,8 @@ lỗi, review đều đòi cùng một thứ, và tự quay vẫn tốn khoảng
 dùng; nó lái Chrome rồi trả về video, screenshot các bước chính, và một runbook.
 
 <p align="center">
-  <img src="./docs/demo/site-tour.gif" width="820" alt="Bản quay tour trang landing: con bướm ở hero phản ứng theo con trỏ, lệnh cài đặt được copy và nút tự xác nhận, rồi trang được đọc dần xuống qua How it works, phần walkthrough review round bấm từng bước, và các card tính năng.">
+  <a href="https://evdrec.vercel.app"><img src="./docs/demo/evd-tour.gif" width="820" alt="Trang landing của webapp-evidence tự quay chính nó: lệnh được copy, một panel terminal mở đè lên trang và đọc lại thẻ SEO trang trả về, rồi từng tiêu chí nghiệm thu trong báo cáo UAT được chọn và sáng lên đúng những dòng runbook chứng minh nó."></a><br>
+  <sub>Trang landing của chính dự án này, do chính skill mà nó giới thiệu quay lại. Một lần quay, không cắt ghép.</sub>
 </p>
 
 - **Một bản quay, ba loại bằng chứng** — màn hình, endpoint gọi bằng chính session trình duyệt đang
@@ -43,6 +45,18 @@ dùng; nó lái Chrome rồi trả về video, screenshot các bước chính, v
 - **Secret nằm ngoài** — làm mờ, bôi đen hoặc cắt hẳn một đoạn, trong cả video lẫn screenshot.
 - **Không có gì rời khỏi máy bạn** — không service, không bot account; chạy ngay trong agent CLI bạn
   đã có, chỉ vào đúng site bạn chỉ định.
+
+## Sinh ra cho UAT
+
+Kiểm thử nghiệm thu vẫn là một người bấm qua từng tiêu chí rồi tự quay lại. Hãy viết tiêu chí thành
+một luồng, rồi ký duyệt dựa trên mốc thời gian:
+
+| 1 · Viết tiêu chí | 2 · Quay một lần | 3 · Đọc runbook | 4 · Ký duyệt |
+|---|---|---|---|
+| Các bước đánh số bằng lời thường, ngôn ngữ nào cũng được — hoặc một link MR/PR, agent tự suy ra luồng từ diff. | Chrome được lái bằng một con trỏ nhìn thấy được. Bước gọi endpoint assert status, nên câu trả lời sai dừng bản quay. | Mỗi bước kèm thời điểm trong video, mỗi lệnh kèm exit code, mọi lỗi console và request thất bại. | Người duyệt đối chiếu từng tiêu chí với một mốc thời gian thay vì tự chạy lại luồng. Sửa xong thì `record that again`. |
+
+Bản quay ở trên chính là vòng đó chạy trên site của dự án:
+**[evdrec.vercel.app](https://evdrec.vercel.app)** đọc lại bản quay của chính nó như một báo cáo UAT.
 
 ## Một bản quay chứng minh được gì
 
@@ -69,18 +83,18 @@ Cookie và token tới curl qua file và được che ở mọi nơi: video, scr
 ## Nhận về những gì
 
 `<name>.mp4`, các screenshot đánh số, và `<name>-runbook.md` — để người nhận đọc bản quay thay vì
-phải ngồi xem:
+phải ngồi xem. Từ bản quay ở trên:
 
 ```markdown
 ## Steps in the video
 
-00:21 - 00:26  Hero — copy the one-line install command
-00:36 - 00:49  Review rounds — every step of the loop, picked by hand
-01:13 - 01:26  The SEO meta the page serves, read straight off the URL
+00:05 - 00:17  Terminal — the SEO meta the page serves, read off its URL
+00:24 - 00:41  UAT report — each criterion picks out the runbook lines that prove it
+00:59 - 01:07  Install — one panel per agent
 
 ## Commands run in the terminal
 
-- 01:24  `curl -s https://open-pr.vercel.app/ | grep -oE '<title>[^<]*</title>|…'` — exit 0
+- 00:12  `curl -s https://evdrec.vercel.app/ | grep -oE '<title>[^<]*</title>|…'` — exit 0
 
 ## Page errors recorded during the take
 
@@ -140,16 +154,21 @@ nào agent trả lời bằng ngôn ngữ đó.
 | Chính cái dropdown hay dialog có trong video | `--screen` — quay cửa sổ trình duyệt, nên thứ hệ điều hành vẽ cũng vào khung |
 | Không đụng tới màn hình, dù luồng là gì | `--headless` — mặc định, và là cách chốt thẳng câu hỏi đó |
 | Gif cho README, webm cho trang bạn tự quản | `-f gif`, `-f webm` — còn lại là mp4, vì nó phát inline ở mọi nơi |
-| Biết video cho thấy gì mà không phải xem | `/webapp-evidence:vision <the mp4>` |
+| Biết video cho thấy gì mà không phải xem | `/webapp-evidence:vision <the mp4>` — xem bên dưới |
 | Bản quay bắt đầu ở trạng thái đã đăng nhập | `/webapp-evidence:recording set up the evidence config for this project` |
 | Báo có thứ sai, hoặc còn thiếu | `/webapp-evidence:feedback` |
 
-`vision` tồn tại vì agent không xem được video. Nó xếp video thành các tấm — vài giây một khung, mỗi
-khung đóng dấu `mm:ss` — nên phát hiện quay về dạng "header đè lên bảng ở 00:14", một mốc bạn tự
-kiểm tra được và đối chiếu với runbook. Các tấm từ bản quay ở trên:
-**[1](./docs/demo/vision-sheet-01.png)** ·
-**[2](./docs/demo/vision-sheet-02.png)** ·
-**[3](./docs/demo/vision-sheet-03.png)**.
+## Đọc lại một bản quay
+
+Agent không xem được video. `vision` xếp video thành các contact sheet — khung hình cách đều, mỗi
+khung đóng dấu `mm:ss` — nên phát hiện quay về dạng "header đè lên bảng ở 00:14", một mốc bạn đối
+chiếu được với runbook. Bản quay ở trên, theo cách agent đọc nó:
+
+<p align="center">
+  <a href="./docs/demo/vision-sheet-01.png"><img src="./docs/demo/vision-sheet-01.png" width="268" alt="Contact sheet 1 của bản quay ở trên"></a>
+  <a href="./docs/demo/vision-sheet-02.png"><img src="./docs/demo/vision-sheet-02.png" width="268" alt="Contact sheet 2 của bản quay ở trên"></a>
+  <a href="./docs/demo/vision-sheet-03.png"><img src="./docs/demo/vision-sheet-03.png" width="268" alt="Contact sheet 3 của bản quay ở trên"></a>
+</p>
 
 ## Giới hạn
 
@@ -163,6 +182,7 @@ Panel terminal nhận output theo dòng: `vim`, `less` và `htop` nằm ngoài.
 
 ---
 
-Bản quay ở trên là output thật từ runner của repo này: `docs/demo/record.sh` tạo ra từ
-`docs/demo/site-tour-steps.js`. Muốn sửa chính skill này thì xem
+Bản quay ở trên là output thật từ runner của repo này: `docs/demo/record.sh` quay site trong
+`webapp/` theo `docs/demo/tour-steps.js`, và cùng bản quay đó đang phát trên
+[evdrec.vercel.app](https://evdrec.vercel.app). Muốn sửa chính skill này thì xem
 **[CONTRIBUTING.md](./CONTRIBUTING.md)**.

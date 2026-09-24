@@ -146,7 +146,9 @@ function buildContext({
       locator.evaluate(scroll.SNAPSHOT),
       page.evaluate(scroll.HEADER),
     ]);
-    return { ...snapshot, header };
+    // An element that is part of the header is not behind it. Pinned inside an <iframe> is no such
+    // thing: the page's header still draws over the whole frame.
+    return { ...snapshot, header: snapshot.pinnedToTop && !snapshot.inFrame ? 0 : header };
   };
   // Two still frames is enough to tell "the scroll has finished" from "between two steps of it",
   // and the timeout keeps a page that animates something forever from holding the take. It has to

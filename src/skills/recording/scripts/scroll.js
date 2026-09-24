@@ -229,6 +229,17 @@ const SNAPSHOT = (el) => {
     // Everything above was measured in this frame. Inside an <iframe> that is not the frame the
     // mouse is driven in, and the chain of panes ends at this document rather than at the page.
     inFrame: window !== window.top,
+    // Riding in something pinned over the top edge — by the rule HEADER uses to find the header —
+    // means the element is part of that header, like a nav link or a language menu: in its band,
+    // and not hidden by it.
+    pinnedToTop: (() => {
+      for (let node = el; node; node = node.parentElement) {
+        const position = getComputedStyle(node).position;
+        if ((position === 'fixed' || position === 'sticky')
+          && node.getBoundingClientRect().top <= window.innerHeight * 0.1) return true;
+      }
+      return false;
+    })(),
   };
 };
 

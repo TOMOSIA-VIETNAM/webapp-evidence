@@ -56,11 +56,23 @@ without touching the suite.
 `session.js` refuses to run from inside the skill directory, and this repository is that directory:
 a test loading it sets `PROJECT_ROOT` to a scratch dir before the `require`.
 
+## The landing page
+
+`webapp/` is the project's site, with its own `README.md` and `CLAUDE.md`. It reads this README's
+install blocks and example request at build time, and the logo and the demo take from `docs/` — so
+rewording those blocks or re-recording the demo can fail its build. Run `pnpm build` in `webapp/`
+after touching them. It never ships: `install.sh` names what it ships and `webapp/` is not on the
+list, which `tests/platform-layer.test.js` holds.
+
 ## Two things that break invisibly
 
-**The README demo.** `docs/demo/record.sh` records open-pr.vercel.app and prints the runbook the
-README quotes. Re-run it instead of editing the quote. Its gif is encoded wider than the width the README
-displays it at — scaled up by a browser, a gif goes soft, and no encoding effort undoes that.
+**The demo.** `docs/demo/record.sh` records the site in `webapp/` with `docs/demo/tour-steps.js` and
+writes one take for two readers: the gif and the contact sheets the README shows, and the web copy
+and runbook sections the site plays and quotes. It prints the runbook the README quotes — re-run it
+instead of editing the quote, and re-run it after a visible change to the site. The site's UAT report
+matches steps by their `mark()` labels, so renaming one means updating
+`webapp/src/components/sections/Uat.astro` too. The gif is encoded wider than the README displays
+it: scaled up by a browser, a gif goes soft, and no encoding effort undoes that.
 
 **The four READMEs** are one document. Prose is translated; commands, paths and the runbook excerpt
 stay byte-identical. Change one, change all four.

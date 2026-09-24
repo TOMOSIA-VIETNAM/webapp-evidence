@@ -12,6 +12,7 @@
 </p>
 
 <p align="center">
+  <a href="https://evdrec.vercel.app"><img alt="Website: evdrec.vercel.app" src="https://img.shields.io/badge/website-evdrec.vercel.app-5C8F0F?style=flat-square"></a>
   <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/github/license/TOMOSIA-VIETNAM/webapp-evidence?style=flat-square&color=blue"></a>
   <a href="#インストール"><img alt="Claude Code" src="https://img.shields.io/badge/Claude_Code-supported-D97757?style=flat-square&logo=anthropic&logoColor=white"></a>
   <a href="#インストール"><img alt="Cursor" src="https://img.shields.io/badge/Cursor-supported-000000?style=flat-square&logo=cursor&logoColor=white"></a>
@@ -31,7 +32,8 @@ AI のおかげで変更は速くなりました。動くことを示す側は�
 順を伝えるだけで、Chrome を操作し、動画・主要ステップのスクリーンショット・runbook を返します。
 
 <p align="center">
-  <img src="./docs/demo/site-tour.gif" width="820" alt="ランディングページのツアー録画。ヒーローの蛾がポインターに反応し、ワンライナーのインストールコマンドをコピーしてボタンがそれを確認、そのまま How it works、レビューラウンドのウォークスルーを 1 ステップずつ、機能カードへとページを読み下ろします。">
+  <a href="https://evdrec.vercel.app"><img src="./docs/demo/evd-tour.gif" width="820" alt="webapp-evidence のランディングページが自分自身を録画する様子: コマンドをコピーし、ページの上に開いたターミナルパネルがページの返す SEO メタを読み返し、UAT 報告書の受け入れ基準をひとつずつ選ぶと、それを証明する runbook の行が光ります。"></a><br>
+  <sub>このプロジェクト自身のランディングページを、紹介している skill そのもので録画。1 テイク、編集なし。</sub>
 </p>
 
 - **1 つのテイクに 3 種類の証拠** — 画面、ブラウザーが持っているセッションのまま呼んだエンドポイン
@@ -44,6 +46,18 @@ AI のおかげで変更は速くなりました。動くことを示す側は�
   じように。
 - **マシンの外に出るものはありません** — サービスもボットアカウントも不要。手元のエージェント CLI の
   中で動き、指定したサイト以外には触れません。
+
+## UAT のために
+
+受け入れテストは今も、誰かが基準をひとつずつクリックして手で録画しています。基準をフローとして書き、
+タイムスタンプで承認してください:
+
+| 1 · 基準を書く | 2 · 1 テイク録画 | 3 · runbook を読む | 4 · 承認する |
+|---|---|---|---|
+| 番号付きのステップを普段の言葉で、どの言語でも。MR/PR のリンクなら、エージェントが差分からフローを導きます。 | 見えるポインターで Chrome を操作。エンドポイントを呼ぶステップはステータスを検証し、誤った応答ならテイクが止まります。 | 各ステップの動画内の時刻、各コマンドの終了コード、すべてのコンソールエラーと失敗したリクエスト。 | レビュアーはフローを再実行せず、各基準をタイムスタンプと照合します。修正後は `record that again`。 |
+
+上の録画は、このループをプロジェクト自身のサイトで回したものです:
+**[evdrec.vercel.app](https://evdrec.vercel.app)** は自分のテイクを UAT 報告書として読み返します。
 
 ## 1 つのテイクが示せること
 
@@ -71,18 +85,18 @@ Cookie とトークンはファイル経由で curl に渡り、動画・スク�
 ## 返ってくるもの
 
 `<name>.mp4`、連番のスクリーンショット、そして `<name>-runbook.md` — 受け取った人が、見る代わりに読
-めるように:
+めるように。上のテイクから:
 
 ```markdown
 ## Steps in the video
 
-00:21 - 00:26  Hero — copy the one-line install command
-00:36 - 00:49  Review rounds — every step of the loop, picked by hand
-01:13 - 01:26  The SEO meta the page serves, read straight off the URL
+00:05 - 00:17  Terminal — the SEO meta the page serves, read off its URL
+00:24 - 00:41  UAT report — each criterion picks out the runbook lines that prove it
+00:59 - 01:07  Install — one panel per agent
 
 ## Commands run in the terminal
 
-- 01:24  `curl -s https://open-pr.vercel.app/ | grep -oE '<title>[^<]*</title>|…'` — exit 0
+- 00:12  `curl -s https://evdrec.vercel.app/ | grep -oE '<title>[^<]*</title>|…'` — exit 0
 
 ## Page errors recorded during the take
 
@@ -142,16 +156,21 @@ Codex なら `$webapp-evidence-recording`。
 | ドロップダウンやダイアログ自体を映す | `--screen` — ブラウザーウィンドウを録るので、OS が描くものも入ります |
 | 内容にかかわらず画面を使わない | `--headless` — 既定であり、その判断を先に決めておく方法 |
 | README 用の gif、自分の管理下のページ用の webm | `-f gif`、`-f webm` — それ以外は mp4。どこでもそのまま再生されます |
-| 動画を見ずに中身を知る | `/webapp-evidence:vision <the mp4>` |
+| 動画を見ずに中身を知る | `/webapp-evidence:vision <the mp4>` — 下を参照 |
 | ログイン済みの状態から始まる録画 | `/webapp-evidence:recording set up the evidence config for this project` |
 | おかしい点・足りない点を伝える | `/webapp-evidence:feedback` |
 
-`vision` があるのは、エージェントが動画を見られないからです。数秒ごとに 1 フレームを切り出し、
-`mm:ss` を焼き込んだシートに並べます。だから指摘は「00:14 でヘッダーが表に重なっている」という形で
-返り、その時刻はランブックと突き合わせて自分で確かめられます。上のテイクから作られたシート:
-**[1](./docs/demo/vision-sheet-01.png)** ·
-**[2](./docs/demo/vision-sheet-02.png)** ·
-**[3](./docs/demo/vision-sheet-03.png)**。
+## テイクを読み返す
+
+エージェントは動画を観られません。`vision` は動画を一定間隔のフレームに分け、各フレームに `mm:ss`
+を焼き込んだコンタクトシートに並べます。だから指摘は「00:14 でヘッダーが表に重なっている」という形で
+返り、その時刻は runbook と突き合わせられます。上のテイクを、エージェントが読む形で:
+
+<p align="center">
+  <a href="./docs/demo/vision-sheet-01.png"><img src="./docs/demo/vision-sheet-01.png" width="268" alt="上のテイクのコンタクトシート 1"></a>
+  <a href="./docs/demo/vision-sheet-02.png"><img src="./docs/demo/vision-sheet-02.png" width="268" alt="上のテイクのコンタクトシート 2"></a>
+  <a href="./docs/demo/vision-sheet-03.png"><img src="./docs/demo/vision-sheet-03.png" width="268" alt="上のテイクのコンタクトシート 3"></a>
+</p>
 
 ## 制限
 
@@ -165,6 +184,7 @@ Codex なら `$webapp-evidence-recording`。
 
 ---
 
-上の録画はこのリポジトリのランナーによる実出力です: `docs/demo/record.sh` が
-`docs/demo/site-tour-steps.js` から生成します。スキル自体に手を入れるなら
-**[CONTRIBUTING.md](./CONTRIBUTING.md)** を参照してください。
+上の録画はこのリポジトリのランナーによる実出力です: `docs/demo/record.sh` が `webapp/` のサイトを
+`docs/demo/tour-steps.js` に沿って録画し、同じテイクが [evdrec.vercel.app](https://evdrec.vercel.app)
+で再生されています。スキル自体に手を入れるなら **[CONTRIBUTING.md](./CONTRIBUTING.md)** を参照して
+ください。

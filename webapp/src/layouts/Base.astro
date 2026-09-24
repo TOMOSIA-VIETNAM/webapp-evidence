@@ -1,0 +1,82 @@
+---
+import '@fontsource-variable/inter'
+import '../styles/tokens.css'
+import SEO from '../components/ui/SEO.astro'
+import Nav from '../components/ui/Nav.astro'
+import Footer from '../components/ui/Footer.astro'
+import ScrollTopButton from '../components/ui/ScrollTopButton.astro'
+import { DEFAULT_LOCALE, LANG_STORAGE_KEY, LOCALES, localeFromUrl, useTranslations } from '../i18n'
+import { THEME_COLOR } from '../lib/site'
+
+const locale = localeFromUrl(Astro.url)
+const t = useTranslations(locale)
+// The stored-language redirect only runs on the unprefixed English page: a visitor who typed
+// /vi/ or /ja/ asked for that language explicitly and must not be bounced somewhere else.
+const redirectsToStoredLanguage = locale === DEFAULT_LOCALE
+const otherLocales = LOCALES.filter((l) => l !== DEFAULT_LOCALE)
+---
+
+<!doctype html>
+<html lang={locale}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="48x48" href="/icon/favicon-48.png" />
+    <link rel="apple-touch-icon" href="/icon/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="theme-color" content={THEME_COLOR} />
+    <meta name="color-scheme" content="light" />
+    <meta name="generator" content={Astro.generator} />
+    <SEO locale={locale} />
+    {
+      redirectsToStoredLanguage && (
+        <script is:inline define:vars={{ storageKey: LANG_STORAGE_KEY, others: otherLocales }}>
+          try {
+            const stored = localStorage.getItem(storageKey)
+            const go = (locale) => location.replace('/' + locale + '/' + location.search + location.hash)
+
+            if (others.includes(stored)) {
+              go(stored)
+            } else if (!stored) {
+              // First visit: follow the language the reader set on their own device. Their choice
+              // in the switcher is stored and wins from then on, including a choice of English.
+              const wanted = (navigator.languages || [navigator.language || '']).map((tag) =>
+                String(tag).toLowerCase().slice(0, 2),
+              )
+              for (const tag of wanted) {
+                if (tag === 'en') break
+                if (others.includes(tag)) {
+                  go(tag)
+                  break
+                }
+              }
+            }
+          } catch (error) {
+            // Storage unavailable: stay on English, which is the explicit default.
+          }
+        </script>
+      )
+    }
+  </head>
+  <body class="bg-surface text-ink antialiased">
+    <a
+      href="#main"
+      class="glass-3 shadow-glass-2 sr-only rounded-card px-4 py-2 text-sm font-semibold text-ink focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[60]"
+    >
+      {t('nav.skipToContent')}
+    </a>
+    <Nav />
+    <main id="main" class="pt-(--nav-height)">
+      <slot />
+    </main>
+    <Footer />
+    <ScrollTopButton />
+
+    <script>
+      import { initSmoothScroll } from '../lib/motion'
+
+      initSmoothScroll()
+    </script>
+  </body>
+</html>

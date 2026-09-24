@@ -1,0 +1,63 @@
+---
+import { Copy, Check } from '@lucide/astro'
+import { localeFromUrl, useTranslations } from '../../i18n'
+
+/** A shell command with a copy button. The command itself is never translated. */
+interface Props {
+  command: string
+  class?: string
+}
+
+const { command, class: className = '' } = Astro.props
+const t = useTranslations(localeFromUrl(Astro.url))
+---
+
+<div
+  class:list={['glass-2 shadow-glass-1 flex items-center gap-3 rounded-control py-2 pr-2 pl-4', className]}
+  data-copy-command
+>
+  <code
+    class="min-w-0 flex-1 overflow-x-auto rounded-control font-mono text-sm whitespace-nowrap text-ink"
+    tabindex="0"
+  >{command}</code>
+  <button
+    type="button"
+    class="inline-flex h-10 shrink-0 cursor-pointer items-center gap-1.5 rounded-control bg-surface-sunken px-3.5 text-xs font-semibold sm:h-9 sm:px-3 text-ink-muted transition-colors duration-[var(--duration-fast)] ease-ios hover:text-ink"
+    data-copy-button
+    data-command={command}
+    data-label-copy={t('action.copy')}
+    data-label-copied={t('action.copied')}
+    aria-label={`${t('action.copy')}: ${command}`}
+  >
+    <Copy class="size-4" aria-hidden="true" data-icon-copy />
+    <Check class="hidden size-4" aria-hidden="true" data-icon-copied />
+    <span data-copy-label>{t('action.copy')}</span>
+  </button>
+</div>
+
+<script>
+  const RESET_AFTER_MS = 1600
+
+  document.querySelectorAll<HTMLButtonElement>('[data-copy-button]').forEach((button) => {
+    const label = button.querySelector<HTMLElement>('[data-copy-label]')
+    const iconCopy = button.querySelector<HTMLElement>('[data-icon-copy]')
+    const iconCopied = button.querySelector<HTMLElement>('[data-icon-copied]')
+
+    button.addEventListener('click', async () => {
+      const command = button.dataset.command ?? ''
+      try {
+        await navigator.clipboard.writeText(command)
+      } catch {
+        return // Clipboard blocked (insecure context or denied permission): leave the label alone.
+      }
+      if (label) label.textContent = button.dataset.labelCopied ?? label.textContent
+      iconCopy?.classList.add('hidden')
+      iconCopied?.classList.remove('hidden')
+      window.setTimeout(() => {
+        if (label) label.textContent = button.dataset.labelCopy ?? label.textContent
+        iconCopy?.classList.remove('hidden')
+        iconCopied?.classList.add('hidden')
+      }, RESET_AFTER_MS)
+    })
+  })
+</script>

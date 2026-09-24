@@ -1,0 +1,139 @@
+---
+/**
+ * The webapp-evidence firefly, inline so its parts can move. The geometry is docs/images/logo/logo.svg,
+ * split into wings, body and lantern by scripts/sync-upstream.mjs — never redrawn here.
+ *
+ * `recording` makes the lantern pulse like a record light. `flapOnHover` beats the wings while the
+ * pointer is over it. A parent adds `data-firefly-takeoff` to make it beat hard and fly up.
+ */
+import firefly from '../../assets/upstream/firefly.json'
+
+interface Props extends Record<string, unknown> {
+  class?: string
+  recording?: boolean
+  flapOnHover?: boolean
+  title?: string
+}
+
+const { class: className = '', recording = false, flapOnHover = false, title, ...rest } = Astro.props
+const { viewBox, parts } = firefly
+---
+
+<svg
+  viewBox={viewBox}
+  role={title ? 'img' : 'presentation'}
+  aria-label={title}
+  aria-hidden={title ? undefined : 'true'}
+  class:list={['firefly', recording && 'firefly--recording', flapOnHover && 'firefly--flap-on-hover', className]}
+  {...rest}
+>
+  <g class="firefly__light">
+    {parts.light.map((p) => <polygon points={p.points} fill={p.fill} />)}
+  </g>
+  <g class="firefly__wing firefly__wing--left">
+    {parts.left.map((p) => <polygon points={p.points} fill={p.fill} />)}
+  </g>
+  <g class="firefly__wing firefly__wing--right">
+    {parts.right.map((p) => <polygon points={p.points} fill={p.fill} />)}
+  </g>
+  <g class="firefly__body">
+    {parts.body.map((p) => <polygon points={p.points} fill={p.fill} />)}
+  </g>
+</svg>
+
+<style>
+  .firefly {
+    overflow: visible;
+  }
+
+  /* Wings pivot where they meet the body, which is the only way a flap reads as a flap. */
+  .firefly__wing {
+    transform-box: view-box;
+    transform-origin: 64px 44px;
+  }
+
+  .firefly__light {
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  @keyframes firefly-flap {
+    0%,
+    100% {
+      transform: scaleX(1);
+    }
+    50% {
+      transform: scaleX(0.62);
+    }
+  }
+
+  /* The lantern is a record dot: it brightens and swells on a slow, steady clock. */
+  @keyframes firefly-record {
+    0%,
+    100% {
+      opacity: 0.55;
+      transform: scale(0.94);
+      filter: drop-shadow(0 0 0 transparent);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.06);
+      filter: drop-shadow(0 0 0.6rem var(--color-accent-glow));
+    }
+  }
+
+  @keyframes firefly-takeoff {
+    0% {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+    35% {
+      transform: translateY(6%) scale(0.96);
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(-180%) scale(0.7);
+      opacity: 0;
+    }
+  }
+
+  .firefly--recording .firefly__light {
+    animation: firefly-record 2.4s cubic-bezier(0.37, 0, 0.63, 1) infinite;
+  }
+
+  .firefly--flap-on-hover:hover .firefly__wing,
+  .firefly--recording:hover .firefly__wing {
+    animation: firefly-flap 0.5s var(--ease-ios) infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .firefly,
+    .firefly__wing,
+    .firefly__light {
+      animation: none !important;
+    }
+  }
+</style>
+
+<!-- Hover and takeoff are driven by a parent element, which scoped styles cannot reach. -->
+<style is:global>
+  [data-firefly-hover]:hover .firefly__wing {
+    animation: firefly-flap 0.5s var(--ease-ios) infinite;
+  }
+
+  [data-firefly-takeoff] .firefly .firefly__wing {
+    animation: firefly-flap 0.16s linear 4;
+  }
+
+  [data-firefly-takeoff] .firefly {
+    animation: firefly-takeoff 0.62s var(--ease-ios) forwards;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-firefly-hover]:hover .firefly__wing,
+    [data-firefly-takeoff] .firefly,
+    [data-firefly-takeoff] .firefly .firefly__wing {
+      animation: none !important;
+    }
+  }
+</style>

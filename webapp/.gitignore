@@ -1,0 +1,14 @@
+# build output and generated types
+dist/
+.astro/
+.vercel/
+node_modules/
+
+# Copied from the repository around this site by scripts/sync-upstream.mjs on every dev, build and
+# check. The originals are the only copies that are edited or committed.
+src/assets/upstream/
+public/upstream/
+public/favicon.svg
+
+.env*
+.DS_Store

@@ -1,0 +1,80 @@
+---
+import { Download, MessageSquareText, PackageCheck } from '@lucide/astro'
+import Section from '../ui/Section.astro'
+import GlassCard from '../ui/GlassCard.astro'
+import { localeFromUrl, useTranslations } from '../../i18n'
+import { DEMO_VIDEO, DEMO_POSTER } from '../../lib/demo'
+
+const t = useTranslations(localeFromUrl(Astro.url))
+
+const steps = [
+  { icon: Download, title: t('how.step1.title'), body: t('how.step1.body') },
+  { icon: MessageSquareText, title: t('how.step2.title'), body: t('how.step2.body') },
+  { icon: PackageCheck, title: t('how.step3.title'), body: t('how.step3.body') },
+]
+---
+
+<Section id="how-it-works" eyebrow={t('how.eyebrow')} heading={t('how.heading')}>
+  <ol class="grid gap-4 md:grid-cols-3" data-how-steps>
+    {
+      steps.map((step, index) => (
+        <GlassCard as="li" tier={2} class="relative isolate flex flex-col gap-3 overflow-hidden" data-how-step>
+          <span class="glow-light" aria-hidden="true" data-decorative />
+          <div class="flex items-center gap-3">
+            <span class="flex size-9 items-center justify-center rounded-control bg-accent-soft text-accent-strong">
+              <step.icon class="size-4.5" aria-hidden="true" />
+            </span>
+            <span class="font-mono text-xs font-semibold text-ink-faint">{String(index + 1).padStart(2, '0')}</span>
+          </div>
+          <h3 class="text-lg font-semibold">{step.title}</h3>
+          <p class="text-sm leading-relaxed text-ink-muted">{step.body}</p>
+        </GlassCard>
+      ))
+    }
+  </ol>
+
+  <div class="relative isolate mt-6" data-how-demo>
+    <div class="pointer-events-none absolute top-1/2 left-1/2 -z-10 size-[34rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-firefly-200/45 blur-3xl" aria-hidden="true" data-decorative></div>
+    <figure class="glass-3 shadow-glass-3 m-0 mx-auto max-w-4xl rounded-panel p-3">
+      {/* This page, recorded by the skill it describes. Nothing downloads until it is near the
+          viewport; it plays muted while in view and pauses when scrolled away. */}
+      <video
+        src={DEMO_VIDEO}
+        poster={DEMO_POSTER}
+        width="1280"
+        height="720"
+        preload="none"
+        muted
+        loop
+        playsinline
+        controls
+        aria-label={t('how.demo.alt')}
+        class="aspect-video h-auto w-full rounded-control bg-surface-sunken"
+        data-demo-video
+      ></video>
+      <figcaption class="px-2 pt-3 pb-1 text-center text-sm text-ink-muted">{t('how.demo.caption')}</figcaption>
+    </figure>
+  </div>
+</Section>
+
+<script>
+  import { fadeUp, prefersReducedMotion } from '../../lib/motion'
+  import { followGlow } from '../../lib/glow'
+
+  fadeUp('[data-how-step]', { stagger: 0.09 })
+  fadeUp('[data-how-demo]', { distance: 16 })
+
+  // Plays while at least half of it is on screen. A reader who asked for less motion starts it
+  // with the controls instead.
+  const video = document.querySelector<HTMLVideoElement>('[data-demo-video]')
+  if (video && !prefersReducedMotion()) {
+    new IntersectionObserver(
+      ([entry]) => (entry.isIntersecting ? video.play().catch(() => {}) : video.pause()),
+      { threshold: 0.5 },
+    ).observe(video)
+  }
+  followGlow(
+    document.querySelector<HTMLElement>('[data-how-steps]'),
+    [...document.querySelectorAll<HTMLElement>('[data-how-step]')],
+  )
+</script>

@@ -12,6 +12,7 @@
 </p>
 
 <p align="center">
+  <a href="https://evdrec.vercel.app"><img alt="Website: evdrec.vercel.app" src="https://img.shields.io/badge/website-evdrec.vercel.app-5C8F0F?style=flat-square"></a>
   <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/github/license/TOMOSIA-VIETNAM/webapp-evidence?style=flat-square&color=blue"></a>
   <a href="#install"><img alt="Claude Code" src="https://img.shields.io/badge/Claude_Code-supported-D97757?style=flat-square&logo=anthropic&logoColor=white"></a>
   <a href="#install"><img alt="Cursor" src="https://img.shields.io/badge/Cursor-supported-000000?style=flat-square&logo=cursor&logoColor=white"></a>
@@ -31,7 +32,8 @@ review all ask for the same thing, and recording it by hand still costs half an 
 use; it drives Chrome and hands back a video, screenshots of the main steps, and a runbook.
 
 <p align="center">
-  <img src="./docs/demo/site-tour.gif" width="820" alt="Landing page tour: the moth in the hero answers the pointer, the install command is copied and the button confirms it, then the page is read down through How it works, the review-round walkthrough clicked step by step, and the feature cards.">
+  <a href="https://evdrec.vercel.app"><img src="./docs/demo/evd-tour.gif" width="820" alt="The webapp-evidence landing page recording itself: the command is copied, a terminal panel opens over the page and reads back the SEO meta it serves, then each acceptance criterion in the UAT report is picked and lights the runbook lines that prove it."></a><br>
+  <sub>This project's own landing page, recorded by the skill it describes. One take, no editing.</sub>
 </p>
 
 - **One take, three kinds of proof** — the screen, the endpoint called with the browser's own
@@ -43,6 +45,18 @@ use; it drives Chrome and hands back a video, screenshots of the main steps, and
 - **Secrets stay out** — blur, black out or cut a stretch, in the video and the screenshots alike.
 - **Nothing leaves your machine** — no service, no bot account; it runs inside the agent CLI you
   already have, against the site you name and nothing else.
+
+## Built for UAT
+
+Acceptance testing still means someone clicking through every criterion and recording it by hand.
+Write the criteria as a flow instead, and sign off against timestamps:
+
+| 1 · Write the criteria | 2 · Record one take | 3 · Read the runbook | 4 · Sign off |
+|---|---|---|---|
+| Numbered steps in plain words, in any language — or an MR/PR link, and the agent derives the flow from the diff. | Chrome is driven by a visible pointer. A step that calls an endpoint asserts its status, so a wrong answer stops the take. | Every step with its time in the video, every command with its exit code, every console error and failed request. | The reviewer checks each criterion against a timestamp instead of re-running the flow. After a fix, `record that again`. |
+
+The recording above is that loop run on this project's own site:
+**[evdrec.vercel.app](https://evdrec.vercel.app)** reads its own take back as a UAT report.
 
 ## What one take proves
 
@@ -70,18 +84,18 @@ Cookies and tokens reach curl through a file and are masked everywhere: video, s
 ## What comes back
 
 `<name>.mp4`, numbered screenshots, and `<name>-runbook.md` — so the person on the other end can
-read the take instead of watching it:
+read the take instead of watching it. From the take above:
 
 ```markdown
 ## Steps in the video
 
-00:21 - 00:26  Hero — copy the one-line install command
-00:36 - 00:49  Review rounds — every step of the loop, picked by hand
-01:13 - 01:26  The SEO meta the page serves, read straight off the URL
+00:05 - 00:17  Terminal — the SEO meta the page serves, read off its URL
+00:24 - 00:41  UAT report — each criterion picks out the runbook lines that prove it
+00:59 - 01:07  Install — one panel per agent
 
 ## Commands run in the terminal
 
-- 01:24  `curl -s https://open-pr.vercel.app/ | grep -oE '<title>[^<]*</title>|…'` — exit 0
+- 00:12  `curl -s https://evdrec.vercel.app/ | grep -oE '<title>[^<]*</title>|…'` — exit 0
 
 ## Page errors recorded during the take
 
@@ -142,16 +156,21 @@ language you write it, and the agent answers in that language.
 | The dropdown or dialog itself in the video | `--screen` — records the browser window, so what the OS draws is in frame |
 | To stay off the screen, whatever the flow | `--headless` — the default, and the way to settle that question outright |
 | A gif for a README, a webm for a page you control | `-f gif`, `-f webm` — mp4 otherwise, because it plays inline everywhere |
-| To know what a video shows, without watching it | `/webapp-evidence:vision <the mp4>` |
+| To know what a video shows, without watching it | `/webapp-evidence:vision <the mp4>` — see below |
 | Recordings that start signed in | `/webapp-evidence:recording set up the evidence config for this project` |
 | To tell us something is wrong, or missing | `/webapp-evidence:feedback` |
 
-`vision` exists because an agent cannot watch a video. It tiles one into sheets — a frame every
-couple of seconds, each stamped `mm:ss` — so a finding comes back as "the header overlaps the table
-at 00:14", a time you can check against the runbook. Sheets from the take above:
-**[1](./docs/demo/vision-sheet-01.png)** ·
-**[2](./docs/demo/vision-sheet-02.png)** ·
-**[3](./docs/demo/vision-sheet-03.png)**.
+## Read a take back
+
+An agent cannot watch a video. `vision` tiles one into contact sheets — frames at a steady interval,
+each stamped `mm:ss` — so a finding comes back as "the header overlaps the table at 00:14", a time
+you can check against the runbook. The take above, as the agent reads it:
+
+<p align="center">
+  <a href="./docs/demo/vision-sheet-01.png"><img src="./docs/demo/vision-sheet-01.png" width="268" alt="Contact sheet 1 of the take above"></a>
+  <a href="./docs/demo/vision-sheet-02.png"><img src="./docs/demo/vision-sheet-02.png" width="268" alt="Contact sheet 2 of the take above"></a>
+  <a href="./docs/demo/vision-sheet-03.png"><img src="./docs/demo/vision-sheet-03.png" width="268" alt="Contact sheet 3 of the take above"></a>
+</p>
 
 ## Limits
 
@@ -166,6 +185,7 @@ The terminal panel takes line-oriented output: `vim`, `less` and `htop` are out.
 
 ---
 
-The recording above is real output from this repo's runner: `docs/demo/record.sh` produces it from
-`docs/demo/site-tour-steps.js`. To work on the skill itself, see
+The recording above is real output from this repo's runner: `docs/demo/record.sh` records the site
+in `webapp/` from `docs/demo/tour-steps.js`, and the same take plays on
+[evdrec.vercel.app](https://evdrec.vercel.app). To work on the skill itself, see
 **[CONTRIBUTING.md](./CONTRIBUTING.md)**.

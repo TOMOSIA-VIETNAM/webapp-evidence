@@ -1,0 +1,16 @@
+---
+/** Frosted surface. `tier` picks how much it lifts off the page: 1 subtle, 3 prominent. */
+interface Props extends Record<string, unknown> {
+  tier?: 1 | 2 | 3
+  as?: 'div' | 'article' | 'section' | 'li'
+  class?: string
+}
+
+// `rest` carries through the data attributes sections use as animation and test hooks.
+const { tier = 2, as: Tag = 'div', class: className = '', ...rest } = Astro.props
+const glass = { 1: 'glass-1 shadow-glass-1', 2: 'glass-2 shadow-glass-2', 3: 'glass-3 shadow-glass-3' }[tier]
+---
+
+<Tag {...rest} class:list={['rounded-card p-(--card-padding)', glass, className]}>
+  <slot />
+</Tag>
