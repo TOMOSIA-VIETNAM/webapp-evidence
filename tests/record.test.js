@@ -601,6 +601,26 @@ test('an element the pinned header covers is refused, not pressed through the he
   assert.equal(sent.filter((event) => event.kind === 'down').length, 0);
 });
 
+test('an element that is part of the pinned header is pressed, not refused as covered by it', async () => {
+  // A language menu or a nav link lives inside the header. It sits in the band the header takes
+  // out of the frame, and it is the header itself rather than something the header hides.
+  const inHeader = { ...scrolling({ top: 24, left: 900, width: 90, height: 36 }, { maxTop: 0 }), pinnedToTop: true };
+  const { scope, locators, sent } = pointerScope([inHeader], { header: 80 });
+
+  await scope.click(locators[0], { pause: 0 });
+  const pressedAt = lastMoveBefore(sent, 'down');
+  assert.ok(pressedAt.x >= 900 && pressedAt.x <= 990, `pressed at x ${pressedAt.x}, off the element`);
+  assert.ok(pressedAt.y >= 24 && pressedAt.y <= 60, `pressed at y ${pressedAt.y}, off the element`);
+});
+
+test('the header still covers an element inside an iframe that pins its own bar', () => {
+  // Pinned in the frame's document says nothing about the page's header over the frame.
+  const framed = { ...scrolling({ top: 20, left: 100, width: 200, height: 40 }, { maxTop: 0 }), inFrame: true, pinnedToTop: true };
+  const { scope, locators } = pointerScope([framed], { header: 96, boxes: [{ x: 100, y: 20, width: 200, height: 40 }] });
+
+  return assert.rejects(() => scope.click(locators[0]), /header/);
+});
+
 test('an element the header covers half of is pressed on the half below it', async () => {
   const half = scrolling({ top: 60, left: 0, width: 400, height: 120 }, { maxTop: 0 });
   const { scope, locators, sent } = pointerScope([half], { header: 96 });
