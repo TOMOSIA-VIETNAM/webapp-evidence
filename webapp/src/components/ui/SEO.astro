@@ -1,6 +1,6 @@
 ---
 import { LOCALES, localePath, useTranslations, type Locale } from '../../i18n'
-import { REPO_URL, LICENSE, TOMOSIA_NAME, TOMOSIA_URL } from '../../lib/site'
+import { REPO_URL, LICENSE, TOMOSIA_NAME, TOMOSIA_URL, OG_VERSION, OG_SIZE, OG_LOCALE } from '../../lib/site'
 import { PLUGIN } from '../../lib/upstream'
 
 /** Head metadata for one page in one language: canonical, hreflang, social cards, JSON-LD. */
@@ -13,10 +13,12 @@ const t = useTranslations(locale)
 const site = Astro.site ?? new URL('/', Astro.url)
 const path = Astro.url.pathname
 const canonical = new URL(localePath(locale, path), site)
-const ogImage = new URL('/og.png', site)
+const ogImage = new URL(`/og/${locale}.png?v=${OG_VERSION}`, site)
 
-// Every title carries the organisation, so a tab or a shared link says who published this.
-const title = `${t('meta.title')} · ${TOMOSIA_NAME}`
+// The title stays under the ~60 characters a results page shows; the organisation is carried by
+// og:site_name, the author meta and the structured data instead.
+const title = t('meta.title')
+const imageAlt = `${PLUGIN} — ${t('hero.headline')}`
 
 const organisation = { '@type': 'Organization', name: TOMOSIA_NAME, url: TOMOSIA_URL }
 
@@ -33,6 +35,9 @@ const jsonLd = {
   author: organisation,
   publisher: organisation,
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  image: ogImage.href,
+  inLanguage: locale,
+  codeRepository: REPO_URL,
 }
 ---
 
@@ -48,12 +53,18 @@ const jsonLd = {
 <meta property="og:description" content={t('meta.description')} />
 <meta property="og:url" content={canonical.href} />
 <meta property="og:image" content={ogImage.href} />
-<meta property="og:locale" content={locale} />
-<meta property="og:site_name" content={PLUGIN} />
+<meta property="og:image:type" content="image/png" />
+<meta property="og:image:width" content={String(OG_SIZE.width)} />
+<meta property="og:image:height" content={String(OG_SIZE.height)} />
+<meta property="og:image:alt" content={imageAlt} />
+<meta property="og:locale" content={OG_LOCALE[locale]} />
+{LOCALES.filter((alt) => alt !== locale).map((alt) => <meta property="og:locale:alternate" content={OG_LOCALE[alt]} />)}
+<meta property="og:site_name" content={`${PLUGIN} · ${TOMOSIA_NAME}`} />
 <meta name="author" content={TOMOSIA_NAME} />
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content={title} />
 <meta name="twitter:description" content={t('meta.description')} />
 <meta name="twitter:image" content={ogImage.href} />
+<meta name="twitter:image:alt" content={imageAlt} />
 
 <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} is:inline />

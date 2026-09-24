@@ -39,6 +39,8 @@ export const vi: Dictionary = {
   'hero.output.shots': 'Ảnh chụp các bước chính',
   'hero.output.runbook': 'Runbook',
 
+  'og.tagline': 'Bằng chứng cho UAT: video, ảnh chụp và runbook',
+
   'uat.eyebrow': 'Sinh ra cho UAT',
   'uat.heading': 'Đưa vào tiêu chí nghiệm thu, nhận về bằng chứng để ký duyệt',
   'uat.lead':

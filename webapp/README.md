@@ -45,8 +45,10 @@ timestamps without breaking anything, and a renamed step fails the build.
 
 Re-record after changing what the page looks like: the take shows the page as it was built.
 
-`public/og.png` is the one derived file that is committed: `pnpm og` redraws it after the mark or
-the English headline changes.
+The social cards in `public/og/` (one per language, with the logo) and the icons in
+`public/icon/` are the derived files that are committed: `pnpm social` redraws them after the logo,
+the headline or a card line changes. Bump `OG_VERSION` in `src/lib/site.ts` with them — chat apps
+cache a card by its URL.
 
 ## Deploy
 

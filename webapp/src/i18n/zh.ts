@@ -39,6 +39,8 @@ export const zh: Dictionary = {
   'hero.output.shots': '关键步骤截图',
   'hero.output.runbook': '运行手册',
 
+  'og.tagline': 'UAT 证据：视频、截图和 runbook',
+
   'uat.eyebrow': '为 UAT 而生',
   'uat.heading': '输入验收标准，输出可签字的证据',
   'uat.lead':

@@ -73,6 +73,26 @@ for (const [path, width] of LOCALES.flatMap((l) => [1024, 1280, 1440, 1920, 2000
   await page.close()
 }
 
+// Every language unfurls into its own card: the image a crawler is pointed at answers, and is the
+// size the page declares for it.
+for (const path of LOCALES) {
+  const page = await browser.newPage()
+  await page.goto(BASE + path, { waitUntil: 'domcontentloaded' })
+  const meta = await page.evaluate(() =>
+    Object.fromEntries([...document.querySelectorAll('meta[property^="og:image"]')].map((m) => [m.getAttribute('property'), m.content])),
+  )
+  const response = await page.request.get(meta['og:image'].replace(/^https?:\/\/[^/]+/, BASE))
+  check(response.ok(), `${path}: og:image ${meta['og:image']} answers ${response.status()}`)
+  const png = await response.body()
+  const size = { width: png.readUInt32BE(16), height: png.readUInt32BE(20) }
+  check(
+    String(size.width) === meta['og:image:width'] && String(size.height) === meta['og:image:height'],
+    `${path}: the card is ${size.width}x${size.height}, the page declares ${meta['og:image:width']}x${meta['og:image:height']}`,
+  )
+  check(Boolean(meta['og:image:alt']), `${path}: the card has no alt text`)
+  await page.close()
+}
+
 // Behaviour, checked once on the English page at desktop width.
 {
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })

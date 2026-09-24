@@ -40,6 +40,8 @@ export const en = {
   'hero.output.shots': 'Screenshots of the main steps',
   'hero.output.runbook': 'The runbook',
 
+  'og.tagline': 'Evidence for UAT: a video, screenshots and a runbook',
+
   'uat.eyebrow': 'Built for UAT',
   'uat.heading': 'Acceptance criteria in, signed-off evidence out',
   'uat.lead':

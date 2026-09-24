@@ -39,6 +39,8 @@ export const ja: Dictionary = {
   'hero.output.shots': '主要ステップのスクリーンショット',
   'hero.output.runbook': 'ランブック',
 
+  'og.tagline': 'UAT のエビデンス: 動画・スクリーンショット・runbook',
+
   'uat.eyebrow': 'UAT のために',
   'uat.heading': '受け入れ基準を入れれば、承認できるエビデンスが出てくる',
   'uat.lead':

@@ -16,7 +16,7 @@
     "astro": "astro",
     "check": "node scripts/sync-upstream.mjs && astro check && node scripts/check-tokens.mjs",
     "check:ui": "node scripts/check-ui.mjs",
-    "og": "node --experimental-strip-types scripts/build-og.mjs"
+    "social": "node --experimental-strip-types scripts/build-social.mjs"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3",
