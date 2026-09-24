@@ -86,7 +86,7 @@ curl -fsS "$BASE_URL/" 2>/dev/null | grep -q 'data-uat-report' \
   || { printf 'record.sh: %s is not serving the webapp-evidence site\n' "$BASE_URL" >&2; exit 1; }
 
 printf 'recording %s\n' "$BASE_URL"
-OUT_DIR="$OUT_DIR" BASE_URL="$BASE_URL" EVIDENCE_CONFIG="$DEMO/evidence.config.js" CAPTIONS=on CAPTION_LOCALE=en \
+OUT_DIR="$OUT_DIR" BASE_URL="$BASE_URL" EVIDENCE_CONFIG="$DEMO/tour.config.js" CAPTIONS=on CAPTION_LOCALE=en \
   node "$SKILL/scripts/record.js" "$STEPS" >/dev/null
 
 RUNBOOK="$OUT_DIR/$TAKE-runbook.md"
