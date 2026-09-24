@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <a href="https://evd.vercel.app"><img alt="Website: evd.vercel.app" src="https://img.shields.io/badge/website-evd.vercel.app-5C8F0F?style=flat-square"></a>
+  <a href="https://evdrec.vercel.app"><img alt="Website: evdrec.vercel.app" src="https://img.shields.io/badge/website-evdrec.vercel.app-5C8F0F?style=flat-square"></a>
   <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/github/license/TOMOSIA-VIETNAM/webapp-evidence?style=flat-square&color=blue"></a>
   <a href="#cài-đặt"><img alt="Claude Code" src="https://img.shields.io/badge/Claude_Code-supported-D97757?style=flat-square&logo=anthropic&logoColor=white"></a>
   <a href="#cài-đặt"><img alt="Cursor" src="https://img.shields.io/badge/Cursor-supported-000000?style=flat-square&logo=cursor&logoColor=white"></a>
@@ -32,7 +32,7 @@ lỗi, review đều đòi cùng một thứ, và tự quay vẫn tốn khoảng
 dùng; nó lái Chrome rồi trả về video, screenshot các bước chính, và một runbook.
 
 <p align="center">
-  <a href="https://evd.vercel.app"><img src="./docs/demo/evd-tour.gif" width="820" alt="Trang landing của webapp-evidence tự quay chính nó: lệnh được copy, một panel terminal mở đè lên trang và đọc lại thẻ SEO trang trả về, rồi từng tiêu chí nghiệm thu trong báo cáo UAT được chọn và sáng lên đúng những dòng runbook chứng minh nó."></a><br>
+  <a href="https://evdrec.vercel.app"><img src="./docs/demo/evd-tour.gif" width="820" alt="Trang landing của webapp-evidence tự quay chính nó: lệnh được copy, một panel terminal mở đè lên trang và đọc lại thẻ SEO trang trả về, rồi từng tiêu chí nghiệm thu trong báo cáo UAT được chọn và sáng lên đúng những dòng runbook chứng minh nó."></a><br>
   <sub>Trang landing của chính dự án này, do chính skill mà nó giới thiệu quay lại. Một lần quay, không cắt ghép.</sub>
 </p>
 
@@ -56,7 +56,7 @@ một luồng, rồi ký duyệt dựa trên mốc thời gian:
 | Các bước đánh số bằng lời thường, ngôn ngữ nào cũng được — hoặc một link MR/PR, agent tự suy ra luồng từ diff. | Chrome được lái bằng một con trỏ nhìn thấy được. Bước gọi endpoint assert status, nên câu trả lời sai dừng bản quay. | Mỗi bước kèm thời điểm trong video, mỗi lệnh kèm exit code, mọi lỗi console và request thất bại. | Người duyệt đối chiếu từng tiêu chí với một mốc thời gian thay vì tự chạy lại luồng. Sửa xong thì `record that again`. |
 
 Bản quay ở trên chính là vòng đó chạy trên site của dự án:
-**[evd.vercel.app](https://evd.vercel.app)** đọc lại bản quay của chính nó như một báo cáo UAT.
+**[evdrec.vercel.app](https://evdrec.vercel.app)** đọc lại bản quay của chính nó như một báo cáo UAT.
 
 ## Một bản quay chứng minh được gì
 
@@ -89,12 +89,12 @@ phải ngồi xem. Từ bản quay ở trên:
 ## Steps in the video
 
 00:05 - 00:17  Terminal — the SEO meta the page serves, read off its URL
-00:23 - 00:40  UAT report — each criterion picks out the runbook lines that prove it
-00:58 - 01:06  Install — one panel per agent
+00:24 - 00:41  UAT report — each criterion picks out the runbook lines that prove it
+00:59 - 01:07  Install — one panel per agent
 
 ## Commands run in the terminal
 
-- 00:12  `curl -s http://localhost:60790/ | grep -oE '<title>[^<]*</title>|…'` — exit 0
+- 00:12  `curl -s https://evdrec.vercel.app/ | grep -oE '<title>[^<]*</title>|…'` — exit 0
 
 ## Page errors recorded during the take
 
@@ -184,5 +184,5 @@ Panel terminal nhận output theo dòng: `vim`, `less` và `htop` nằm ngoài.
 
 Bản quay ở trên là output thật từ runner của repo này: `docs/demo/record.sh` quay site trong
 `webapp/` theo `docs/demo/tour-steps.js`, và cùng bản quay đó đang phát trên
-[evd.vercel.app](https://evd.vercel.app). Muốn sửa chính skill này thì xem
+[evdrec.vercel.app](https://evdrec.vercel.app). Muốn sửa chính skill này thì xem
 **[CONTRIBUTING.md](./CONTRIBUTING.md)**.

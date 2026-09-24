@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <a href="https://evd.vercel.app"><img alt="Website: evd.vercel.app" src="https://img.shields.io/badge/website-evd.vercel.app-5C8F0F?style=flat-square"></a>
+  <a href="https://evdrec.vercel.app"><img alt="Website: evdrec.vercel.app" src="https://img.shields.io/badge/website-evdrec.vercel.app-5C8F0F?style=flat-square"></a>
   <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/github/license/TOMOSIA-VIETNAM/webapp-evidence?style=flat-square&color=blue"></a>
   <a href="#インストール"><img alt="Claude Code" src="https://img.shields.io/badge/Claude_Code-supported-D97757?style=flat-square&logo=anthropic&logoColor=white"></a>
   <a href="#インストール"><img alt="Cursor" src="https://img.shields.io/badge/Cursor-supported-000000?style=flat-square&logo=cursor&logoColor=white"></a>
@@ -32,7 +32,7 @@ AI のおかげで変更は速くなりました。動くことを示す側は�
 順を伝えるだけで、Chrome を操作し、動画・主要ステップのスクリーンショット・runbook を返します。
 
 <p align="center">
-  <a href="https://evd.vercel.app"><img src="./docs/demo/evd-tour.gif" width="820" alt="webapp-evidence のランディングページが自分自身を録画する様子: コマンドをコピーし、ページの上に開いたターミナルパネルがページの返す SEO メタを読み返し、UAT 報告書の受け入れ基準をひとつずつ選ぶと、それを証明する runbook の行が光ります。"></a><br>
+  <a href="https://evdrec.vercel.app"><img src="./docs/demo/evd-tour.gif" width="820" alt="webapp-evidence のランディングページが自分自身を録画する様子: コマンドをコピーし、ページの上に開いたターミナルパネルがページの返す SEO メタを読み返し、UAT 報告書の受け入れ基準をひとつずつ選ぶと、それを証明する runbook の行が光ります。"></a><br>
   <sub>このプロジェクト自身のランディングページを、紹介している skill そのもので録画。1 テイク、編集なし。</sub>
 </p>
 
@@ -57,7 +57,7 @@ AI のおかげで変更は速くなりました。動くことを示す側は�
 | 番号付きのステップを普段の言葉で、どの言語でも。MR/PR のリンクなら、エージェントが差分からフローを導きます。 | 見えるポインターで Chrome を操作。エンドポイントを呼ぶステップはステータスを検証し、誤った応答ならテイクが止まります。 | 各ステップの動画内の時刻、各コマンドの終了コード、すべてのコンソールエラーと失敗したリクエスト。 | レビュアーはフローを再実行せず、各基準をタイムスタンプと照合します。修正後は `record that again`。 |
 
 上の録画は、このループをプロジェクト自身のサイトで回したものです:
-**[evd.vercel.app](https://evd.vercel.app)** は自分のテイクを UAT 報告書として読み返します。
+**[evdrec.vercel.app](https://evdrec.vercel.app)** は自分のテイクを UAT 報告書として読み返します。
 
 ## 1 つのテイクが示せること
 
@@ -91,12 +91,12 @@ Cookie とトークンはファイル経由で curl に渡り、動画・スク�
 ## Steps in the video
 
 00:05 - 00:17  Terminal — the SEO meta the page serves, read off its URL
-00:23 - 00:40  UAT report — each criterion picks out the runbook lines that prove it
-00:58 - 01:06  Install — one panel per agent
+00:24 - 00:41  UAT report — each criterion picks out the runbook lines that prove it
+00:59 - 01:07  Install — one panel per agent
 
 ## Commands run in the terminal
 
-- 00:12  `curl -s http://localhost:60790/ | grep -oE '<title>[^<]*</title>|…'` — exit 0
+- 00:12  `curl -s https://evdrec.vercel.app/ | grep -oE '<title>[^<]*</title>|…'` — exit 0
 
 ## Page errors recorded during the take
 
@@ -185,6 +185,6 @@ Codex なら `$webapp-evidence-recording`。
 ---
 
 上の録画はこのリポジトリのランナーによる実出力です: `docs/demo/record.sh` が `webapp/` のサイトを
-`docs/demo/tour-steps.js` に沿って録画し、同じテイクが [evd.vercel.app](https://evd.vercel.app)
+`docs/demo/tour-steps.js` に沿って録画し、同じテイクが [evdrec.vercel.app](https://evdrec.vercel.app)
 で再生されています。スキル自体に手を入れるなら **[CONTRIBUTING.md](./CONTRIBUTING.md)** を参照して
 ください。

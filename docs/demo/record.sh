@@ -2,7 +2,7 @@
 # Record the demo the README and the site show, and print the runbook that came with it.
 #
 #   docs/demo/record.sh                                  a fresh build of webapp/ on a local preview
-#   BASE_URL=https://evd.vercel.app docs/demo/record.sh  the deployed site
+#   BASE_URL=https://evdrec.vercel.app docs/demo/record.sh  the deployed site
 #
 # It records the project's own landing page through this repository's own runner, so a reader sees
 # real output rather than a mock-up. Needs Google Chrome, ffmpeg, Node and pnpm, and a few minutes.
@@ -82,8 +82,11 @@ if [ -z "${BASE_URL:-}" ]; then
     sleep 0.5
   done
 fi
-curl -fsS "$BASE_URL/" 2>/dev/null | grep -q 'data-uat-report' \
-  || { printf 'record.sh: %s is not serving the webapp-evidence site\n' "$BASE_URL" >&2; exit 1; }
+# Read whole before matching: `curl | grep -q` under pipefail fails whenever grep stops reading early.
+PAGE="$(curl -fsS "$BASE_URL/" 2>/dev/null || true)"
+case "$PAGE" in *data-uat-report*) ;; *)
+  printf 'record.sh: %s is not serving the webapp-evidence site\n' "$BASE_URL" >&2; exit 1 ;;
+esac
 
 printf 'recording %s\n' "$BASE_URL"
 OUT_DIR="$OUT_DIR" BASE_URL="$BASE_URL" EVIDENCE_CONFIG="$DEMO/tour.config.js" CAPTIONS=on CAPTION_LOCALE=en \

@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <a href="https://evd.vercel.app"><img alt="Website: evd.vercel.app" src="https://img.shields.io/badge/website-evd.vercel.app-5C8F0F?style=flat-square"></a>
+  <a href="https://evdrec.vercel.app"><img alt="Website: evdrec.vercel.app" src="https://img.shields.io/badge/website-evdrec.vercel.app-5C8F0F?style=flat-square"></a>
   <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/github/license/TOMOSIA-VIETNAM/webapp-evidence?style=flat-square&color=blue"></a>
   <a href="#安装"><img alt="Claude Code" src="https://img.shields.io/badge/Claude_Code-supported-D97757?style=flat-square&logo=anthropic&logoColor=white"></a>
   <a href="#安装"><img alt="Cursor" src="https://img.shields.io/badge/Cursor-supported-000000?style=flat-square&logo=cursor&logoColor=white"></a>
@@ -32,7 +32,7 @@ AI 让改动变快了，证明它能跑却没有变快 —— UAT、交接、缺
 视频、关键步骤的截图，以及一份 runbook。
 
 <p align="center">
-  <a href="https://evd.vercel.app"><img src="./docs/demo/evd-tour.gif" width="820" alt="webapp-evidence 的落地页录下它自己：复制命令，页面上方打开一个终端面板读回页面返回的 SEO 元数据，然后在 UAT 报告里逐条选择验收标准，证明它的运行手册行随之亮起。"></a><br>
+  <a href="https://evdrec.vercel.app"><img src="./docs/demo/evd-tour.gif" width="820" alt="webapp-evidence 的落地页录下它自己：复制命令，页面上方打开一个终端面板读回页面返回的 SEO 元数据，然后在 UAT 报告里逐条选择验收标准，证明它的运行手册行随之亮起。"></a><br>
   <sub>本项目自己的落地页，由它介绍的 skill 亲自录制。一次录制，没有剪辑。</sub>
 </p>
 
@@ -54,7 +54,7 @@ AI 让改动变快了，证明它能跑却没有变快 —— UAT、交接、缺
 | 用平常的话写编号步骤，任何语言都行 —— 或者给一个 MR/PR 链接，agent 从 diff 推导出流程。 | 用可见的指针驱动 Chrome。调用接口的步骤会断言状态码，响应不对录制就停下。 | 每一步在视频里的时间、每条命令的退出码、每个控制台错误和失败请求。 | 评审者按时间戳逐条核对标准，不必重跑流程。修复之后，`record that again`。 |
 
 上面的录制就是这个循环在本项目自己网站上跑的一遍：
-**[evd.vercel.app](https://evd.vercel.app)** 把自己的录制当作 UAT 报告读回来。
+**[evdrec.vercel.app](https://evdrec.vercel.app)** 把自己的录制当作 UAT 报告读回来。
 
 ## 一次录制能证明什么
 
@@ -84,12 +84,12 @@ Cookie 和令牌通过文件交给 curl，并在视频、截图和 runbook 中�
 ## Steps in the video
 
 00:05 - 00:17  Terminal — the SEO meta the page serves, read off its URL
-00:23 - 00:40  UAT report — each criterion picks out the runbook lines that prove it
-00:58 - 01:06  Install — one panel per agent
+00:24 - 00:41  UAT report — each criterion picks out the runbook lines that prove it
+00:59 - 01:07  Install — one panel per agent
 
 ## Commands run in the terminal
 
-- 00:12  `curl -s http://localhost:60790/ | grep -oE '<title>[^<]*</title>|…'` — exit 0
+- 00:12  `curl -s https://evdrec.vercel.app/ | grep -oE '<title>[^<]*</title>|…'` — exit 0
 
 ## Page errors recorded during the take
 
@@ -173,5 +173,5 @@ agent 看不了视频。`vision` 把视频按固定间隔取帧，每帧打上 `
 ---
 
 上面的录制是本仓库 runner 的真实产物：`docs/demo/record.sh` 按 `docs/demo/tour-steps.js` 录制
-`webapp/` 里的网站，同一次录制也在 [evd.vercel.app](https://evd.vercel.app) 上播放。想改动技能本身，见
+`webapp/` 里的网站，同一次录制也在 [evdrec.vercel.app](https://evdrec.vercel.app) 上播放。想改动技能本身，见
 **[CONTRIBUTING.md](./CONTRIBUTING.md)**。

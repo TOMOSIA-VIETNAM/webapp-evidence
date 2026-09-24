@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <a href="https://evd.vercel.app"><img alt="Website: evd.vercel.app" src="https://img.shields.io/badge/website-evd.vercel.app-5C8F0F?style=flat-square"></a>
+  <a href="https://evdrec.vercel.app"><img alt="Website: evdrec.vercel.app" src="https://img.shields.io/badge/website-evdrec.vercel.app-5C8F0F?style=flat-square"></a>
   <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/github/license/TOMOSIA-VIETNAM/webapp-evidence?style=flat-square&color=blue"></a>
   <a href="#install"><img alt="Claude Code" src="https://img.shields.io/badge/Claude_Code-supported-D97757?style=flat-square&logo=anthropic&logoColor=white"></a>
   <a href="#install"><img alt="Cursor" src="https://img.shields.io/badge/Cursor-supported-000000?style=flat-square&logo=cursor&logoColor=white"></a>
@@ -32,7 +32,7 @@ review all ask for the same thing, and recording it by hand still costs half an 
 use; it drives Chrome and hands back a video, screenshots of the main steps, and a runbook.
 
 <p align="center">
-  <a href="https://evd.vercel.app"><img src="./docs/demo/evd-tour.gif" width="820" alt="The webapp-evidence landing page recording itself: the command is copied, a terminal panel opens over the page and reads back the SEO meta it serves, then each acceptance criterion in the UAT report is picked and lights the runbook lines that prove it."></a><br>
+  <a href="https://evdrec.vercel.app"><img src="./docs/demo/evd-tour.gif" width="820" alt="The webapp-evidence landing page recording itself: the command is copied, a terminal panel opens over the page and reads back the SEO meta it serves, then each acceptance criterion in the UAT report is picked and lights the runbook lines that prove it."></a><br>
   <sub>This project's own landing page, recorded by the skill it describes. One take, no editing.</sub>
 </p>
 
@@ -56,7 +56,7 @@ Write the criteria as a flow instead, and sign off against timestamps:
 | Numbered steps in plain words, in any language — or an MR/PR link, and the agent derives the flow from the diff. | Chrome is driven by a visible pointer. A step that calls an endpoint asserts its status, so a wrong answer stops the take. | Every step with its time in the video, every command with its exit code, every console error and failed request. | The reviewer checks each criterion against a timestamp instead of re-running the flow. After a fix, `record that again`. |
 
 The recording above is that loop run on this project's own site:
-**[evd.vercel.app](https://evd.vercel.app)** reads its own take back as a UAT report.
+**[evdrec.vercel.app](https://evdrec.vercel.app)** reads its own take back as a UAT report.
 
 ## What one take proves
 
@@ -90,12 +90,12 @@ read the take instead of watching it. From the take above:
 ## Steps in the video
 
 00:05 - 00:17  Terminal — the SEO meta the page serves, read off its URL
-00:23 - 00:40  UAT report — each criterion picks out the runbook lines that prove it
-00:58 - 01:06  Install — one panel per agent
+00:24 - 00:41  UAT report — each criterion picks out the runbook lines that prove it
+00:59 - 01:07  Install — one panel per agent
 
 ## Commands run in the terminal
 
-- 00:12  `curl -s http://localhost:60790/ | grep -oE '<title>[^<]*</title>|…'` — exit 0
+- 00:12  `curl -s https://evdrec.vercel.app/ | grep -oE '<title>[^<]*</title>|…'` — exit 0
 
 ## Page errors recorded during the take
 
@@ -187,5 +187,5 @@ The terminal panel takes line-oriented output: `vim`, `less` and `htop` are out.
 
 The recording above is real output from this repo's runner: `docs/demo/record.sh` records the site
 in `webapp/` from `docs/demo/tour-steps.js`, and the same take plays on
-[evd.vercel.app](https://evd.vercel.app). To work on the skill itself, see
+[evdrec.vercel.app](https://evdrec.vercel.app). To work on the skill itself, see
 **[CONTRIBUTING.md](./CONTRIBUTING.md)**.

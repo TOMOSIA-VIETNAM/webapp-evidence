@@ -7,7 +7,7 @@ import { LOCALES, DEFAULT_LOCALE } from './src/i18n/locales.ts'
 
 // Absolute origin the built pages use for canonical links, hreflang and the sitemap.
 // Override with SITE_URL when a branch preview or a custom domain needs its own origin.
-const site = process.env.SITE_URL ?? 'https://evd.vercel.app'
+const site = process.env.SITE_URL ?? 'https://evdrec.vercel.app'
 
 export default defineConfig({
   site,

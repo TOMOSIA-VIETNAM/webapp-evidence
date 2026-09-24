@@ -34,7 +34,7 @@ take the repository README shows:
 
 ```bash
 docs/demo/record.sh                                    # a fresh build on a local preview
-BASE_URL=https://evd.vercel.app docs/demo/record.sh    # the deployment
+BASE_URL=https://evdrec.vercel.app docs/demo/record.sh    # the deployment
 ```
 
 It follows `docs/demo/tour-steps.js` and writes everything into `docs/demo/`: the README's gif, the
@@ -52,4 +52,4 @@ the English headline changes.
 
 A Vercel project with **Root Directory** set to `webapp`. The build reads files one level up, which
 Vercel allows by default ("Include files outside the root directory in the Build Step"). Set
-`SITE_URL` when the site is served from an origin other than `https://evd.vercel.app`.
+`SITE_URL` when the site is served from an origin other than `https://evdrec.vercel.app`.
