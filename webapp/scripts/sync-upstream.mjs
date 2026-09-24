@@ -1,25 +1,35 @@
 #!/usr/bin/env node
 // Copies what this site shows from the repository it sits in, so nothing is redrawn or retyped by
-// hand. The originals stay in docs/images/logo/ and the copies are gitignored. The recording the
-// page shows is its own, made by demo/record.sh.
+// hand. The originals stay where they are — docs/images/logo/ for the brand, docs/demo/ for the take
+// of this page that docs/demo/record.sh records — and the copies are gitignored.
 //
 // It also splits the firefly mark into its parts (the two wings, the body, the lantern and its
 // light) so the page can move them, without a second hand-drawn copy of the geometry.
 //
 // Runs before dev, build and check. Fails loudly when a source is missing: a page built without its
-// logo is worse than no build.
+// logo or its demo is worse than no build.
 
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { createRequire } from 'node:module'
 
 const site = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const repo = resolve(site, '..')
+
+// The demo take is named by its step script; docs/demo/record.sh writes every file below.
+const take = createRequire(import.meta.url)(join(repo, 'docs/demo/tour-steps.js')).name
 
 const COPIES = [
   ['docs/images/logo/logo-lockup.svg', 'src/assets/upstream/brand/logo-lockup.svg'],
   ['docs/images/logo/logo.svg', 'src/assets/upstream/brand/logo.svg'],
   ['docs/images/logo/favicon.svg', 'public/favicon.svg'],
+  // Served as-is from public/: an image pipeline has nothing to add to a video or its poster.
+  [`docs/demo/${take}.mp4`, `public/upstream/${take}.mp4`],
+  [`docs/demo/${take}-poster.jpg`, `public/upstream/${take}-poster.jpg`],
+  ['docs/demo/vision-sheet-01.png', 'src/assets/upstream/demo/vision-sheet-01.png'],
+  ['docs/demo/vision-sheet-02.png', 'src/assets/upstream/demo/vision-sheet-02.png'],
+  ['docs/demo/vision-sheet-03.png', 'src/assets/upstream/demo/vision-sheet-03.png'],
 ]
 
 const missing = COPIES.map(([from]) => from).filter((from) => !existsSync(join(repo, from)))

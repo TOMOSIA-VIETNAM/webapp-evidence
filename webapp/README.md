@@ -29,19 +29,19 @@ example request, the plugin name from `plugin.json`, and the skills under `src/s
 `scripts/sync-upstream.mjs` copies the logo from `docs/images/logo/` before every dev, build and
 check, and splits the firefly into wings, body and lantern so the hero can move them.
 
-**The recording.** The video under How it works is this page, recorded by the skill:
+**The recording.** The video under How it works is this page, recorded by the skill — the same
+take the repository README shows:
 
 ```bash
-webapp/demo/record.sh                                    # a fresh build on a local preview
-BASE_URL=https://evd.vercel.app webapp/demo/record.sh    # the deployment
+docs/demo/record.sh                                    # a fresh build on a local preview
+BASE_URL=https://evd.vercel.app docs/demo/record.sh    # the deployment
 ```
 
-It follows `demo/tour-steps.cjs` and writes, for commit, the web copy and its poster to
-`public/demo/`, the vision contact sheets to `src/assets/demo/`, and three sections of the runbook
-to `src/data/`. `src/lib/demo.ts` reads them. The UAT report finds each criterion's proof by the
-step label passed to `mark()`, so a re-recorded take moves the timestamps without breaking
-anything, and a renamed step fails the build. The scrolling, hovering and copy checks the tour uses
-live in `../docs/demo/tour-helpers.js`, shared with the README's own demo.
+It follows `docs/demo/tour-steps.js` and writes everything into `docs/demo/`: the README's gif, the
+web copy and its poster, the vision contact sheets, and three sections of the runbook.
+`scripts/sync-upstream.mjs` copies the media in and `src/lib/demo.ts` reads the rest. The UAT report
+finds each criterion's proof by the step label passed to `mark()`, so a re-recorded take moves the
+timestamps without breaking anything, and a renamed step fails the build.
 
 Re-record after changing what the page looks like: the take shows the page as it was built.
 

@@ -24,10 +24,10 @@ reads at 3.9:1.
 - **Never retype the skill.** Install commands, the example request and the command names come
   from `src/lib/upstream.ts`; the logo from `scripts/sync-upstream.mjs`. A missing source fails the
   build on purpose.
-- **The demo is this page's own take.** `demo/record.sh` records it; `src/lib/demo.ts` reads what it
-  wrote. The `mark()` labels in `demo/tour-steps.cjs` are what the UAT report matches on — rename
-  one and update `src/components/sections/Uat.astro` in the same change. Re-record after a visible
-  change, and commit what it writes.
+- **The demo is this page's own take.** `../docs/demo/record.sh` records it; `src/lib/demo.ts`
+  reads what it wrote. The UAT report matches on the `mark()` labels in `../docs/demo/tour-steps.js`
+  — rename one and update `src/components/sections/Uat.astro` in the same change. Re-record after a
+  visible change, and commit what it writes.
 - **Motion goes through `src/lib/motion.ts`** and the pointer glow through `src/lib/glow.ts`. Each
   preset leaves the final state in place under `prefers-reduced-motion`; no section pins or
   scrubs the scroll.

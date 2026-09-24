@@ -12,6 +12,7 @@
 </p>
 
 <p align="center">
+  <a href="https://evd.vercel.app"><img alt="Website: evd.vercel.app" src="https://img.shields.io/badge/website-evd.vercel.app-5C8F0F?style=flat-square"></a>
   <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/github/license/TOMOSIA-VIETNAM/webapp-evidence?style=flat-square&color=blue"></a>
   <a href="#安装"><img alt="Claude Code" src="https://img.shields.io/badge/Claude_Code-supported-D97757?style=flat-square&logo=anthropic&logoColor=white"></a>
   <a href="#安装"><img alt="Cursor" src="https://img.shields.io/badge/Cursor-supported-000000?style=flat-square&logo=cursor&logoColor=white"></a>
@@ -31,7 +32,8 @@ AI 让改动变快了，证明它能跑却没有变快 —— UAT、交接、缺
 视频、关键步骤的截图，以及一份 runbook。
 
 <p align="center">
-  <img src="./docs/demo/site-tour.gif" width="820" alt="落地页导览录像：hero 里的飞蛾跟着指针反应，复制一行安装命令后按钮自己确认，接着一路往下读页面 —— How it works、逐步点开的评审轮次讲解，以及功能卡片。">
+  <a href="https://evd.vercel.app"><img src="./docs/demo/evd-tour.gif" width="820" alt="webapp-evidence 的落地页录下它自己：复制命令，页面上方打开一个终端面板读回页面返回的 SEO 元数据，然后在 UAT 报告里逐条选择验收标准，证明它的运行手册行随之亮起。"></a><br>
+  <sub>本项目自己的落地页，由它介绍的 skill 亲自录制。一次录制，没有剪辑。</sub>
 </p>
 
 - **一次录制，三种证据** —— 页面、用浏览器自己持有的会话调用的接口，以及它写进数据库的那一行。一个
@@ -42,6 +44,17 @@ AI 让改动变快了，证明它能跑却没有变快 —— UAT、交接、缺
 - **密钥留在外面** —— 模糊、涂黑，或者把那一段直接剪掉，视频和截图一视同仁。
 - **没有东西离开你的机器** —— 没有服务，没有机器人账号；它在你本来就有的 agent CLI 里运行，只针对你
   指定的站点。
+
+## 为 UAT 而生
+
+验收测试依然是有人逐条点击每个标准、再手动录下来。改为把标准写成一个流程，再按时间戳签字：
+
+| 1 · 写标准 | 2 · 录一次 | 3 · 读 runbook | 4 · 签字 |
+|---|---|---|---|
+| 用平常的话写编号步骤，任何语言都行 —— 或者给一个 MR/PR 链接，agent 从 diff 推导出流程。 | 用可见的指针驱动 Chrome。调用接口的步骤会断言状态码，响应不对录制就停下。 | 每一步在视频里的时间、每条命令的退出码、每个控制台错误和失败请求。 | 评审者按时间戳逐条核对标准，不必重跑流程。修复之后，`record that again`。 |
+
+上面的录制就是这个循环在本项目自己网站上跑的一遍：
+**[evd.vercel.app](https://evd.vercel.app)** 把自己的录制当作 UAT 报告读回来。
 
 ## 一次录制能证明什么
 
@@ -65,18 +78,18 @@ Cookie 和令牌通过文件交给 curl，并在视频、截图和 runbook 中�
 
 ## 拿回什么
 
-`<name>.mp4`、按顺序编号的截图，以及 `<name>-runbook.md` —— 让对面的人可以读，而不必看：
+`<name>.mp4`、按顺序编号的截图，以及 `<name>-runbook.md` —— 让对面的人可以读，而不必看。来自上面那次录制：
 
 ```markdown
 ## Steps in the video
 
-00:21 - 00:26  Hero — copy the one-line install command
-00:36 - 00:49  Review rounds — every step of the loop, picked by hand
-01:13 - 01:26  The SEO meta the page serves, read straight off the URL
+00:05 - 00:17  Terminal — the SEO meta the page serves, read off its URL
+00:23 - 00:40  UAT report — each criterion picks out the runbook lines that prove it
+00:58 - 01:06  Install — one panel per agent
 
 ## Commands run in the terminal
 
-- 01:24  `curl -s https://open-pr.vercel.app/ | grep -oE '<title>[^<]*</title>|…'` — exit 0
+- 00:12  `curl -s http://localhost:60790/ | grep -oE '<title>[^<]*</title>|…'` — exit 0
 
 ## Page errors recorded during the take
 
@@ -133,16 +146,20 @@ Antigravity 用 `/webapp-evidence-recording`，Codex 用 `$webapp-evidence-recor
 | 让下拉框或对话框本身入镜 | `--screen` —— 录浏览器窗口，所以操作系统画的东西也在画面里 |
 | 无论流程如何都不占用屏幕 | `--headless` —— 默认行为，也是把这个问题直接定下来的方式 |
 | 给 README 用的 gif，自己托管页面用的 webm | `-f gif`、`-f webm` —— 其余情况是 mp4，因为它到哪都能内联播放 |
-| 不看视频也知道里面是什么 | `/webapp-evidence:vision <the mp4>` |
+| 不看视频也知道里面是什么 | `/webapp-evidence:vision <the mp4>` —— 见下文 |
 | 录制一开始就是已登录状态 | `/webapp-evidence:recording set up the evidence config for this project` |
 | 告诉我们哪里不对、还缺什么 | `/webapp-evidence:feedback` |
 
-`vision` 存在是因为 agent 看不了视频。它把视频铺成一张张图 —— 每隔几秒一帧，每帧都打上 `mm:ss` ——
-所以结论会是“00:14 处表头压住了表格”，这个时间点你可以自己核对，也能对上 runbook。上面那次录制生成
-的图：
-**[1](./docs/demo/vision-sheet-01.png)** ·
-**[2](./docs/demo/vision-sheet-02.png)** ·
-**[3](./docs/demo/vision-sheet-03.png)**。
+## 读回一次录制
+
+agent 看不了视频。`vision` 把视频按固定间隔取帧，每帧打上 `mm:ss`，拼成联系表 —— 所以结论会是
+“00:14 处表头压住了表格”，这个时间点能对上 runbook。上面那次录制，就是 agent 读到的样子：
+
+<p align="center">
+  <a href="./docs/demo/vision-sheet-01.png"><img src="./docs/demo/vision-sheet-01.png" width="268" alt="上面那次录制的联系表 1"></a>
+  <a href="./docs/demo/vision-sheet-02.png"><img src="./docs/demo/vision-sheet-02.png" width="268" alt="上面那次录制的联系表 2"></a>
+  <a href="./docs/demo/vision-sheet-03.png"><img src="./docs/demo/vision-sheet-03.png" width="268" alt="上面那次录制的联系表 3"></a>
+</p>
 
 ## 限制
 
@@ -155,5 +172,6 @@ Antigravity 用 `/webapp-evidence-recording`，Codex 用 `$webapp-evidence-recor
 
 ---
 
-上面的录制是本仓库 runner 的真实产物：`docs/demo/record.sh` 从 `docs/demo/site-tour-steps.js` 生
-成。想改动技能本身，见 **[CONTRIBUTING.md](./CONTRIBUTING.md)**。
+上面的录制是本仓库 runner 的真实产物：`docs/demo/record.sh` 按 `docs/demo/tour-steps.js` 录制
+`webapp/` 里的网站，同一次录制也在 [evd.vercel.app](https://evd.vercel.app) 上播放。想改动技能本身，见
+**[CONTRIBUTING.md](./CONTRIBUTING.md)**。

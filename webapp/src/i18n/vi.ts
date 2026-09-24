@@ -104,6 +104,9 @@ export const vi: Dictionary = {
   'vision.lead':
     'Nó cắt bản ghi thành các contact sheet — vài giây một khung hình, mỗi khung đóng dấu mm:ss — nên phát hiện trả về dạng “header đè lên bảng ở 00:14”, một mốc bạn đối chiếu được với runbook.',
   'vision.sheet': 'Contact sheet',
+  'vision.viewer.previous': 'Sheet trước',
+  'vision.viewer.next': 'Sheet sau',
+  'vision.viewer.close': 'Đóng',
   'vision.sheet.alt': 'Contact sheet của lần quay trang này: lưới các khung hình có mốc thời gian',
 
   'features.eyebrow': 'Tính năng',

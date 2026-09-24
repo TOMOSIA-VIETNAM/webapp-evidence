@@ -15,7 +15,7 @@ const t = useTranslations(localeFromUrl(Astro.url))
 const outputs = [
   { icon: Film, file: `${DEMO_TAKE}.mp4`, label: t('hero.output.video'), place: 'top-0 left-0' },
   { icon: Images, file: DEMO_FIRST_SHOT, label: t('hero.output.shots'), place: 'top-12 right-0' },
-  { icon: FileText, file: `${DEMO_TAKE}-runbook.md`, label: t('hero.output.runbook'), place: 'bottom-0 left-8' },
+  { icon: FileText, file: `${DEMO_TAKE}-runbook.md`, label: t('hero.output.runbook'), place: 'bottom-0 left-0' },
 ]
 ---
 
@@ -76,8 +76,9 @@ const outputs = [
     </div>
 
     {/* The firefly records: its lantern pulses, rings of light spread from it, and what one take
-        hands back floats around it. A desktop scene — on a phone the mark rides in the badge line. */}
-    <div class="relative hidden h-[30rem] w-[30rem] justify-self-end lg:block" data-hero-stage>
+        hands back floats around it — from xl up, where there is room for the files to sit clear of
+        the mark. A desktop scene; on a phone the mark rides in the badge line. */}
+    <div class="relative hidden size-80 justify-self-end lg:block xl:h-[30rem] xl:w-[30rem]" data-hero-stage>
       <div class="absolute top-1/2 left-1/2 size-72 -translate-x-1/2 -translate-y-1/2" data-hero-mascot>
         <div class="lantern pointer-events-none absolute inset-0" aria-hidden="true" data-decorative>
           <span class="lantern__ring lantern__ring--1"></span>
@@ -87,7 +88,7 @@ const outputs = [
         <FireflyMark class="relative size-72 drop-shadow-2xl" title={t('hero.mark.alt')} recording />
       </div>
 
-      <ul class="absolute inset-0" data-hero-outputs>
+      <ul class="absolute inset-0 hidden xl:block" data-hero-outputs>
         {
           outputs.map((output) => (
             <li class:list={['glass-3 shadow-glass-2 absolute flex items-center gap-2.5 rounded-control py-2 pr-3.5 pl-2.5', output.place]} data-hero-output>

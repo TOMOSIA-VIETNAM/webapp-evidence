@@ -104,6 +104,9 @@ export const ja: Dictionary = {
   'vision.lead':
     '録画を数秒ごとのフレームに分け、各フレームに mm:ss を刻んだコンタクトシートに並べます。指摘は「00:14 でヘッダーが表に重なる」のように返り、ランブックと照合できます。',
   'vision.sheet': 'コンタクトシート',
+  'vision.viewer.previous': '前のシート',
+  'vision.viewer.next': '次のシート',
+  'vision.viewer.close': '閉じる',
   'vision.sheet.alt': 'このページのテイクのコンタクトシート: タイムスタンプ付きフレームのグリッド',
 
   'features.eyebrow': '機能',

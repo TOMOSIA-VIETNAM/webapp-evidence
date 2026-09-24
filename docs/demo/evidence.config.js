@@ -1,12 +1,10 @@
-// The configuration behind the recording in the README.
+// The configuration behind the recording the README and the site show.
 //
-// The page-content recorder writes the video at the size of the viewport, so the viewport is what
-// sets the resolution of the take. Full HD, because the gif in the README is built by scaling this
-// down: scaling down keeps text sharp, and a browser scaling a narrow gif UP is what makes a
-// recording look soft.
+// The runner writes the video at the size of the viewport, so the viewport sets the resolution of
+// the take. Full HD, because the web copy is made by scaling it down, and scaling down keeps text
+// sharp. crf 18: the page is flat colour and large type, where h264 ringing shows first.
 //
-// crf 18 rather than the runner's default 26: the page is flat colour and large type, and h264
-// ringing around headings is the first artefact to show on that kind of screen.
+// The base URL is the local preview docs/demo/record.sh starts; BASE_URL points a run at a deployment.
 module.exports = {
   defaultApp: 'site',
 
@@ -18,12 +16,12 @@ module.exports = {
   },
 
   output: {
-    overwrite: false,
+    overwrite: true,
   },
 
   apps: {
     site: {
-      baseUrl: 'https://open-pr.vercel.app',
+      baseUrl: 'http://localhost:4321',
     },
   },
 };

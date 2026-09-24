@@ -16,7 +16,7 @@ const steps = [
 
 /*
  * Each criterion points at the runbook lines that prove it, by text those lines hold: a step label
- * from demo/tour-steps.cjs, or a piece of a command. Timestamps move every time the take is
+ * from docs/demo/tour-steps.js, or a piece of a command. Timestamps move every time the take is
  * recorded again; the labels do not, and a renamed step fails the build here instead of leaving a
  * criterion pointing at nothing.
  */
@@ -25,7 +25,7 @@ const criteria = [
   { id: 'AC-2', text: t('uat.report.ac2'), proof: ['Hero — copy the command'] },
   { id: 'AC-3', text: t('uat.report.ac3'), proof: ['UAT report —'] },
   { id: 'AC-4', text: t('uat.report.ac4'), proof: ['Install — one panel per agent'] },
-  { id: 'AC-5', text: t('uat.report.ac5'), proof: ['SEO meta —', '`curl -s'] },
+  { id: 'AC-5', text: t('uat.report.ac5'), proof: ['Terminal — the SEO meta', '`curl -s'] },
   { id: 'AC-6', text: t('uat.report.ac6'), proof: ['- none'] },
 ].map((criterion) => {
   const lines = criterion.proof.map(runbookLine)

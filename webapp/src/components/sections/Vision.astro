@@ -1,16 +1,19 @@
 ---
-import { Image } from 'astro:assets'
+import { Image, getImage } from 'astro:assets'
+import { X, ChevronLeft, ChevronRight } from '@lucide/astro'
 import Section from '../ui/Section.astro'
 import CopyCommand from '../ui/CopyCommand.astro'
 import { localeFromUrl, useTranslations } from '../../i18n'
 import { commandFor } from '../../lib/upstream'
 import { DEMO_TAKE } from '../../lib/demo'
-import sheet1 from '../../assets/demo/vision-sheet-01.png'
-import sheet2 from '../../assets/demo/vision-sheet-02.png'
-import sheet3 from '../../assets/demo/vision-sheet-03.png'
+import sheet1 from '../../assets/upstream/demo/vision-sheet-01.png'
+import sheet2 from '../../assets/upstream/demo/vision-sheet-02.png'
+import sheet3 from '../../assets/upstream/demo/vision-sheet-03.png'
 
 const t = useTranslations(localeFromUrl(Astro.url))
 const sheets = [sheet1, sheet2, sheet3]
+// The size the viewer shows: wide enough to read every timestamp, a fraction of the PNG's weight.
+const large = await Promise.all(sheets.map((sheet) => getImage({ src: sheet, width: 1600, format: 'webp' })))
 ---
 
 <Section id="vision" eyebrow={t('vision.eyebrow')} heading={t('vision.heading')} lead={t('vision.lead')}>
@@ -22,12 +25,14 @@ const sheets = [sheet1, sheet2, sheet3]
     {
       sheets.map((sheet, index) => (
         <li data-vision-item>
-          {/* Each thumbnail opens the full sheet, where the timestamps are legible. */}
+          {/* Each thumbnail opens the sheet large, where the timestamps are legible: in the viewer
+              below once the script runs, as the image itself before that. */}
           <a
-            href={sheet.src}
+            href={large[index].src}
             target="_blank"
             rel="noopener"
-            class="glass-3 shadow-glass-2 group block rounded-card p-2 no-underline transition-shadow duration-[var(--duration-base)] ease-ios hover:shadow-glow"
+            class="glass-3 shadow-glass-2 group block cursor-zoom-in rounded-card p-2 no-underline transition-shadow duration-[var(--duration-base)] ease-ios hover:shadow-glow"
+            data-sheet-open={index}
           >
             <Image
               src={sheet}
@@ -46,10 +51,120 @@ const sheets = [sheet1, sheet2, sheet3]
       ))
     }
   </ul>
+
+  <dialog
+    class="sheet-viewer m-auto max-h-none w-full max-w-none bg-transparent p-4 sm:p-8"
+    aria-label={t('vision.sheet')}
+    data-sheet-viewer
+  >
+    <figure class="glass-3 shadow-glass-3 relative mx-auto m-0 flex max-w-6xl flex-col gap-3 rounded-panel p-3">
+      <img
+        src={large[0].src}
+        alt={t('vision.sheet.alt')}
+        width={large[0].attributes.width}
+        height={large[0].attributes.height}
+        class="aspect-(--sheet-aspect) max-h-[78vh] w-full rounded-control bg-surface-sunken object-contain"
+        data-sheet-image
+      />
+      <figcaption class="flex items-center justify-between gap-3 px-1">
+        <span class="text-sm text-ink-muted">
+          {t('vision.sheet')} <span class="font-mono text-ink-faint" data-sheet-index>01</span>
+        </span>
+        <span class="flex items-center gap-1">
+          <button type="button" class="viewer-button" aria-label={t('vision.viewer.previous')} data-sheet-step="-1">
+            <ChevronLeft class="size-5" aria-hidden="true" />
+          </button>
+          <button type="button" class="viewer-button" aria-label={t('vision.viewer.next')} data-sheet-step="1">
+            <ChevronRight class="size-5" aria-hidden="true" />
+          </button>
+          <button type="button" class="viewer-button" aria-label={t('vision.viewer.close')} data-sheet-close>
+            <X class="size-5" aria-hidden="true" />
+          </button>
+        </span>
+      </figcaption>
+    </figure>
+  </dialog>
 </Section>
+
+<style>
+  .sheet-viewer::backdrop {
+    background-color: color-mix(in oklab, var(--color-ink) 55%, transparent);
+    backdrop-filter: blur(var(--blur-glass));
+  }
+
+  .sheet-viewer[open] {
+    display: grid;
+    place-items: center;
+    height: 100dvh;
+    animation: viewer-in var(--duration-base) var(--ease-ios);
+  }
+
+  @keyframes viewer-in {
+    from {
+      opacity: 0;
+      transform: translateY(0.5rem);
+    }
+  }
+
+  .viewer-button {
+    display: grid;
+    place-items: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: var(--radius-pill);
+    color: var(--color-ink-muted);
+    cursor: pointer;
+    transition:
+      color var(--duration-fast) var(--ease-ios),
+      background-color var(--duration-fast) var(--ease-ios);
+  }
+
+  .viewer-button:hover {
+    color: var(--color-accent-strong);
+    background-color: var(--color-accent-soft);
+  }
+</style>
 
 <script>
   import { fadeUp } from '../../lib/motion'
 
   fadeUp('[data-vision-item]', { stagger: 0.08 })
+
+  // The viewer: a native modal dialog, so focus stays inside it, Escape closes it and focus goes
+  // back to the thumbnail that opened it. A click on the backdrop closes it too; arrows step.
+  const viewer = document.querySelector<HTMLDialogElement>('[data-sheet-viewer]')
+  const image = viewer?.querySelector<HTMLImageElement>('[data-sheet-image]')
+  const label = viewer?.querySelector<HTMLElement>('[data-sheet-index]')
+  const links = [...document.querySelectorAll<HTMLAnchorElement>('[data-sheet-open]')]
+  let current = 0
+
+  const show = (index: number) => {
+    if (!image || !label) return
+    current = (index + links.length) % links.length
+    image.src = links[current].href
+    label.textContent = String(current + 1).padStart(2, '0')
+  }
+
+  if (viewer) {
+    links.forEach((link, index) =>
+      link.addEventListener('click', (event) => {
+        event.preventDefault()
+        show(index)
+        viewer.showModal()
+      }),
+    )
+    viewer.querySelectorAll<HTMLButtonElement>('[data-sheet-step]').forEach((button) =>
+      button.addEventListener('click', () => show(current + Number(button.dataset.sheetStep))),
+    )
+    viewer.querySelector('[data-sheet-close]')?.addEventListener('click', () => viewer.close())
+    // The dialog box is the whole screen; a click that lands on it rather than on the figure is a
+    // click on the backdrop.
+    viewer.addEventListener('click', (event) => {
+      if (event.target === viewer) viewer.close()
+    })
+    viewer.addEventListener('keydown', (event) => {
+      if (event.key === 'ArrowRight') show(current + 1)
+      if (event.key === 'ArrowLeft') show(current - 1)
+    })
+  }
 </script>

@@ -43,6 +43,36 @@ for (const path of LOCALES) {
   }
 }
 
+// The files floating around the hero's firefly sit clear of it, and the scene clear of the words,
+// at every desktop width — the scene is sized in rem while the column beside it is not.
+for (const [path, width] of LOCALES.flatMap((l) => [1024, 1280, 1440, 1920, 2000].map((w) => [l, w]))) {
+  const page = await browser.newPage({ viewport: { width, height: 1000 }, reducedMotion: 'reduce' })
+  await page.goto(BASE + path, { waitUntil: 'networkidle' })
+  const clashes = await page.evaluate(() => {
+    const overlap = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
+    const visible = (el) => el.getClientRects().length > 0
+    const mark = [...document.querySelectorAll('[data-hero-mascot] .firefly polygon')].map((p) => p.getBoundingClientRect())
+    const found = []
+    for (const chip of document.querySelectorAll('[data-hero-output]')) {
+      if (!visible(chip)) continue
+      if (mark.some((box) => overlap(box, chip.getBoundingClientRect()))) found.push(`chip "${chip.textContent.trim().slice(0, 24)}" covers the firefly`)
+    }
+    const stage = document.querySelector('[data-hero-stage]')
+    if (stage && visible(stage)) {
+      for (const words of document.querySelectorAll('[data-hero] h1, [data-hero] p')) {
+        if (overlap(stage.getBoundingClientRect(), words.getBoundingClientRect())) found.push('the scene overlaps the hero text')
+      }
+    }
+    // The headline is two short lines; a third means the scene took the words' room.
+    const h1 = document.querySelector('[data-hero] h1')
+    const lines = Math.round(h1.getBoundingClientRect().height / parseFloat(getComputedStyle(h1).lineHeight))
+    if (window.innerWidth >= 1280 && lines > 2) found.push(`the headline runs to ${lines} lines`)
+    return found
+  })
+  for (const clash of clashes) check(false, `hero ${path} @${width}: ${clash}`)
+  await page.close()
+}
+
 // Behaviour, checked once on the English page at desktop width.
 {
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
@@ -86,6 +116,18 @@ for (const path of LOCALES) {
     await image.evaluate((img) => (img.complete ? null : new Promise((resolve) => img.addEventListener('load', resolve))))
     check((await image.evaluate((img) => img.naturalWidth)) > 0, `${selector} never loaded`)
   }
+
+  // A contact sheet opens in the viewer, steps with the arrow keys, and closes on Escape.
+  const firstSheet = page.locator('[data-sheet-open]').first()
+  await firstSheet.scrollIntoViewIfNeeded()
+  await firstSheet.click()
+  const viewer = page.locator('[data-sheet-viewer]')
+  check(await viewer.evaluate((d) => d.open), 'a contact sheet did not open in the viewer')
+  check(page.url().startsWith(BASE), 'opening a contact sheet left the page')
+  await page.keyboard.press('ArrowRight')
+  check((await page.locator('[data-sheet-index]').innerText()) === '02', 'the arrow key did not step to the next sheet')
+  await page.keyboard.press('Escape')
+  check(!(await viewer.evaluate((d) => d.open)), 'Escape did not close the viewer')
 
   // Accessibility, on the whole page.
   await page.addScriptTag({ content: axeSource })

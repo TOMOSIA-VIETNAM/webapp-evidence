@@ -100,6 +100,9 @@ export const zh: Dictionary = {
   'vision.lead':
     '它把录制拼成联系表 —— 每隔几秒一帧，每帧标注 mm:ss —— 于是结论会写成“00:14 处页头压住了表格”，一个可以对照运行手册核实的时间点。',
   'vision.sheet': '联系表',
+  'vision.viewer.previous': '上一张',
+  'vision.viewer.next': '下一张',
+  'vision.viewer.close': '关闭',
   'vision.sheet.alt': '本页录制的联系表：带时间戳的帧网格',
 
   'features.eyebrow': '功能',

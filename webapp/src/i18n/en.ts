@@ -105,6 +105,9 @@ export const en = {
   'vision.lead':
     'It tiles a recording into contact sheets — a frame every couple of seconds, each stamped mm:ss — so a finding comes back as “the header overlaps the table at 00:14”, a time you can check against the runbook.',
   'vision.sheet': 'Contact sheet',
+  'vision.viewer.previous': 'Previous sheet',
+  'vision.viewer.next': 'Next sheet',
+  'vision.viewer.close': 'Close',
   'vision.sheet.alt': 'Contact sheet of this page’s take: a grid of timestamped frames',
 
   'features.eyebrow': 'Features',
