@@ -1,0 +1,255 @@
+---
+import { Film, Images, FileText } from '@lucide/astro'
+import Button from '../ui/Button.astro'
+import CopyCommand from '../ui/CopyCommand.astro'
+import FireflyMark from '../ui/FireflyMark.astro'
+import GithubMark from '../ui/GithubMark.astro'
+import { localeFromUrl, useTranslations } from '../../i18n'
+import { REPO_URL } from '../../lib/site'
+import { PLATFORMS, commandFor } from '../../lib/upstream'
+
+const t = useTranslations(localeFromUrl(Astro.url))
+
+// What one take hands back, floating around the mark: the files the README demo take produced
+// (docs/demo/record.sh records a take named site-tour), named as the runner names them.
+const outputs = [
+  { icon: Film, file: 'site-tour.mp4', label: t('hero.output.video'), place: 'top-0 left-0' },
+  { icon: Images, file: '01-hero.png', label: t('hero.output.shots'), place: 'top-12 right-0' },
+  { icon: FileText, file: 'site-tour-runbook.md', label: t('hero.output.runbook'), place: 'bottom-0 left-8' },
+]
+---
+
+<section class="relative overflow-hidden pt-16 pb-(--section-padding-block) sm:pt-24" data-hero>
+  {/* Liquid background: three slow blobs, each drifting at its own pace while the page scrolls.
+      Two layers per blob — the outer one is what the scroll moves, the inner one drifts on its
+      own — so the two transforms never overwrite each other. */}
+  <div class="pointer-events-none absolute inset-0 z-0" aria-hidden="true" data-decorative>
+    <div class="absolute -top-32 -left-24 size-[32rem] md:size-[40rem]" data-blob="1">
+      <div class="drift drift--slow size-full rounded-full bg-firefly-300/45 blur-3xl"></div>
+    </div>
+    <div class="absolute -top-16 right-[-10%] size-[26rem] md:size-[34rem]" data-blob="2">
+      <div class="drift drift--wide size-full rounded-full bg-firefly-200/55 blur-3xl"></div>
+    </div>
+    <div class="absolute bottom-[-20%] left-1/3 size-[24rem] md:size-[30rem]" data-blob="3">
+      <div class="drift drift--deep size-full rounded-full bg-firefly-500/25 blur-3xl"></div>
+    </div>
+  </div>
+
+  <div class="relative z-10 mx-auto grid w-full max-w-page items-center gap-10 px-5 sm:px-8 lg:grid-cols-[1.15fr_0.85fr] lg:gap-12">
+    <div class="min-w-0 max-w-2xl">
+      <div class="mb-6 flex flex-wrap items-center gap-3" data-hero-item>
+        {/* The mark leads the line on a phone, where there is no column beside the words for it. */}
+        <span class="glass-2 shadow-glass-1 grid size-12 shrink-0 place-items-center rounded-pill lg:hidden">
+          <FireflyMark class="size-8" title={t('hero.mark.alt')} recording />
+        </span>
+        <span class="glass-2 shadow-glass-1 inline-flex items-center gap-2 rounded-pill py-1.5 pr-4 pl-3 text-xs font-semibold text-ink-muted">
+          <span class="rec-dot size-2 rounded-pill bg-firefly-600" aria-hidden="true"></span>
+          <span class="font-mono tracking-wide text-accent-strong">REC</span>
+          <span aria-hidden="true">·</span>
+          {t('hero.badge')}
+        </span>
+      </div>
+
+      <h1 class="text-hero font-semibold text-balance" data-hero-item>{t('hero.headline')}</h1>
+
+      <p class="mt-6 max-w-xl text-lead text-ink-muted text-pretty" data-hero-item>{t('hero.lead')}</p>
+
+      <div class="mt-8 flex flex-wrap items-center gap-3" data-hero-item>
+        <Button href="#install">{t('hero.cta.start')}</Button>
+        <Button href={REPO_URL} external variant="ghost">
+          <GithubMark class="size-4" />
+          {t('hero.cta.github')}
+        </Button>
+      </div>
+
+      <div class="mt-10 max-w-xl" data-hero-item>
+        <p class="mb-2 text-xs font-semibold tracking-wide text-ink-faint uppercase">{t('hero.command.label')}</p>
+        <CopyCommand command={commandFor('Claude Code', 'recording')} />
+      </div>
+
+      <div class="mt-8 flex flex-wrap items-center gap-x-4 gap-y-2" data-hero-item>
+        <span class="text-xs font-semibold tracking-wide whitespace-nowrap text-ink-faint uppercase">{t('hero.platforms')}</span>
+        <ul class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-muted">
+          {PLATFORMS.map((platform) => <li class="glass-1 rounded-pill px-3 py-1">{platform}</li>)}
+        </ul>
+      </div>
+    </div>
+
+    {/* The firefly records: its lantern pulses, rings of light spread from it, and what one take
+        hands back floats around it. A desktop scene — on a phone the mark rides in the badge line. */}
+    <div class="relative hidden h-[30rem] w-[30rem] justify-self-end lg:block" data-hero-stage>
+      <div class="absolute top-1/2 left-1/2 size-72 -translate-x-1/2 -translate-y-1/2" data-hero-mascot>
+        <div class="lantern pointer-events-none absolute inset-0" aria-hidden="true" data-decorative>
+          <span class="lantern__ring lantern__ring--1"></span>
+          <span class="lantern__ring lantern__ring--2"></span>
+          <span class="lantern__ring lantern__ring--3"></span>
+        </div>
+        <FireflyMark class="relative size-72 drop-shadow-2xl" title={t('hero.mark.alt')} recording />
+      </div>
+
+      <ul class="absolute inset-0" data-hero-outputs>
+        {
+          outputs.map((output) => (
+            <li class:list={['glass-3 shadow-glass-2 absolute flex items-center gap-2.5 rounded-control py-2 pr-3.5 pl-2.5', output.place]} data-hero-output>
+              <span class="flex size-8 items-center justify-center rounded-control bg-accent-soft text-accent-strong">
+                <output.icon class="size-4" aria-hidden="true" />
+              </span>
+              <span class="flex flex-col">
+                <span class="font-mono text-xs font-semibold text-ink">{output.file}</span>
+                <span class="text-xs text-ink-muted">{output.label}</span>
+              </span>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </div>
+</section>
+
+<style>
+  /* The REC dot blinks like a camera's, on the same clock as the lantern. */
+  .rec-dot {
+    animation: rec-blink 2.4s cubic-bezier(0.37, 0, 0.63, 1) infinite;
+  }
+
+  @keyframes rec-blink {
+    0%,
+    100% {
+      opacity: 0.35;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+
+  /* Rings of light spreading from the lantern, on unequal clocks so they never march in step.
+     The lantern sits at the bottom of the mark, 80% down its box. */
+  .lantern__ring {
+    position: absolute;
+    top: 80%;
+    left: 50%;
+    width: 5rem;
+    height: 5rem;
+    margin: -2.5rem 0 0 -2.5rem;
+    border: var(--width-hairline) solid color-mix(in oklab, var(--color-firefly-500) 70%, transparent);
+    border-radius: 50%;
+    opacity: 0;
+    animation: lantern-ripple 4.8s ease-out infinite;
+  }
+
+  .lantern__ring--2 {
+    animation-delay: 1.6s;
+  }
+
+  .lantern__ring--3 {
+    animation-delay: 3.2s;
+  }
+
+  @keyframes lantern-ripple {
+    0% {
+      transform: scale(0.4);
+      opacity: 0;
+    }
+    14% {
+      opacity: 0.9;
+    }
+    100% {
+      transform: scale(4.2);
+      opacity: 0;
+    }
+  }
+
+  /* The hero's colour is weather, not decoration: each blob drifts on its own path and clock. */
+  @keyframes drift-slow {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    30% {
+      transform: translate3d(22%, 8%, 0) scale(1.18);
+      opacity: 0.72;
+    }
+    60% {
+      transform: translate3d(10%, 24%, 0) scale(1.3);
+      opacity: 1;
+    }
+  }
+
+  @keyframes drift-wide {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0) scale(1.04);
+    }
+    35% {
+      transform: translate3d(-24%, 10%, 0) scale(0.82);
+      opacity: 0.7;
+    }
+    65% {
+      transform: translate3d(-10%, 26%, 0) scale(1.2);
+      opacity: 1;
+    }
+  }
+
+  @keyframes drift-deep {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0) scale(0.98);
+    }
+    40% {
+      transform: translate3d(20%, -16%, 0) scale(1.28);
+      opacity: 0.75;
+    }
+    70% {
+      transform: translate3d(-18%, -8%, 0) scale(1.1);
+      opacity: 1;
+    }
+  }
+
+  .drift {
+    will-change: transform;
+  }
+
+  .drift--slow {
+    animation: drift-slow 34s cubic-bezier(0.37, 0, 0.63, 1) infinite;
+  }
+
+  .drift--wide {
+    animation: drift-wide 46s cubic-bezier(0.37, 0, 0.63, 1) infinite;
+  }
+
+  .drift--deep {
+    animation: drift-deep 40s cubic-bezier(0.37, 0, 0.63, 1) infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .rec-dot,
+    .drift,
+    .lantern__ring {
+      animation: none !important;
+    }
+
+    .rec-dot {
+      opacity: 1;
+    }
+
+    .lantern__ring--1 {
+      opacity: 0.3;
+      transform: scale(1.6);
+    }
+  }
+</style>
+
+<script>
+  import { fadeUp, parallaxLayer } from '../../lib/motion'
+
+  const hero = document.querySelector('[data-hero]')
+  if (hero) {
+    fadeUp('[data-hero-item]', { stagger: 0.07 })
+    fadeUp('[data-hero-output]', { stagger: 0.12, distance: 12 })
+    // Each layer drifts at its own speed, which is what reads as depth.
+    parallaxLayer('[data-blob="1"]', { distance: -26, scope: hero })
+    parallaxLayer('[data-blob="2"]', { distance: -14, scope: hero })
+    parallaxLayer('[data-blob="3"]', { distance: -34, scope: hero })
+    parallaxLayer('[data-hero-mascot]', { distance: -8, scope: hero })
+  }
+</script>

@@ -1,0 +1,46 @@
+{
+  "name": "webapp-evidence-site",
+  "type": "module",
+  "version": "0.0.1",
+  "private": true,
+  "engines": {
+    "node": ">=20.3.0"
+  },
+  "scripts": {
+    "sync": "node scripts/sync-upstream.mjs",
+    "predev": "node scripts/sync-upstream.mjs",
+    "dev": "astro dev",
+    "prebuild": "node scripts/sync-upstream.mjs",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "check": "node scripts/sync-upstream.mjs && astro check && node scripts/check-tokens.mjs",
+    "check:ui": "node scripts/check-ui.mjs",
+    "og": "node --experimental-strip-types scripts/build-og.mjs"
+  },
+  "dependencies": {
+    "@astrojs/sitemap": "^3",
+    "@astrojs/vercel": "^8",
+    "@fontsource-variable/inter": "^5.3.0",
+    "@lucide/astro": "^1.46.0",
+    "@tailwindcss/vite": "^4",
+    "astro": "^5.18.2",
+    "gsap": "^3.15.0",
+    "lenis": "^1.3.26",
+    "sharp": "^0.35.4",
+    "tailwindcss": "^4"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.10",
+    "@types/node": "^22.20.3",
+    "axe-core": "^4.13.0",
+    "playwright": "^1.63.0",
+    "typescript": "^5.9.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp"
+    ]
+  }
+}

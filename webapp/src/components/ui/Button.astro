@@ -1,0 +1,24 @@
+---
+/** The only button on the site. `primary` fills with the brand accent, `ghost` sits on glass. */
+interface Props extends Record<string, unknown> {
+  href?: string
+  variant?: 'primary' | 'ghost'
+  external?: boolean
+  class?: string
+}
+
+const { href, variant = 'primary', external = false, class: className = '', ...rest } = Astro.props
+
+const base =
+  'inline-flex h-(--button-height) cursor-pointer items-center justify-center gap-2 rounded-pill px-(--button-padding-inline) text-sm font-semibold no-underline transition-[transform,box-shadow,background-color] duration-[var(--duration-base)] ease-ios hover:-translate-y-px active:translate-y-0'
+const variants = {
+  primary: 'bg-accent text-ink-inverse shadow-glow hover:bg-accent-strong hover:shadow-glass-3',
+  ghost: 'glass-2 text-ink shadow-glass-1 hover:border-accent hover:bg-accent-soft hover:text-accent-strong hover:shadow-glass-2',
+}
+const Tag = href ? 'a' : 'button'
+const linkAttrs = external ? { target: '_blank', rel: 'noopener noreferrer' } : {}
+---
+
+<Tag href={href} {...linkAttrs} {...rest} class:list={[base, variants[variant], className]}>
+  <slot />
+</Tag>

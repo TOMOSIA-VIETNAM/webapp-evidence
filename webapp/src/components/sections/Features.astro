@@ -1,0 +1,45 @@
+---
+import { Hand, ScrollText, EyeOff, HardDrive, AppWindow, Languages } from '@lucide/astro'
+import Section from '../ui/Section.astro'
+import GlassCard from '../ui/GlassCard.astro'
+import { localeFromUrl, useTranslations } from '../../i18n'
+
+const t = useTranslations(localeFromUrl(Astro.url))
+
+const features = [
+  { icon: Hand, title: t('features.human.title'), body: t('features.human.body') },
+  { icon: ScrollText, title: t('features.runbook.title'), body: t('features.runbook.body') },
+  { icon: EyeOff, title: t('features.secrets.title'), body: t('features.secrets.body') },
+  { icon: HardDrive, title: t('features.local.title'), body: t('features.local.body') },
+  { icon: AppWindow, title: t('features.native.title'), body: t('features.native.body') },
+  { icon: Languages, title: t('features.language.title'), body: t('features.language.body') },
+]
+---
+
+<Section id="features" eyebrow={t('features.eyebrow')} heading={t('features.heading')}>
+  <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" data-features>
+    {
+      features.map((feature) => (
+        <GlassCard as="li" tier={2} class="relative isolate flex flex-col gap-3 overflow-hidden" data-feature>
+          <span class="glow-light" aria-hidden="true" data-decorative />
+          <span class="flex size-9 items-center justify-center rounded-control bg-accent-soft text-accent-strong">
+            <feature.icon class="size-4.5" aria-hidden="true" />
+          </span>
+          <h3 class="text-base font-semibold">{feature.title}</h3>
+          <p class="text-sm leading-relaxed text-ink-muted">{feature.body}</p>
+        </GlassCard>
+      ))
+    }
+  </ul>
+</Section>
+
+<script>
+  import { fadeUp } from '../../lib/motion'
+  import { followGlow } from '../../lib/glow'
+
+  fadeUp('[data-feature]', { stagger: 0.06 })
+  followGlow(
+    document.querySelector<HTMLElement>('[data-features]'),
+    [...document.querySelectorAll<HTMLElement>('[data-feature]')],
+  )
+</script>

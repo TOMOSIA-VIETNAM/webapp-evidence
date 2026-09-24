@@ -56,6 +56,14 @@ without touching the suite.
 `session.js` refuses to run from inside the skill directory, and this repository is that directory:
 a test loading it sets `PROJECT_ROOT` to a scratch dir before the `require`.
 
+## The landing page
+
+`webapp/` is the project's site, with its own `README.md` and `CLAUDE.md`. It reads this README's
+install blocks, example request and runbook excerpt at build time, and the logo and demo media from
+`docs/` — so rewording those blocks or re-recording the demo can fail its build. Run `pnpm build` in
+`webapp/` after touching them. It never ships: `install.sh` names what it ships and `webapp/` is not
+on the list, which `tests/platform-layer.test.js` holds.
+
 ## Two things that break invisibly
 
 **The README demo.** `docs/demo/record.sh` records open-pr.vercel.app and prints the runbook the

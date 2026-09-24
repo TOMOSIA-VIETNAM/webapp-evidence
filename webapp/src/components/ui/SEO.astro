@@ -1,0 +1,59 @@
+---
+import { LOCALES, localePath, useTranslations, type Locale } from '../../i18n'
+import { REPO_URL, LICENSE, TOMOSIA_NAME, TOMOSIA_URL } from '../../lib/site'
+import { PLUGIN } from '../../lib/upstream'
+
+/** Head metadata for one page in one language: canonical, hreflang, social cards, JSON-LD. */
+interface Props {
+  locale: Locale
+}
+
+const { locale } = Astro.props
+const t = useTranslations(locale)
+const site = Astro.site ?? new URL('/', Astro.url)
+const path = Astro.url.pathname
+const canonical = new URL(localePath(locale, path), site)
+const ogImage = new URL('/og.png', site)
+
+// Every title carries the organisation, so a tab or a shared link says who published this.
+const title = `${t('meta.title')} · ${TOMOSIA_NAME}`
+
+const organisation = { '@type': 'Organization', name: TOMOSIA_NAME, url: TOMOSIA_URL }
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: PLUGIN,
+  description: t('meta.description'),
+  applicationCategory: 'DeveloperApplication',
+  operatingSystem: 'macOS, Linux, Windows',
+  url: REPO_URL,
+  license: `https://spdx.org/licenses/${LICENSE}.html`,
+  isAccessibleForFree: true,
+  author: organisation,
+  publisher: organisation,
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+}
+---
+
+<title>{title}</title>
+<meta name="description" content={t('meta.description')} />
+<link rel="canonical" href={canonical.href} />
+
+{LOCALES.map((alt) => <link rel="alternate" hreflang={alt} href={new URL(localePath(alt, path), site).href} />)}
+<link rel="alternate" hreflang="x-default" href={new URL(localePath('en', path), site).href} />
+
+<meta property="og:type" content="website" />
+<meta property="og:title" content={title} />
+<meta property="og:description" content={t('meta.description')} />
+<meta property="og:url" content={canonical.href} />
+<meta property="og:image" content={ogImage.href} />
+<meta property="og:locale" content={locale} />
+<meta property="og:site_name" content={PLUGIN} />
+<meta name="author" content={TOMOSIA_NAME} />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content={title} />
+<meta name="twitter:description" content={t('meta.description')} />
+<meta name="twitter:image" content={ogImage.href} />
+
+<script type="application/ld+json" set:html={JSON.stringify(jsonLd)} is:inline />

@@ -1,0 +1,27 @@
+---
+/** Page section: consistent vertical rhythm, centred column, optional heading block. */
+interface Props extends Record<string, unknown> {
+  id?: string
+  eyebrow?: string
+  heading?: string
+  lead?: string
+  class?: string
+}
+
+const { id, eyebrow, heading, lead, class: className = '', ...rest } = Astro.props
+---
+
+<section id={id} {...rest} class:list={['overflow-x-clip py-(--section-padding-block)', className]}>
+  <div class="mx-auto w-full max-w-page px-5 sm:px-8">
+    {
+      (eyebrow || heading || lead) && (
+        <header class="mb-10 max-w-2xl">
+          {eyebrow && <p class="mb-3 text-sm font-semibold tracking-wide text-accent uppercase">{eyebrow}</p>}
+          {heading && <h2 class="text-display font-semibold text-balance">{heading}</h2>}
+          {lead && <p class="mt-4 text-lead text-ink-muted text-pretty">{lead}</p>}
+        </header>
+      )
+    }
+    <slot />
+  </div>
+</section>

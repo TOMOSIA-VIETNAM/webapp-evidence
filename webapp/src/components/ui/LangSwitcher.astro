@@ -1,0 +1,133 @@
+---
+import { Check, Globe, ChevronDown } from '@lucide/astro'
+import { LOCALES, localeFromUrl, localePath, useTranslations, LANG_STORAGE_KEY } from '../../i18n'
+
+/** Language menu. Choosing one navigates and remembers the choice for later visits. */
+interface Props extends Record<string, unknown> {
+  class?: string
+  align?: 'start' | 'end'
+}
+
+const { class: className = '', align = 'end', ...rest } = Astro.props
+const current = localeFromUrl(Astro.url)
+const t = useTranslations(current)
+const path = Astro.url.pathname
+---
+
+<div class:list={['relative', className]} data-lang-menu {...rest}>
+  <button
+    type="button"
+    class="flex min-h-10 cursor-pointer items-center gap-1.5 rounded-pill px-3 py-2 text-sm font-medium sm:min-h-0 text-ink-muted transition-colors duration-[var(--duration-fast)] ease-ios hover:text-ink"
+    aria-haspopup="true"
+    aria-expanded="false"
+    data-lang-trigger
+  >
+    <Globe class="size-4" aria-hidden="true" />
+    <span class="font-semibold">{t(`lang.${current}.short` as 'lang.en.short')}</span>
+    <span class="sr-only">{t('nav.languageMenu')}</span>
+    <ChevronDown class="size-3.5 transition-transform duration-[var(--duration-fast)] ease-ios" aria-hidden="true" data-lang-chevron />
+  </button>
+
+  <ul
+    class:list={[
+      'glass-3 shadow-glass-3 absolute z-50 hidden min-w-44 flex-col gap-0.5 rounded-card p-1.5',
+      align === 'end' ? 'right-0' : 'left-0',
+    ]}
+    data-lang-list
+  >
+    {
+      LOCALES.map((locale) => (
+        <li>
+          <a
+            href={localePath(locale, path)}
+            hreflang={locale}
+            lang={locale}
+            data-set-lang={locale}
+            aria-current={locale === current ? 'true' : undefined}
+            class:list={[
+              'flex min-h-10 cursor-pointer items-center justify-between gap-3 rounded-control px-3 py-2 text-sm no-underline transition-colors duration-[var(--duration-fast)] ease-ios hover:bg-surface-sunken',
+              locale === current ? 'font-semibold text-accent-strong' : 'text-ink-muted hover:text-ink',
+            ]}
+          >
+            {t(`lang.${locale}` as 'lang.en')}
+            {locale === current && <Check class="size-4" aria-hidden="true" />}
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+</div>
+
+<noscript>
+  <style>
+    /* The dropdown needs script to open, so without it the languages sit in the open. */
+    [data-lang-list] {
+      position: static;
+      display: flex !important;
+      flex-direction: row;
+      min-width: 0;
+      box-shadow: none;
+      background: none;
+      border: 0;
+      padding: 0;
+    }
+
+    [data-lang-trigger] {
+      display: none;
+    }
+  </style>
+</noscript>
+
+<script define:vars={{ storageKey: LANG_STORAGE_KEY }}>
+  document.querySelectorAll('[data-lang-menu]').forEach((menu) => {
+    if (menu.dataset.langReady) return
+    menu.dataset.langReady = 'true'
+
+    const trigger = menu.querySelector('[data-lang-trigger]')
+    const list = menu.querySelector('[data-lang-list]')
+    const chevron = menu.querySelector('[data-lang-chevron]')
+
+    const GAP = 8
+
+    const setOpen = (open) => {
+      list.classList.toggle('hidden', !open)
+      list.classList.toggle('flex', open)
+      trigger.setAttribute('aria-expanded', String(open))
+      chevron?.classList.toggle('rotate-180', open)
+      if (!open) return
+
+      // The footer menu has no room below it, so the list opens upwards when the space
+      // beneath the trigger cannot hold it.
+      const triggerBox = trigger.getBoundingClientRect()
+      const listHeight = list.offsetHeight
+      const roomBelow = window.innerHeight - triggerBox.bottom
+      const dropUp = roomBelow < listHeight + GAP && triggerBox.top > listHeight + GAP
+      list.style.top = dropUp ? '' : `calc(100% + ${GAP}px)`
+      list.style.bottom = dropUp ? `calc(100% + ${GAP}px)` : ''
+      chevron?.classList.toggle('rotate-180', !dropUp)
+    }
+
+    trigger.addEventListener('click', (event) => {
+      event.stopPropagation()
+      setOpen(list.classList.contains('hidden'))
+    })
+
+    menu.querySelectorAll('[data-set-lang]').forEach((link) => {
+      link.addEventListener('click', () => {
+        try {
+          localStorage.setItem(storageKey, link.dataset.setLang)
+        } catch {
+          // Storage unavailable (private mode, blocked cookies): the navigation still works.
+        }
+      })
+    })
+
+    // A click anywhere else, or Escape, closes the menu.
+    document.addEventListener('click', (event) => {
+      if (!menu.contains(event.target)) setOpen(false)
+    })
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') setOpen(false)
+    })
+  })
+</script>

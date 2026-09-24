@@ -1,0 +1,136 @@
+---
+import Section from '../ui/Section.astro'
+import GlassCard from '../ui/GlassCard.astro'
+import CopyCommand from '../ui/CopyCommand.astro'
+import { localeFromUrl, useTranslations } from '../../i18n'
+import { PLATFORMS, commandFor, installFor } from '../../lib/upstream'
+
+const t = useTranslations(localeFromUrl(Astro.url))
+const slug = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+const platforms = PLATFORMS.map((name) => ({
+  name,
+  slug: slug(name),
+  install: installFor(name),
+  record: commandFor(name, 'recording'),
+  vision: commandFor(name, 'vision'),
+}))
+---
+
+<Section id="install" eyebrow={t('install.eyebrow')} heading={t('install.heading')} lead={t('install.lead')}>
+  <GlassCard tier={3} class="flex flex-col gap-5" data-install>
+    <div class="flex flex-wrap gap-2" role="tablist" aria-label={t('install.eyebrow')} hidden data-install-tablist>
+      {
+        platforms.map((platform, index) => (
+          <button
+            type="button"
+            role="tab"
+            id={`install-tab-${platform.slug}`}
+            aria-controls={`install-panel-${platform.slug}`}
+            aria-selected={index === 0 ? 'true' : 'false'}
+            tabindex={index === 0 ? 0 : -1}
+            class="flex min-h-10 cursor-pointer items-center rounded-pill px-4 py-2 text-sm font-semibold text-ink-muted transition-colors duration-[var(--duration-fast)] ease-ios hover:text-ink aria-selected:bg-accent-soft aria-selected:text-accent-strong"
+            data-install-tab
+          >
+            {platform.name}
+          </button>
+        ))
+      }
+    </div>
+
+    {
+      platforms.map((platform) => (
+        <div
+          role="tabpanel"
+          id={`install-panel-${platform.slug}`}
+          aria-labelledby={`install-tab-${platform.slug}`}
+          class="flex flex-col gap-4"
+          data-install-panel
+        >
+          <h3 class="sr-only">{platform.name}</h3>
+          <div class="flex flex-col gap-2">
+            <p class="text-xs font-semibold tracking-wide text-ink-faint uppercase">{t('install.column.install')}</p>
+            {platform.install.map((command) => (
+              <CopyCommand command={command} />
+            ))}
+          </div>
+          <div class="grid gap-4 md:grid-cols-2">
+            <div class="flex min-w-0 flex-col gap-2">
+              <p class="text-xs font-semibold tracking-wide text-ink-faint uppercase">{t('install.column.use')}</p>
+              <CopyCommand command={platform.record} />
+            </div>
+            <div class="flex min-w-0 flex-col gap-2">
+              <p class="text-xs font-semibold tracking-wide text-ink-faint uppercase">{t('install.column.vision')}</p>
+              <CopyCommand command={platform.vision} />
+            </div>
+          </div>
+        </div>
+      ))
+    }
+
+    <p class="text-sm leading-relaxed text-ink-muted">{t('install.requirements')}</p>
+  </GlassCard>
+</Section>
+
+<script is:inline>
+  // Runs while the page is still parsing: the tab strip appears and the panels behind the first
+  // tab go away before anything is painted. Without script neither happens, and every platform
+  // stays on the page under its own name.
+  ;(() => {
+    const root = document.currentScript.parentElement
+    const tablist = root.querySelector('[data-install-tablist]')
+    if (tablist) tablist.hidden = false
+    root.querySelectorAll('[data-install-panel]').forEach((panel, index) => {
+      if (index !== 0) panel.classList.add('is-inactive')
+    })
+  })()
+</script>
+
+<style>
+  .is-inactive {
+    display: none;
+  }
+</style>
+
+<noscript>
+  <style>
+    /* No script means no tab switching: every platform is shown, each under its own name. */
+    [data-install-panel] h3 {
+      position: static;
+      width: auto;
+      height: auto;
+      clip: auto;
+      clip-path: none;
+      white-space: normal;
+      font-weight: 600;
+    }
+  </style>
+</noscript>
+
+<script>
+  import { fadeUp } from '../../lib/motion'
+
+  const tabs = [...document.querySelectorAll<HTMLButtonElement>('[data-install-tab]')]
+  const panels = [...document.querySelectorAll<HTMLElement>('[data-install-panel]')]
+  const show = (index: number) => {
+    tabs.forEach((tab, i) => {
+      tab.setAttribute('aria-selected', String(i === index))
+      tab.tabIndex = i === index ? 0 : -1
+    })
+    panels.forEach((panel, i) => panel.classList.toggle('is-inactive', i !== index))
+  }
+
+  tabs.forEach((tab, index) => {
+    tab.addEventListener('click', () => show(index))
+    // Arrow keys move between tabs, which is what a tablist is expected to do.
+    tab.addEventListener('keydown', (event) => {
+      const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0
+      if (step === 0) return
+      event.preventDefault()
+      const next = (index + step + tabs.length) % tabs.length
+      show(next)
+      tabs[next].focus()
+    })
+  })
+
+  fadeUp('[data-install]', { distance: 16 })
+</script>

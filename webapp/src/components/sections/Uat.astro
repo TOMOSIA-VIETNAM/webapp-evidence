@@ -1,0 +1,199 @@
+---
+import { ListChecks, Clapperboard, FileCheck, BadgeCheck } from '@lucide/astro'
+import Section from '../ui/Section.astro'
+import GlassCard from '../ui/GlassCard.astro'
+import { localeFromUrl, useTranslations } from '../../i18n'
+import { RUNBOOK_EXCERPT, runbookLine } from '../../lib/upstream'
+
+const t = useTranslations(localeFromUrl(Astro.url))
+
+const steps = [
+  { icon: ListChecks, title: t('uat.step1.title'), body: t('uat.step1.body') },
+  { icon: Clapperboard, title: t('uat.step2.title'), body: t('uat.step2.body') },
+  { icon: FileCheck, title: t('uat.step3.title'), body: t('uat.step3.body') },
+  { icon: BadgeCheck, title: t('uat.step4.title'), body: t('uat.step4.body') },
+]
+
+/*
+ * Each criterion points at the runbook lines that prove it, by the text those lines start with.
+ * The excerpt is the README's own, so a re-recorded demo that moves a timestamp fails the build
+ * here instead of leaving a criterion pointing at nothing.
+ */
+const criteria = [
+  { id: 'AC-1', text: t('uat.report.ac1'), proof: ['00:21 - 00:26'] },
+  { id: 'AC-2', text: t('uat.report.ac2'), proof: ['00:36 - 00:49'] },
+  { id: 'AC-3', text: t('uat.report.ac3'), proof: ['01:13 - 01:26', '- 01:24'] },
+  { id: 'AC-4', text: t('uat.report.ac4'), proof: ['- none'] },
+].map((criterion) => {
+  const lines = criterion.proof.map(runbookLine)
+  const stamp = criterion.proof[0].match(/\d\d:\d\d/)?.[0]
+  return { ...criterion, lines, stamp }
+})
+
+const runbook = RUNBOOK_EXCERPT.split('\n').map((text, index) => ({
+  text,
+  index,
+  heading: text.startsWith('## '),
+  owner: criteria.find((c) => c.lines.includes(index))?.id,
+}))
+---
+
+<Section id="uat" eyebrow={t('uat.eyebrow')} heading={t('uat.heading')} lead={t('uat.lead')}>
+  <ol class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" data-uat-steps>
+    {
+      steps.map((step, index) => (
+        <GlassCard as="li" tier={2} class="relative isolate flex flex-col gap-3 overflow-hidden" data-uat-step>
+          <span class="glow-light" aria-hidden="true" data-decorative />
+          <div class="flex items-center gap-3">
+            <span class="flex size-9 items-center justify-center rounded-control bg-accent-soft text-accent-strong">
+              <step.icon class="size-4.5" aria-hidden="true" />
+            </span>
+            <span class="font-mono text-xs font-semibold text-ink-faint">{String(index + 1).padStart(2, '0')}</span>
+          </div>
+          <h3 class="text-base font-semibold">{step.title}</h3>
+          <p class="text-sm leading-relaxed text-ink-muted">{step.body}</p>
+        </GlassCard>
+      ))
+    }
+  </ol>
+
+  <div class="relative isolate mt-6">
+    {/* Glass needs something to sit on: a wash of the lantern's colour behind the report. */}
+    <div class="pointer-events-none absolute -top-16 -left-10 -z-10 size-[22rem] rounded-full bg-firefly-200/50 blur-3xl" aria-hidden="true" data-decorative></div>
+    <div class="pointer-events-none absolute -right-10 -bottom-16 -z-10 size-[24rem] rounded-full bg-firefly-300/30 blur-3xl" aria-hidden="true" data-decorative></div>
+
+    <GlassCard tier={3} class="rounded-panel" data-uat-report>
+      <header class="mb-6 max-w-2xl">
+        <h3 class="text-xl font-semibold text-balance">{t('uat.report.title')}</h3>
+        <p class="mt-2 text-sm leading-relaxed text-ink-muted text-pretty">{t('uat.report.lead')}</p>
+      </header>
+
+      <div class="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+        <div class="flex min-w-0 flex-col gap-2">
+          <p class="text-xs font-semibold tracking-wide text-ink-faint uppercase">{t('uat.report.criteria')}</p>
+          <ul class="flex flex-col gap-2">
+            {
+              criteria.map((criterion) => (
+                <li>
+                  <button
+                    type="button"
+                    class="criterion flex w-full cursor-pointer items-start gap-3 rounded-control border border-hairline bg-surface-raised/70 p-3 text-left transition-[border-color,background-color,box-shadow] duration-[var(--duration-base)] ease-ios hover:border-accent hover:bg-surface-raised aria-pressed:border-accent aria-pressed:bg-surface-raised aria-pressed:shadow-glass-1"
+                    aria-pressed="false"
+                    data-criterion={criterion.id}
+                    data-lines={criterion.lines.join(',')}
+                  >
+                    <span class="mt-0.5 shrink-0 rounded-pill bg-pass-soft px-2 py-0.5 font-mono text-xs font-semibold text-pass">PASS</span>
+                    <span class="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <span class="font-mono text-xs font-semibold text-ink-faint">{criterion.id}</span>
+                      <span class="text-sm font-medium text-ink">{criterion.text}</span>
+                    </span>
+                    {criterion.stamp && (
+                      <span class="shrink-0 font-mono text-xs font-semibold text-accent tabular-nums">{criterion.stamp}</span>
+                    )}
+                  </button>
+                </li>
+              ))
+            }
+          </ul>
+          <button
+            type="button"
+            class="mt-1 inline-flex min-h-10 cursor-pointer items-center self-start rounded-pill px-3 text-sm font-medium text-ink-muted transition-colors duration-[var(--duration-fast)] ease-ios hover:text-ink disabled:invisible"
+            disabled
+            data-criterion-reset
+          >
+            {t('uat.report.reset')}
+          </button>
+        </div>
+
+        <figure class="m-0 flex min-w-0 flex-col gap-2">
+          <figcaption class="flex items-center justify-between gap-3">
+            <span class="text-xs font-semibold tracking-wide text-ink-faint uppercase">{t('uat.report.runbook')}</span>
+            <span class="font-mono text-xs text-ink-faint">site-tour-runbook.md</span>
+          </figcaption>
+          <div class="overflow-x-auto rounded-control bg-surface-console p-4" tabindex="0" role="region" aria-label={t('uat.report.runbook')}>
+            <ol class="m-0 w-max min-w-full list-none p-0 font-mono text-xs leading-relaxed text-ink-console sm:text-sm" data-runbook>
+              {
+                runbook.map((line) => (
+                  <li
+                    class:list={['runbook-line min-h-[1lh] rounded-control px-2 whitespace-pre', line.heading && 'font-semibold text-firefly-300']}
+                    data-line={line.index}
+                    data-owner={line.owner}
+                  >
+                    {line.text}
+                    {line.owner && (
+                      <span class="runbook-tag ml-2 hidden rounded-pill bg-firefly-300 px-1.5 font-sans text-xs font-semibold text-accent-strong">
+                        {line.owner}
+                      </span>
+                    )}
+                  </li>
+                ))
+              }
+            </ol>
+          </div>
+          <p class="text-xs leading-relaxed text-ink-faint">{t('uat.report.source')}</p>
+        </figure>
+      </div>
+    </GlassCard>
+  </div>
+</Section>
+
+<style>
+  .runbook-line {
+    transition:
+      opacity var(--duration-base) var(--ease-ios),
+      background-color var(--duration-base) var(--ease-ios),
+      outline-color var(--duration-base) var(--ease-ios);
+    outline: var(--width-marked) solid transparent;
+    outline-offset: calc(var(--width-hairline) * -1);
+  }
+
+  /* A criterion is chosen: its lines take the accent outline and tag, everything else dims. */
+  [data-runbook].has-choice .runbook-line {
+    opacity: 0.35;
+  }
+
+  [data-runbook].has-choice .runbook-line.is-proof {
+    opacity: 1;
+    outline-color: var(--color-firefly-500);
+    background-color: color-mix(in oklab, var(--color-firefly-500) 16%, transparent);
+  }
+
+  .runbook-line.is-proof .runbook-tag {
+    display: inline-block;
+  }
+</style>
+
+<script>
+  import { fadeUp } from '../../lib/motion'
+  import { followGlow } from '../../lib/glow'
+
+  fadeUp('[data-uat-step]', { stagger: 0.08 })
+  fadeUp('[data-uat-report]', { distance: 16 })
+  followGlow(
+    document.querySelector<HTMLElement>('[data-uat-steps]'),
+    [...document.querySelectorAll<HTMLElement>('[data-uat-step]')],
+  )
+
+  const runbook = document.querySelector<HTMLElement>('[data-runbook]')
+  const buttons = [...document.querySelectorAll<HTMLButtonElement>('[data-criterion]')]
+  const reset = document.querySelector<HTMLButtonElement>('[data-criterion-reset]')
+  const lines = [...document.querySelectorAll<HTMLElement>('[data-line]')]
+
+  // Choosing a criterion marks the lines that prove it; choosing it again, the reset button or
+  // Escape puts the runbook back to plain.
+  const choose = (chosen: HTMLButtonElement | null) => {
+    const proof = new Set((chosen?.dataset.lines ?? '').split(',').filter(Boolean))
+    for (const button of buttons) button.setAttribute('aria-pressed', String(button === chosen))
+    for (const line of lines) line.classList.toggle('is-proof', proof.has(line.dataset.line ?? ''))
+    runbook?.classList.toggle('has-choice', chosen !== null)
+    if (reset) reset.disabled = chosen === null
+  }
+
+  for (const button of buttons) {
+    button.addEventListener('click', () => choose(button.getAttribute('aria-pressed') === 'true' ? null : button))
+  }
+  reset?.addEventListener('click', () => choose(null))
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && runbook?.classList.contains('has-choice')) choose(null)
+  })
+</script>

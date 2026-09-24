@@ -1,0 +1,55 @@
+---
+import FireflyMark from './FireflyMark.astro'
+import { localeFromUrl, useTranslations } from '../../i18n'
+
+/** Floating return to the top. The firefly beats its wings on hover and flies off on click. */
+const t = useTranslations(localeFromUrl(Astro.url))
+---
+
+<button
+  type="button"
+  class="glass-3 shadow-glass-3 invisible pointer-events-none fixed right-5 bottom-5 z-40 grid size-14 translate-y-4 cursor-pointer place-items-center rounded-pill opacity-0 transition-[opacity,transform,box-shadow] duration-[var(--duration-base)] ease-ios hover:shadow-glow sm:right-8 sm:bottom-8"
+  aria-label={t('action.scrollTop')}
+  title={t('action.scrollTop')}
+  data-scroll-top
+  data-firefly-hover
+>
+  <FireflyMark class="size-8" />
+</button>
+
+<script>
+  import { scrollToPosition } from '../../lib/motion'
+
+  const button = document.querySelector<HTMLButtonElement>('[data-scroll-top]')
+
+  if (button) {
+    const TAKEOFF_MS = 620
+
+    const show = (visible: boolean) => {
+      button.classList.toggle('invisible', !visible)
+      button.classList.toggle('pointer-events-none', !visible)
+      button.classList.toggle('opacity-0', !visible)
+      button.classList.toggle('translate-y-4', !visible)
+    }
+
+    // It appears once the reader has left the hero and reached the first section.
+    const firstSection = document.querySelector('main > section:nth-of-type(2)')
+    const update = () =>
+      show(
+        firstSection
+          ? firstSection.getBoundingClientRect().top <= window.innerHeight * 0.6
+          : window.scrollY > window.innerHeight,
+      )
+
+    update()
+    window.addEventListener('scroll', update, { passive: true })
+    window.addEventListener('resize', update)
+
+    button.addEventListener('click', () => {
+      button.dataset.fireflyTakeoff = 'true'
+      scrollToPosition(0)
+      // The mark is put back once it is off screen, ready for the next visit.
+      window.setTimeout(() => delete button.dataset.fireflyTakeoff, TAKEOFF_MS)
+    })
+  }
+</script>

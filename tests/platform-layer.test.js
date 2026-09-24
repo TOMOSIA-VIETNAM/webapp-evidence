@@ -435,7 +435,7 @@ test('install.sh ships everything a run needs', () => {
 
 test('install.sh ships nothing that only matters to someone editing this project', () => {
   const ship = read('install.sh').match(/^SHIP='([\s\S]*?)'/m)[1];
-  for (const dev of ['/tests/', '/evals/', '/CONTRIBUTING.md', '/CLAUDE.md', '/docs/']) {
+  for (const dev of ['/tests/', '/evals/', '/CONTRIBUTING.md', '/CLAUDE.md', '/docs/', '/webapp/']) {
     assert.ok(!ship.includes(dev), `${dev} has no business on a user's disk`);
   }
 });

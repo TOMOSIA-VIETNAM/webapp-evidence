@@ -1,0 +1,219 @@
+/*
+ * The single source of style for this site.
+ *
+ * Three layers, in order: primitives (raw brand values) -> semantic (what a value
+ * means) -> component (what one component needs). Components reference the semantic
+ * or component layer only; a raw value written anywhere else is a defect.
+ *
+ * Brand tones come from the firefly brand sheet, docs/images/logo/brand-sheet.svg at the
+ * repository root: deep #2C4408 · mid #5C8F0F · light #8FC91E · pale #BFE05F on light backgrounds.
+ * The mid tone is too light to carry white text (3.9:1), so the accent sits one step deeper.
+ */
+
+@import 'tailwindcss';
+
+@theme {
+  /* ---- primitive: brand firefly scale, built around the four brand tones ---- */
+  --color-firefly-50: #f6fbe9;
+  --color-firefly-100: #ebf6cf;
+  --color-firefly-200: #d8eea3;
+  --color-firefly-300: #bfe05f; /* brand pale */
+  --color-firefly-400: #a6d43a;
+  --color-firefly-500: #8fc91e; /* brand light */
+  --color-firefly-600: #74a916;
+  --color-firefly-700: #5c8f0f; /* brand mid */
+  --color-firefly-800: #456c0b;
+  --color-firefly-900: #2c4408; /* brand deep */
+
+  /* ---- primitive: warm neutrals (stone-leaning, never blue-grey) ---- */
+  --color-sand-50: #fafafa;
+  --color-sand-100: #f5f4f1;
+  --color-sand-200: #f0eee6; /* brand paper */
+  --color-sand-300: #e3e0d6;
+  --color-sand-400: #c8c4b8;
+  --color-sand-500: #a8a29e;
+  --color-sand-600: #78716c;
+  --color-sand-700: #57534e;
+  --color-sand-800: #2e2b28;
+  --color-sand-900: #1f1e1d;
+  --color-sand-950: #17130f;
+
+  /* ---- primitive: the one warning hue, for a failed check in a report ---- */
+  --color-signal-100: #fde8e4;
+  --color-signal-800: #9b2c1a;
+
+  /* ---- semantic: surfaces and ink ---- */
+  --color-surface: var(--color-sand-50);
+  --color-surface-raised: #ffffff;
+  --color-shine: #ffffff; /* the light on a surface, not a surface itself */
+  --color-surface-sunken: var(--color-sand-200);
+  --color-surface-console: var(--color-sand-900); /* the terminal panel a take opens over the page */
+  --color-ink: var(--color-sand-950);
+  --color-ink-muted: var(--color-sand-700);
+  --color-ink-faint: var(--color-sand-600);
+  --color-ink-inverse: #ffffff;
+  --color-ink-console: var(--color-sand-200);
+  --color-accent: var(--color-firefly-800);
+  --color-accent-strong: var(--color-firefly-900);
+  --color-accent-soft: var(--color-firefly-100);
+  --color-accent-glow: var(--color-firefly-300);
+  --color-pass: var(--color-firefly-900);
+  --color-pass-soft: var(--color-firefly-100);
+  --color-fail: var(--color-signal-800);
+  --color-fail-soft: var(--color-signal-100);
+  --color-hairline: color-mix(in oklab, var(--color-sand-400) 45%, transparent);
+  --color-focus: var(--color-firefly-800);
+
+  /* ---- semantic: glass, three tiers of depth ---- */
+  --color-glass-1-bg: color-mix(in oklab, #ffffff 62%, transparent);
+  --color-glass-1-border: color-mix(in oklab, #ffffff 70%, transparent);
+  --color-glass-2-bg: color-mix(in oklab, #ffffff 76%, transparent);
+  --color-glass-2-border: color-mix(in oklab, #ffffff 82%, transparent);
+  --color-glass-3-bg: color-mix(in oklab, #ffffff 88%, transparent);
+  --color-glass-3-border: #ffffff;
+
+  --blur-glass: 20px;
+
+  /* Layered soft shadows: a tight contact shadow plus a wide ambient one. */
+  --shadow-glass-1: 0 1px 2px rgb(23 19 15 / 0.04), 0 8px 24px -12px rgb(23 19 15 / 0.12);
+  --shadow-glass-2: 0 1px 3px rgb(23 19 15 / 0.05), 0 16px 40px -18px rgb(23 19 15 / 0.16);
+  --shadow-glass-3: 0 2px 6px rgb(23 19 15 / 0.06), 0 32px 64px -24px rgb(23 19 15 / 0.2);
+  --shadow-glow: 0 8px 28px -12px color-mix(in oklab, var(--color-firefly-700) 60%, transparent);
+
+  /* ---- lines and radius: nav and cards sit at 20px or above, per the iOS-leaning look ---- */
+  --width-hairline: 1px; /* the thinnest line the design draws */
+  --width-marked: 2px; /* outline on a block the reader has selected */
+
+  --radius-pill: 999px;
+  --radius-control: 0.875rem; /* 14px — buttons, inputs, tabs */
+  --radius-card: 1.25rem; /* 20px — cards, nav */
+  --radius-panel: 1.75rem; /* 28px — large panels, hero surfaces */
+
+  /* ---- typography ---- */
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, monospace;
+  --text-hero: clamp(2.5rem, 1.6rem + 4.2vw, 4.5rem);
+  --text-hero--line-height: 1.04;
+  --text-hero--letter-spacing: -0.03em;
+  --text-display: clamp(1.9rem, 1.3rem + 2.4vw, 3rem);
+  --text-display--line-height: 1.1;
+  --text-display--letter-spacing: -0.02em;
+  --text-lead: clamp(1.05rem, 0.98rem + 0.4vw, 1.25rem);
+  --text-lead--line-height: 1.6;
+
+  /* ---- motion: spring-like easing, 300-600ms band ---- */
+  --ease-ios: cubic-bezier(0.32, 0.72, 0, 1);
+  --duration-fast: 180ms;
+  --duration-base: 320ms;
+  --duration-slow: 480ms;
+  --duration-slower: 600ms;
+
+  /* ---- layout ---- */
+  --container-page: 76rem;
+}
+
+/* ---- component layer: values a single component owns ---- */
+@theme {
+  --button-height: 2.875rem;
+  --button-padding-inline: 1.375rem;
+  --nav-height: 4rem;
+  --section-padding-block: clamp(4rem, 2.5rem + 6vw, 7.5rem);
+  --card-padding: clamp(1.25rem, 1rem + 1vw, 1.75rem);
+  --demo-aspect: 820 / 461; /* the README gif's own frame, so its box is reserved before it loads */
+  --sheet-aspect: 1950 / 1386; /* a vision contact sheet */
+}
+
+@layer base {
+  html {
+    background-color: var(--color-surface);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    scroll-behavior: smooth;
+  }
+
+  /* The nav is fixed over the page, so anything jumped to keeps clear of it. */
+  [id] {
+    scroll-margin-top: calc(var(--nav-height) + 1.5rem);
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    /* Decorative washes spill past the edge on purpose. clip, not hidden: hidden still lets a
+       phone scroll sideways into them, and makes body a scroll container that breaks sticky. */
+    overflow-x: clip;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 3px;
+    border-radius: var(--radius-control);
+  }
+
+  /* Lenis drives scrolling from JS; the native smooth behaviour would fight it. */
+  html.lenis {
+    scroll-behavior: auto;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/*
+ * The light a group of cards shares under the pointer — the firefly's glow. `src/lib/glow.ts`
+ * moves it; a card only has to contain one of these and sit in a positioned, clipping box.
+ */
+@utility glow-light {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 0;
+  transition: opacity var(--duration-base) var(--ease-ios);
+  background: radial-gradient(
+    14rem 14rem at var(--glow-x, 50%) var(--glow-y, 50%),
+    color-mix(in oklab, var(--color-firefly-400) 34%, transparent),
+    color-mix(in oklab, var(--color-firefly-200) 22%, transparent) 45%,
+    transparent 70%
+  );
+
+  &.is-lit {
+    opacity: 1;
+  }
+}
+
+/*
+ * Glass surfaces. Three tiers of the same recipe — a translucent white fill, a brighter
+ * hairline and a blur of what sits behind. Pair with the matching shadow-glass-N.
+ * Standard property only: the build adds the prefix, and writing both by hand let the minifier
+ * keep just the prefixed one.
+ */
+@utility glass-1 {
+  background-color: var(--color-glass-1-bg);
+  border: 1px solid var(--color-glass-1-border);
+  backdrop-filter: blur(var(--blur-glass)) saturate(180%);
+}
+
+@utility glass-2 {
+  background-color: var(--color-glass-2-bg);
+  border: 1px solid var(--color-glass-2-border);
+  backdrop-filter: blur(var(--blur-glass)) saturate(180%);
+}
+
+@utility glass-3 {
+  background-color: var(--color-glass-3-bg);
+  border: 1px solid var(--color-glass-3-border);
+  backdrop-filter: blur(var(--blur-glass)) saturate(180%);
+}

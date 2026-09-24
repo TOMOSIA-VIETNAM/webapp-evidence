@@ -31,6 +31,7 @@ scripts/install-local.sh   the installer that knows every platform's directory
 tests/                     unit tests and the platform-layer guards
 tests/e2e/                 the demo app and the recording check that drives it
 evals/                     queries for checking that the skill description triggers correctly
+webapp/                    the landing page — its own README; never shipped to a user
 ```
 
 ## Where each name comes from

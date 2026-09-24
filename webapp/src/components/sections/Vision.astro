@@ -1,0 +1,54 @@
+---
+import { Image } from 'astro:assets'
+import Section from '../ui/Section.astro'
+import CopyCommand from '../ui/CopyCommand.astro'
+import { localeFromUrl, useTranslations } from '../../i18n'
+import { commandFor } from '../../lib/upstream'
+import sheet1 from '../../assets/upstream/demo/vision-sheet-01.png'
+import sheet2 from '../../assets/upstream/demo/vision-sheet-02.png'
+import sheet3 from '../../assets/upstream/demo/vision-sheet-03.png'
+
+const t = useTranslations(localeFromUrl(Astro.url))
+const sheets = [sheet1, sheet2, sheet3]
+---
+
+<Section id="vision" eyebrow={t('vision.eyebrow')} heading={t('vision.heading')} lead={t('vision.lead')}>
+  <div class="mb-8 max-w-xl" data-vision-item>
+    <CopyCommand command={`${commandFor('Claude Code', 'vision')} site-tour.mp4`} />
+  </div>
+
+  <ul class="grid gap-4 md:grid-cols-3">
+    {
+      sheets.map((sheet, index) => (
+        <li data-vision-item>
+          {/* Each thumbnail opens the full sheet, where the timestamps are legible. */}
+          <a
+            href={sheet.src}
+            target="_blank"
+            rel="noopener"
+            class="glass-3 shadow-glass-2 group block rounded-card p-2 no-underline transition-shadow duration-[var(--duration-base)] ease-ios hover:shadow-glow"
+          >
+            <Image
+              src={sheet}
+              alt={t('vision.sheet.alt')}
+              widths={[400, 640, 900]}
+              sizes="(max-width: 768px) 92vw, 24rem"
+              class="aspect-(--sheet-aspect) h-auto w-full rounded-control bg-surface-sunken"
+              loading="lazy"
+            />
+            <span class="flex items-center justify-between px-2 pt-2 pb-1 text-sm text-ink-muted group-hover:text-ink">
+              {t('vision.sheet')}
+              <span class="font-mono text-xs text-ink-faint">{String(index + 1).padStart(2, '0')}</span>
+            </span>
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+</Section>
+
+<script>
+  import { fadeUp } from '../../lib/motion'
+
+  fadeUp('[data-vision-item]', { stagger: 0.08 })
+</script>
