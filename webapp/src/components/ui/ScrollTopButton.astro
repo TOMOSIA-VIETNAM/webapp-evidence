@@ -2,7 +2,10 @@
 import FireflyMark from './FireflyMark.astro'
 import { localeFromUrl, useTranslations } from '../../i18n'
 
-/** Floating return to the top. The firefly beats its wings on hover and flies off on click. */
+/**
+ * Floating return to the top. The firefly beats its wings on hover and flies off on click, and the
+ * one in the hero beats back as it comes into view.
+ */
 const t = useTranslations(localeFromUrl(Astro.url))
 ---
 
@@ -18,7 +21,7 @@ const t = useTranslations(localeFromUrl(Astro.url))
 </button>
 
 <script>
-  import { scrollToPosition } from '../../lib/motion'
+  import { prefersReducedMotion, scrollToPosition } from '../../lib/motion'
 
   const button = document.querySelector<HTMLButtonElement>('[data-scroll-top]')
 
@@ -45,11 +48,53 @@ const t = useTranslations(localeFromUrl(Astro.url))
     window.addEventListener('scroll', update, { passive: true })
     window.addEventListener('resize', update)
 
+    const GREET_MS = 1200
+    const WATCH_MS = 2500
+
+    // Restarting a CSS animation needs the class off, a layout read, and the class back on.
+    const greet = (mark: Element) => {
+      mark.classList.remove('firefly--greet')
+      void (mark as HTMLElement).offsetWidth
+      mark.classList.add('firefly--greet')
+      window.setTimeout(() => mark.classList.remove('firefly--greet'), GREET_MS)
+    }
+
     button.addEventListener('click', () => {
       button.dataset.fireflyTakeoff = 'true'
       scrollToPosition(0)
       // The mark is put back once it is off screen, ready for the next visit.
       window.setTimeout(() => delete button.dataset.fireflyTakeoff, TAKEOFF_MS)
+
+      if (prefersReducedMotion()) return
+
+      /*
+       * One flies up, the other answers — the moment it comes into view, while the page is still
+       * travelling. Waiting for the scroll to stop reads as half a second of nothing. A mark hidden
+       * at this width (the desktop scene on a phone, the badge mark on a desktop) has no box and
+       * is left alone.
+       */
+      const pending = new Set(
+        [...document.querySelectorAll('[data-hero-mascot] .firefly, [data-hero-mark] .firefly')].filter(
+          (mark) => mark.getClientRects().length > 0,
+        ),
+      )
+      const deadline = performance.now() + WATCH_MS
+      const watch = () => {
+        for (const mark of [...pending]) {
+          const box = mark.getBoundingClientRect()
+          if (box.top < window.innerHeight * 0.85 && box.bottom > 0) {
+            pending.delete(mark)
+            greet(mark)
+          }
+        }
+        if (pending.size === 0) return
+        if (performance.now() > deadline) {
+          pending.forEach(greet)
+          return
+        }
+        requestAnimationFrame(watch)
+      }
+      requestAnimationFrame(watch)
     })
   }
 </script>
