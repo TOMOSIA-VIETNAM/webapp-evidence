@@ -3,7 +3,7 @@ import { ListChecks, Clapperboard, FileCheck, BadgeCheck } from '@lucide/astro'
 import Section from '../ui/Section.astro'
 import GlassCard from '../ui/GlassCard.astro'
 import { localeFromUrl, useTranslations } from '../../i18n'
-import { RUNBOOK_EXCERPT, runbookLine } from '../../lib/upstream'
+import { DEMO_TAKE, RUNBOOK_EXCERPT, runbookLine } from '../../lib/demo'
 
 const t = useTranslations(localeFromUrl(Astro.url))
 
@@ -15,18 +15,21 @@ const steps = [
 ]
 
 /*
- * Each criterion points at the runbook lines that prove it, by the text those lines start with.
- * The excerpt is the README's own, so a re-recorded demo that moves a timestamp fails the build
- * here instead of leaving a criterion pointing at nothing.
+ * Each criterion points at the runbook lines that prove it, by text those lines hold: a step label
+ * from demo/tour-steps.cjs, or a piece of a command. Timestamps move every time the take is
+ * recorded again; the labels do not, and a renamed step fails the build here instead of leaving a
+ * criterion pointing at nothing.
  */
 const criteria = [
-  { id: 'AC-1', text: t('uat.report.ac1'), proof: ['00:21 - 00:26'] },
-  { id: 'AC-2', text: t('uat.report.ac2'), proof: ['00:36 - 00:49'] },
-  { id: 'AC-3', text: t('uat.report.ac3'), proof: ['01:13 - 01:26', '- 01:24'] },
-  { id: 'AC-4', text: t('uat.report.ac4'), proof: ['- none'] },
+  { id: 'AC-1', text: t('uat.report.ac1'), proof: ['Language menu —'] },
+  { id: 'AC-2', text: t('uat.report.ac2'), proof: ['Hero — copy the command'] },
+  { id: 'AC-3', text: t('uat.report.ac3'), proof: ['UAT report —'] },
+  { id: 'AC-4', text: t('uat.report.ac4'), proof: ['Install — one panel per agent'] },
+  { id: 'AC-5', text: t('uat.report.ac5'), proof: ['SEO meta —', '`curl -s'] },
+  { id: 'AC-6', text: t('uat.report.ac6'), proof: ['- none'] },
 ].map((criterion) => {
   const lines = criterion.proof.map(runbookLine)
-  const stamp = criterion.proof[0].match(/\d\d:\d\d/)?.[0]
+  const stamp = RUNBOOK_EXCERPT.split('\n')[lines[0]].match(/^\d\d:\d\d/)?.[0]
   return { ...criterion, lines, stamp }
 })
 
@@ -108,7 +111,7 @@ const runbook = RUNBOOK_EXCERPT.split('\n').map((text, index) => ({
         <figure class="m-0 flex min-w-0 flex-col gap-2">
           <figcaption class="flex items-center justify-between gap-3">
             <span class="text-xs font-semibold tracking-wide text-ink-faint uppercase">{t('uat.report.runbook')}</span>
-            <span class="font-mono text-xs text-ink-faint">site-tour-runbook.md</span>
+            <span class="font-mono text-xs text-ink-faint">{DEMO_TAKE}-runbook.md</span>
           </figcaption>
           <div class="overflow-x-auto rounded-control bg-surface-console p-4" tabindex="0" role="region" aria-label={t('uat.report.runbook')}>
             <ol class="m-0 w-max min-w-full list-none p-0 font-mono text-xs leading-relaxed text-ink-console sm:text-sm" data-runbook>

@@ -7,15 +7,15 @@ import GithubMark from '../ui/GithubMark.astro'
 import { localeFromUrl, useTranslations } from '../../i18n'
 import { REPO_URL } from '../../lib/site'
 import { PLATFORMS, commandFor } from '../../lib/upstream'
+import { DEMO_TAKE, DEMO_FIRST_SHOT } from '../../lib/demo'
 
 const t = useTranslations(localeFromUrl(Astro.url))
 
-// What one take hands back, floating around the mark: the files the README demo take produced
-// (docs/demo/record.sh records a take named site-tour), named as the runner names them.
+// What one take hands back, floating around the mark: the files the take this page shows wrote.
 const outputs = [
-  { icon: Film, file: 'site-tour.mp4', label: t('hero.output.video'), place: 'top-0 left-0' },
-  { icon: Images, file: '01-hero.png', label: t('hero.output.shots'), place: 'top-12 right-0' },
-  { icon: FileText, file: 'site-tour-runbook.md', label: t('hero.output.runbook'), place: 'bottom-0 left-8' },
+  { icon: Film, file: `${DEMO_TAKE}.mp4`, label: t('hero.output.video'), place: 'top-0 left-0' },
+  { icon: Images, file: DEMO_FIRST_SHOT, label: t('hero.output.shots'), place: 'top-12 right-0' },
+  { icon: FileText, file: `${DEMO_TAKE}-runbook.md`, label: t('hero.output.runbook'), place: 'bottom-0 left-8' },
 ]
 ---
 

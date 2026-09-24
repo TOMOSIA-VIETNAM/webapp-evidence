@@ -119,7 +119,6 @@
   --nav-height: 4rem;
   --section-padding-block: clamp(4rem, 2.5rem + 6vw, 7.5rem);
   --card-padding: clamp(1.25rem, 1rem + 1vw, 1.75rem);
-  --demo-aspect: 820 / 461; /* the README gif's own frame, so its box is reserved before it loads */
   --sheet-aspect: 1950 / 1386; /* a vision contact sheet */
 }
 

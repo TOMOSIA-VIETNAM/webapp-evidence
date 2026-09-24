@@ -56,16 +56,17 @@ export const ja: Dictionary = {
   'uat.step4.body':
     'レビュアーはフローを再実行せず、各基準をタイムスタンプと照合します。修正後は「もう一度録画して」で新しいテイクを作り、古いテイクも横に残ります。',
 
-  'uat.report.title': '実際のテイクを UAT 報告書として読む',
-  'uat.report.lead':
-    'README のデモは open-pr のランディングページを録画したものです。基準を選ぶと、それを証明するランブックの行が示されます。',
+  'uat.report.title': 'このページを UAT 報告書として読む',
+  'uat.report.lead': '「使い方」の動画は、このページが紹介している skill でこのページ自身を録画したものです。基準を選ぶと、それを証明するランブックの行が示されます。',
   'uat.report.criteria': '受け入れ基準',
   'uat.report.runbook': 'ランブック',
-  'uat.report.ac1': 'ヒーローからインストールコマンドをコピーできる',
-  'uat.report.ac2': 'レビューループの各ステップを手で選べる',
-  'uat.report.ac3': 'ページが SEO の title と description を返す',
-  'uat.report.ac4': 'テイク中にコンソールエラーや失敗したリクエストがない',
-  'uat.report.source': 'docs/demo/record.sh が生成したランブックから無編集で引用しています。',
+  'uat.report.ac1': 'サイトが 4 言語で読める',
+  'uat.report.ac2': '録画を始めるコマンドをヒーローからコピーできる',
+  'uat.report.ac3': '各受け入れ基準が、それを証明するランブックの行を示す',
+  'uat.report.ac4': 'エージェントごとにインストールパネルがある',
+  'uat.report.ac5': 'ページが title、description、ソーシャルカードを返す',
+  'uat.report.ac6': 'テイク中にコンソールエラーや失敗したリクエストがない',
+  'uat.report.source': 'そのテイクのランブックから無編集で写しています。',
   'uat.report.reset': 'すべての行を表示',
 
   'how.eyebrow': '使い方',
@@ -79,9 +80,8 @@ export const ja: Dictionary = {
   'how.step3.title': 'エビデンスを受け取る',
   'how.step3.body':
     'mp4、番号付きスクリーンショット、ランブックがあなたのディスクに。チケット、MR、報告書への添付はあなたの手で。何もコミットされません。',
-  'how.demo.caption': 'このリポジトリのランナーによる実際の出力。open-pr.vercel.app を巡回しています。',
-  'how.demo.alt':
-    'ランディングページのツアー: インストールコマンドがコピーされボタンが確認を表示し、「使い方」を読み進め、レビューラウンドの説明を 1 ステップずつクリックし、機能カードへ。',
+  'how.demo.caption': 'webapp-evidence 自身が録画したこのページ。上の UAT 報告書が引用しているテイクです。',
+  'how.demo.alt': 'このページのテイク: 言語メニュー、ポインターに反応するホタル、コマンドのコピー、UAT 報告書で基準をひとつずつ選択、インストールタブまで読み進め、ターミナルパネルで SEO メタを読む。',
 
   'proof.eyebrow': 'フルスタックのエビデンス',
   'proof.heading': '1 回のテイクで画面、エンドポイント、データベースを証明',
@@ -104,7 +104,7 @@ export const ja: Dictionary = {
   'vision.lead':
     '録画を数秒ごとのフレームに分け、各フレームに mm:ss を刻んだコンタクトシートに並べます。指摘は「00:14 でヘッダーが表に重なる」のように返り、ランブックと照合できます。',
   'vision.sheet': 'コンタクトシート',
-  'vision.sheet.alt': 'README デモのコンタクトシート: テイクからのタイムスタンプ付きフレームのグリッド',
+  'vision.sheet.alt': 'このページのテイクのコンタクトシート: タイムスタンプ付きフレームのグリッド',
 
   'features.eyebrow': '機能',
   'features.heading': 'レビュアーが信頼できるエビデンス',

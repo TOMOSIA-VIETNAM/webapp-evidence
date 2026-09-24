@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 // Copies what this site shows from the repository it sits in, so nothing is redrawn or retyped by
-// hand. The originals stay where they are — docs/images/logo/ for the brand, docs/demo/ for the
-// recording and its contact sheets — and the copies are gitignored.
+// hand. The originals stay in docs/images/logo/ and the copies are gitignored. The recording the
+// page shows is its own, made by demo/record.sh.
 //
 // It also splits the firefly mark into its parts (the two wings, the body, the lantern and its
 // light) so the page can move them, without a second hand-drawn copy of the geometry.
 //
 // Runs before dev, build and check. Fails loudly when a source is missing: a page built without its
-// logo or its demo is worse than no build.
+// logo is worse than no build.
 
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
@@ -20,11 +20,6 @@ const COPIES = [
   ['docs/images/logo/logo-lockup.svg', 'src/assets/upstream/brand/logo-lockup.svg'],
   ['docs/images/logo/logo.svg', 'src/assets/upstream/brand/logo.svg'],
   ['docs/images/logo/favicon.svg', 'public/favicon.svg'],
-  // The gif is served as-is: an image pipeline would flatten it to its first frame.
-  ['docs/demo/site-tour.gif', 'public/upstream/site-tour.gif'],
-  ['docs/demo/vision-sheet-01.png', 'src/assets/upstream/demo/vision-sheet-01.png'],
-  ['docs/demo/vision-sheet-02.png', 'src/assets/upstream/demo/vision-sheet-02.png'],
-  ['docs/demo/vision-sheet-03.png', 'src/assets/upstream/demo/vision-sheet-03.png'],
 ]
 
 const missing = COPIES.map(([from]) => from).filter((from) => !existsSync(join(repo, from)))

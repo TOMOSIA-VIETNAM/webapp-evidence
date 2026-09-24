@@ -56,15 +56,17 @@ export const zh: Dictionary = {
   'uat.step4.body':
     '评审者按时间戳逐条核对标准，不必重跑流程。修复之后，一句“再录一遍”就生成新的录制，旧的保留在旁边。',
 
-  'uat.report.title': '一次真实的录制，当作 UAT 报告来读',
-  'uat.report.lead': 'README 的演示录制了 open-pr 的落地页。选一条标准，看证明它的运行手册行。',
+  'uat.report.title': '把这个页面当作 UAT 报告来读',
+  'uat.report.lead': '“工作方式”下的视频，就是用本页介绍的 skill 录下的本页。选一条标准，看证明它的运行手册行。',
   'uat.report.criteria': '验收标准',
   'uat.report.runbook': '运行手册',
-  'uat.report.ac1': '可以从首屏复制安装命令',
-  'uat.report.ac2': '评审循环的每一步都能手动选中',
-  'uat.report.ac3': '页面返回 SEO 的 title 和 description',
-  'uat.report.ac4': '录制期间没有控制台错误或失败请求',
-  'uat.report.source': '以上各行原样引自 docs/demo/record.sh 生成的运行手册。',
+  'uat.report.ac1': '网站四种语言都能阅读',
+  'uat.report.ac2': '可以从首屏复制开始录制的命令',
+  'uat.report.ac3': '每条验收标准都能指出证明它的运行手册行',
+  'uat.report.ac4': '每个智能体都有自己的安装面板',
+  'uat.report.ac5': '页面返回 title、description 和社交分享卡片',
+  'uat.report.ac6': '录制期间没有控制台错误或失败请求',
+  'uat.report.source': '以上各行原样抄自那次录制的运行手册。',
   'uat.report.reset': '显示所有行',
 
   'how.eyebrow': '工作方式',
@@ -77,9 +79,8 @@ export const zh: Dictionary = {
   'how.step3.title': '拿到证据',
   'how.step3.body':
     '一个 mp4、编号截图和运行手册，都在你的磁盘上。附到工单、MR 或报告里由你决定 —— 不会提交任何东西。',
-  'how.demo.caption': '本仓库运行器的真实输出，浏览 open-pr.vercel.app。',
-  'how.demo.alt':
-    '落地页导览：复制安装命令、按钮给出确认，然后向下阅读“工作方式”，逐步点击评审轮次的讲解，最后是功能卡片。',
+  'how.demo.caption': '由 webapp-evidence 亲自录制的本页 —— 也就是上方 UAT 报告所引用的那次录制。',
+  'how.demo.alt': '本页的一次录制：语言菜单、随指针而动的萤火虫、复制命令、在 UAT 报告中逐条选择验收标准、向下阅读到安装标签页，并在终端面板中读取 SEO 元数据。',
 
   'proof.eyebrow': '全栈证据',
   'proof.heading': '一次录制，证明页面、接口和数据库',
@@ -99,7 +100,7 @@ export const zh: Dictionary = {
   'vision.lead':
     '它把录制拼成联系表 —— 每隔几秒一帧，每帧标注 mm:ss —— 于是结论会写成“00:14 处页头压住了表格”，一个可以对照运行手册核实的时间点。',
   'vision.sheet': '联系表',
-  'vision.sheet.alt': 'README 演示的联系表：来自录制的带时间戳的帧网格',
+  'vision.sheet.alt': '本页录制的联系表：带时间戳的帧网格',
 
   'features.eyebrow': '功能',
   'features.heading': '评审者信得过的证据',

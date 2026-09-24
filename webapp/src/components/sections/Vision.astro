@@ -4,9 +4,10 @@ import Section from '../ui/Section.astro'
 import CopyCommand from '../ui/CopyCommand.astro'
 import { localeFromUrl, useTranslations } from '../../i18n'
 import { commandFor } from '../../lib/upstream'
-import sheet1 from '../../assets/upstream/demo/vision-sheet-01.png'
-import sheet2 from '../../assets/upstream/demo/vision-sheet-02.png'
-import sheet3 from '../../assets/upstream/demo/vision-sheet-03.png'
+import { DEMO_TAKE } from '../../lib/demo'
+import sheet1 from '../../assets/demo/vision-sheet-01.png'
+import sheet2 from '../../assets/demo/vision-sheet-02.png'
+import sheet3 from '../../assets/demo/vision-sheet-03.png'
 
 const t = useTranslations(localeFromUrl(Astro.url))
 const sheets = [sheet1, sheet2, sheet3]
@@ -14,7 +15,7 @@ const sheets = [sheet1, sheet2, sheet3]
 
 <Section id="vision" eyebrow={t('vision.eyebrow')} heading={t('vision.heading')} lead={t('vision.lead')}>
   <div class="mb-8 max-w-xl" data-vision-item>
-    <CopyCommand command={`${commandFor('Claude Code', 'vision')} site-tour.mp4`} />
+    <CopyCommand command={`${commandFor('Claude Code', 'vision')} ${DEMO_TAKE}.mp4`} />
   </div>
 
   <ul class="grid gap-4 md:grid-cols-3">

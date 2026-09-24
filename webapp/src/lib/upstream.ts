@@ -1,8 +1,8 @@
 /*
- * Facts this page quotes from the repository it sits in, read at build time. The install commands,
- * the example flow and the runbook excerpt are the README's own blocks; the command a user types is
- * derived the way the installer derives it. Nothing here is retyped, so the page cannot drift from
- * what a user actually installs.
+ * Facts this page quotes from the repository it sits in, read at build time. The install commands
+ * and the example request are the README's own blocks; the command a user types is derived the way
+ * the installer derives it. Nothing here is retyped, so the page cannot drift from what a user
+ * actually installs. The recording the page shows is its own take, read by src/lib/demo.ts.
  *
  * Every lookup throws when it finds nothing: a README reorganised under this page fails the build
  * rather than shipping a page with an empty install box.
@@ -50,16 +50,6 @@ export const ONE_LINER = lines(blockAfter('**Cursor, Codex, Gemini CLI, Antigrav
 
 /** The full-stack request the README uses to show one take proving screen, endpoint and database. */
 export const EXAMPLE_REQUEST = blockAfter('## What one take proves', '')
-
-/** The runbook excerpt the README quotes, produced by docs/demo/record.sh on a real take. */
-export const RUNBOOK_EXCERPT = blockAfter('## What comes back', 'markdown')
-
-/** The line of the excerpt that starts with `prefix`, so a section can point at it by timestamp. */
-export function runbookLine(prefix: string): number {
-  const index = RUNBOOK_EXCERPT.split('\n').findIndex((line) => line.startsWith(prefix))
-  if (index < 0) throw new Error(`README.md runbook excerpt: no line starting with "${prefix}"`)
-  return index
-}
 
 /** The plugin as a user installs it, from the manifest every platform reads. */
 export const PLUGIN = JSON.parse(read('plugin.json')).name as string

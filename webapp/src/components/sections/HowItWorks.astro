@@ -3,7 +3,7 @@ import { Download, MessageSquareText, PackageCheck } from '@lucide/astro'
 import Section from '../ui/Section.astro'
 import GlassCard from '../ui/GlassCard.astro'
 import { localeFromUrl, useTranslations } from '../../i18n'
-import { DEMO_GIF } from '../../lib/site'
+import { DEMO_VIDEO, DEMO_POSTER } from '../../lib/demo'
 
 const t = useTranslations(localeFromUrl(Astro.url))
 
@@ -36,28 +36,43 @@ const steps = [
   <div class="relative isolate mt-6" data-how-demo>
     <div class="pointer-events-none absolute top-1/2 left-1/2 -z-10 size-[34rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-firefly-200/45 blur-3xl" aria-hidden="true" data-decorative></div>
     <figure class="glass-3 shadow-glass-3 m-0 mx-auto max-w-4xl rounded-panel p-3">
-      {/* The README's own gif, so the page shows what a user actually gets. Its box is reserved from
-          the gif's frame size, and it loads only once it is near the viewport. */}
-      <img
-        src={DEMO_GIF}
-        alt={t('how.demo.alt')}
-        width="820"
-        height="461"
-        loading="lazy"
-        decoding="async"
-        class="aspect-(--demo-aspect) h-auto w-full rounded-control bg-surface-sunken"
-      />
+      {/* This page, recorded by the skill it describes. Nothing downloads until it is near the
+          viewport; it plays muted while in view and pauses when scrolled away. */}
+      <video
+        src={DEMO_VIDEO}
+        poster={DEMO_POSTER}
+        width="1280"
+        height="720"
+        preload="none"
+        muted
+        loop
+        playsinline
+        controls
+        aria-label={t('how.demo.alt')}
+        class="aspect-video h-auto w-full rounded-control bg-surface-sunken"
+        data-demo-video
+      ></video>
       <figcaption class="px-2 pt-3 pb-1 text-center text-sm text-ink-muted">{t('how.demo.caption')}</figcaption>
     </figure>
   </div>
 </Section>
 
 <script>
-  import { fadeUp } from '../../lib/motion'
+  import { fadeUp, prefersReducedMotion } from '../../lib/motion'
   import { followGlow } from '../../lib/glow'
 
   fadeUp('[data-how-step]', { stagger: 0.09 })
   fadeUp('[data-how-demo]', { distance: 16 })
+
+  // Plays while at least half of it is on screen. A reader who asked for less motion starts it
+  // with the controls instead.
+  const video = document.querySelector<HTMLVideoElement>('[data-demo-video]')
+  if (video && !prefersReducedMotion()) {
+    new IntersectionObserver(
+      ([entry]) => (entry.isIntersecting ? video.play().catch(() => {}) : video.pause()),
+      { threshold: 0.5 },
+    ).observe(video)
+  }
   followGlow(
     document.querySelector<HTMLElement>('[data-how-steps]'),
     [...document.querySelectorAll<HTMLElement>('[data-how-step]')],

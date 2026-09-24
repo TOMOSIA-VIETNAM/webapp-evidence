@@ -57,16 +57,17 @@ export const en = {
   'uat.step4.body':
     'The reviewer checks each criterion against a timestamp instead of re-running the flow. After a fix, “record that again” makes a new take and keeps the old one beside it.',
 
-  'uat.report.title': 'A real take, read as a UAT report',
-  'uat.report.lead':
-    'The README demo recorded the open-pr landing page. Pick a criterion to see the runbook lines that prove it.',
+  'uat.report.title': 'This page, read as a UAT report',
+  'uat.report.lead': 'The video under How it works is this page, recorded by the skill it describes. Pick a criterion to see the runbook lines that prove it.',
   'uat.report.criteria': 'Acceptance criteria',
   'uat.report.runbook': 'Runbook',
-  'uat.report.ac1': 'The install command can be copied from the hero',
-  'uat.report.ac2': 'Every step of the review loop can be picked by hand',
-  'uat.report.ac3': 'The page serves its SEO title and description',
-  'uat.report.ac4': 'No console error or failed request during the take',
-  'uat.report.source': 'Lines quoted unedited from the runbook docs/demo/record.sh produced.',
+  'uat.report.ac1': 'The site reads in all four languages',
+  'uat.report.ac2': 'The command that starts a recording can be copied from the hero',
+  'uat.report.ac3': 'Each acceptance criterion picks out the runbook lines that prove it',
+  'uat.report.ac4': 'Every agent has its own install panel',
+  'uat.report.ac5': 'The page serves its title, description and social card',
+  'uat.report.ac6': 'No console error or failed request during the take',
+  'uat.report.source': 'Lines copied unedited from the runbook of that take.',
   'uat.report.reset': 'Show every line',
 
   'how.eyebrow': 'How it works',
@@ -80,9 +81,8 @@ export const en = {
   'how.step3.title': 'Get the evidence',
   'how.step3.body':
     'An mp4, numbered screenshots and a runbook, on your disk. Attaching them to a ticket, an MR or a report is yours to do — nothing is committed.',
-  'how.demo.caption': 'Real output from this repository’s runner, touring open-pr.vercel.app.',
-  'how.demo.alt':
-    'Landing page tour: the install command is copied and the button confirms it, then the page is read down through How it works, the review-round walkthrough clicked step by step, and the feature cards.',
+  'how.demo.caption': 'This page, recorded by webapp-evidence itself — the take the UAT report above quotes.',
+  'how.demo.alt': 'A take of this page: the language menu, the firefly under the pointer, the command copied, each acceptance criterion picked in the UAT report, the sections read down to the install tabs, and the SEO meta read in the terminal panel.',
 
   'proof.eyebrow': 'Full-stack evidence',
   'proof.heading': 'One take proves the screen, the endpoint and the database',
@@ -105,7 +105,7 @@ export const en = {
   'vision.lead':
     'It tiles a recording into contact sheets — a frame every couple of seconds, each stamped mm:ss — so a finding comes back as “the header overlaps the table at 00:14”, a time you can check against the runbook.',
   'vision.sheet': 'Contact sheet',
-  'vision.sheet.alt': 'Contact sheet of the README demo: a grid of timestamped frames from the take',
+  'vision.sheet.alt': 'Contact sheet of this page’s take: a grid of timestamped frames',
 
   'features.eyebrow': 'Features',
   'features.heading': 'Evidence a reviewer can trust',

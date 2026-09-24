@@ -70,8 +70,17 @@ for (const path of LOCALES) {
     check((await page.locator('[data-install-panel]:visible code').count()) >= 3, `install tab ${i}: commands missing`)
   }
 
-  // Lazy media arrives once it is scrolled to.
-  for (const selector of ['#how-it-works figure img', '#vision img']) {
+  // The recording downloads only once scrolled to, and then plays by itself.
+  const video = page.locator('[data-demo-video]')
+  check((await video.evaluate((v) => v.readyState)) === 0, 'the recording loaded before anyone scrolled to it')
+  await video.scrollIntoViewIfNeeded()
+  await page.waitForFunction(() => {
+    const v = document.querySelector('[data-demo-video]')
+    return v && !v.paused && v.currentTime > 0.5
+  }, null, { timeout: 10000 }).catch(() => check(false, 'the recording did not start playing in view'))
+
+  // Lazy images arrive once they are scrolled to.
+  for (const selector of ['#vision img']) {
     const image = page.locator(selector).first()
     await image.scrollIntoViewIfNeeded()
     await image.evaluate((img) => (img.complete ? null : new Promise((resolve) => img.addEventListener('load', resolve))))

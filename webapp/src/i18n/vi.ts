@@ -56,16 +56,17 @@ export const vi: Dictionary = {
   'uat.step4.body':
     'Người duyệt đối chiếu từng tiêu chí với một mốc thời gian thay vì tự chạy lại luồng. Sau khi sửa, “quay lại lần nữa” tạo lần quay mới và giữ lần cũ bên cạnh.',
 
-  'uat.report.title': 'Một lần quay thật, đọc như báo cáo UAT',
-  'uat.report.lead':
-    'Demo trong README ghi lại landing page của open-pr. Chọn một tiêu chí để xem những dòng runbook chứng minh nó.',
+  'uat.report.title': 'Chính trang này, đọc như báo cáo UAT',
+  'uat.report.lead': 'Video ở phần Cách hoạt động là chính trang này, do skill mà nó giới thiệu quay lại. Chọn một tiêu chí để xem những dòng runbook chứng minh nó.',
   'uat.report.criteria': 'Tiêu chí nghiệm thu',
   'uat.report.runbook': 'Runbook',
-  'uat.report.ac1': 'Sao chép được lệnh cài đặt ngay ở hero',
-  'uat.report.ac2': 'Chọn tay được từng bước của vòng review',
-  'uat.report.ac3': 'Trang trả về đúng title và description SEO',
-  'uat.report.ac4': 'Không có lỗi console hay request thất bại trong lần quay',
-  'uat.report.source': 'Các dòng được trích nguyên văn từ runbook mà docs/demo/record.sh tạo ra.',
+  'uat.report.ac1': 'Trang hiển thị đủ bốn ngôn ngữ',
+  'uat.report.ac2': 'Sao chép được lệnh bắt đầu ghi hình ngay ở hero',
+  'uat.report.ac3': 'Mỗi tiêu chí nghiệm thu chỉ ra đúng những dòng runbook chứng minh nó',
+  'uat.report.ac4': 'Mỗi agent có panel cài đặt riêng',
+  'uat.report.ac5': 'Trang trả về title, description và thẻ chia sẻ mạng xã hội',
+  'uat.report.ac6': 'Không có lỗi console hay request thất bại trong lần quay',
+  'uat.report.source': 'Các dòng được chép nguyên văn từ runbook của lần quay đó.',
   'uat.report.reset': 'Hiện mọi dòng',
 
   'how.eyebrow': 'Cách hoạt động',
@@ -79,9 +80,8 @@ export const vi: Dictionary = {
   'how.step3.title': 'Nhận bằng chứng',
   'how.step3.body':
     'Một file mp4, ảnh chụp đánh số và runbook, nằm trên máy bạn. Đính kèm vào ticket, MR hay báo cáo là việc của bạn — không có gì bị commit.',
-  'how.demo.caption': 'Kết quả thật từ runner của repo này, đi một vòng open-pr.vercel.app.',
-  'how.demo.alt':
-    'Tour landing page: lệnh cài đặt được sao chép và nút xác nhận, rồi trang được đọc xuống qua phần Cách hoạt động, từng bước của vòng review được bấm lần lượt, và các thẻ tính năng.',
+  'how.demo.caption': 'Chính trang này, do webapp-evidence tự quay — lần quay mà báo cáo UAT phía trên trích dẫn.',
+  'how.demo.alt': 'Một lần quay trang này: menu ngôn ngữ, con đom đóm dưới con trỏ, lệnh được sao chép, từng tiêu chí trong báo cáo UAT được chọn, các phần được đọc xuống tới tab cài đặt, và thẻ SEO được đọc trong panel terminal.',
 
   'proof.eyebrow': 'Bằng chứng full-stack',
   'proof.heading': 'Một lần quay chứng minh màn hình, endpoint và database',
@@ -104,7 +104,7 @@ export const vi: Dictionary = {
   'vision.lead':
     'Nó cắt bản ghi thành các contact sheet — vài giây một khung hình, mỗi khung đóng dấu mm:ss — nên phát hiện trả về dạng “header đè lên bảng ở 00:14”, một mốc bạn đối chiếu được với runbook.',
   'vision.sheet': 'Contact sheet',
-  'vision.sheet.alt': 'Contact sheet của demo trong README: lưới các khung hình có mốc thời gian từ lần quay',
+  'vision.sheet.alt': 'Contact sheet của lần quay trang này: lưới các khung hình có mốc thời gian',
 
   'features.eyebrow': 'Tính năng',
   'features.heading': 'Bằng chứng người duyệt tin được',

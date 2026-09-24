@@ -59,10 +59,11 @@ a test loading it sets `PROJECT_ROOT` to a scratch dir before the `require`.
 ## The landing page
 
 `webapp/` is the project's site, with its own `README.md` and `CLAUDE.md`. It reads this README's
-install blocks, example request and runbook excerpt at build time, and the logo and demo media from
-`docs/` — so rewording those blocks or re-recording the demo can fail its build. Run `pnpm build` in
-`webapp/` after touching them. It never ships: `install.sh` names what it ships and `webapp/` is not
-on the list, which `tests/platform-layer.test.js` holds.
+install blocks and example request at build time, and the logo from `docs/images/logo/` — so
+rewording those blocks can fail its build. Run `pnpm build` in `webapp/` after touching them. The
+recording it shows is a take of itself (`webapp/demo/record.sh`), which drives the page with
+`docs/demo/tour-helpers.js`, the same helpers as the README demo. It never ships: `install.sh` names
+what it ships and `webapp/` is not on the list, which `tests/platform-layer.test.js` holds.
 
 ## Two things that break invisibly
 

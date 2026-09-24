@@ -22,20 +22,28 @@ tabs, lazy media loading, axe, and the page read with script turned off.
 
 ## Where the content comes from
 
-Nothing the page shows about the skill is typed twice. `scripts/sync-upstream.mjs` runs before
-every dev, build and check and copies, into gitignored paths:
+Nothing the page shows about the skill is typed twice.
 
-| from | used for |
-|---|---|
-| `docs/images/logo/` | the lockup in the nav, the favicon, and the firefly the hero animates — split into wings, body and lantern from `logo.svg` |
-| `docs/demo/site-tour.gif` | the recording under How it works |
-| `docs/demo/vision-sheet-*.png` | the contact sheets in the vision section |
+**The skill.** `src/lib/upstream.ts` reads, at build time, the README's install blocks and its
+example request, the plugin name from `plugin.json`, and the skills under `src/skills/`.
+`scripts/sync-upstream.mjs` copies the logo from `docs/images/logo/` before every dev, build and
+check, and splits the firefly into wings, body and lantern so the hero can move them.
 
-`src/lib/upstream.ts` reads, at build time, the README's install blocks, its example request and
-its runbook excerpt, the plugin name from `plugin.json`, and the skills under `src/skills/`. The
-UAT report maps each acceptance criterion to runbook lines by the text they start with, so a
-re-recorded demo that moves a timestamp fails the build instead of pointing at nothing. When that
-happens, update the prefixes in `src/components/sections/Uat.astro`.
+**The recording.** The video under How it works is this page, recorded by the skill:
+
+```bash
+webapp/demo/record.sh                                    # a fresh build on a local preview
+BASE_URL=https://evd.vercel.app webapp/demo/record.sh    # the deployment
+```
+
+It follows `demo/tour-steps.cjs` and writes, for commit, the web copy and its poster to
+`public/demo/`, the vision contact sheets to `src/assets/demo/`, and three sections of the runbook
+to `src/data/`. `src/lib/demo.ts` reads them. The UAT report finds each criterion's proof by the
+step label passed to `mark()`, so a re-recorded take moves the timestamps without breaking
+anything, and a renamed step fails the build. The scrolling, hovering and copy checks the tour uses
+live in `../docs/demo/tour-helpers.js`, shared with the README's own demo.
+
+Re-record after changing what the page looks like: the take shows the page as it was built.
 
 `public/og.png` is the one derived file that is committed: `pnpm og` redraws it after the mark or
 the English headline changes.
@@ -44,4 +52,4 @@ the English headline changes.
 
 A Vercel project with **Root Directory** set to `webapp`. The build reads files one level up, which
 Vercel allows by default ("Include files outside the root directory in the Build Step"). Set
-`SITE_URL` when the site is served from an origin other than `https://webapp-evidence.vercel.app`.
+`SITE_URL` when the site is served from an origin other than `https://evd.vercel.app`.
