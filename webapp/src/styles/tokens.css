@@ -73,6 +73,10 @@
   --color-glass-3-border: #ffffff;
 
   --blur-glass: 20px;
+  --blur-glass-touch: 10px; /* the nav and large panels on a touch device, where blur costs frames */
+  /* Cards on a touch device drop the blur, so their fill carries the frosting instead. */
+  --color-glass-1-touch-bg: color-mix(in oklab, #ffffff 84%, transparent);
+  --color-glass-2-touch-bg: color-mix(in oklab, #ffffff 90%, transparent);
 
   /* Layered soft shadows: a tight contact shadow plus a wide ambient one. */
   --shadow-glass-1: 0 1px 2px rgb(23 19 15 / 0.04), 0 8px 24px -12px rgb(23 19 15 / 0.12);
@@ -198,21 +202,39 @@
  * hairline and a blur of what sits behind. Pair with the matching shadow-glass-N.
  * Standard property only: the build adds the prefix, and writing both by hand let the minifier
  * keep just the prefixed one.
+ *
+ * On a touch device (the query isTouchFirst in src/lib/motion.ts uses — keep them in step) every
+ * blurred surface is re-blurred on every frame of a scroll, which a phone's GPU cannot keep up
+ * with. Cards there drop the blur for a denser fill; the nav and large panels keep a smaller one.
  */
 @utility glass-1 {
   background-color: var(--color-glass-1-bg);
   border: 1px solid var(--color-glass-1-border);
   backdrop-filter: blur(var(--blur-glass)) saturate(180%);
+
+  @media (hover: none), (pointer: coarse) {
+    background-color: var(--color-glass-1-touch-bg);
+    backdrop-filter: none;
+  }
 }
 
 @utility glass-2 {
   background-color: var(--color-glass-2-bg);
   border: 1px solid var(--color-glass-2-border);
   backdrop-filter: blur(var(--blur-glass)) saturate(180%);
+
+  @media (hover: none), (pointer: coarse) {
+    background-color: var(--color-glass-2-touch-bg);
+    backdrop-filter: none;
+  }
 }
 
 @utility glass-3 {
   background-color: var(--color-glass-3-bg);
   border: 1px solid var(--color-glass-3-border);
   backdrop-filter: blur(var(--blur-glass)) saturate(180%);
+
+  @media (hover: none), (pointer: coarse) {
+    backdrop-filter: blur(var(--blur-glass-touch)) saturate(160%);
+  }
 }

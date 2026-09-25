@@ -113,7 +113,7 @@ const runbook = RUNBOOK_EXCERPT.split('\n').map((text, index) => ({
             <span class="text-xs font-semibold tracking-wide text-ink-faint uppercase">{t('uat.report.runbook')}</span>
             <span class="font-mono text-xs text-ink-faint">{DEMO_TAKE}-runbook.md</span>
           </figcaption>
-          <div class="overflow-x-auto rounded-control bg-surface-console p-4" tabindex="0" role="region" aria-label={t('uat.report.runbook')}>
+          <div class="overflow-x-auto overscroll-x-contain rounded-control bg-surface-console p-4" tabindex="0" role="region" aria-label={t('uat.report.runbook')}>
             <ol class="m-0 w-max min-w-full list-none p-0 font-mono text-xs leading-relaxed text-ink-console sm:text-sm" data-runbook>
               {
                 runbook.map((line) => (
