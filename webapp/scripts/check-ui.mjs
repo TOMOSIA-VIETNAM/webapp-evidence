@@ -144,38 +144,44 @@ for (const [width, motion] of [[1280, 'no-preference'], [390, 'no-preference'], 
   await context.close()
 }
 
-// Parts play in once, as they near the viewport, from CSS: the hero at first paint with nothing
-// written into its style by script (that was a frame shown and then hidden), each section as it is
-// reached, none hidden again on the way back up, and nothing left hidden when the back-to-top
-// button flies past sections the reader never scrolled through.
+// Parts play in as they come into view: the hero at first paint from CSS, with nothing written into
+// its style by script (that was a frame shown and then hidden); the rest tied to scroll position, so
+// a fast flick never shows empty space and a part coming back in from the top is already whole; and
+// on a touch device the back-to-top button jumps rather than flying through undrawn screens.
 {
-  const page = await browser.newPage({ viewport: { width: 390, height: 844 } })
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
+  const page = await context.newPage()
   await page.goto(BASE + '/', { waitUntil: 'networkidle' })
-  const pending = () => page.evaluate(() =>
-    [...document.querySelectorAll('[data-reveal]:not([data-reveal="load"])')].filter((el) => !el.classList.contains('is-in')).length)
+  const opacityOf = (locator) => locator.evaluate((el) => parseFloat(getComputedStyle(el).opacity))
   check(await page.evaluate(() => document.documentElement.classList.contains('motion')), 'the head script did not set <html class="motion">')
   const hero = await page.evaluate(() => {
     const h1 = document.querySelector('[data-hero] h1')
     return { animation: getComputedStyle(h1).animationName, inline: h1.getAttribute('style') ?? '' }
   })
   check(hero.animation === 'reveal-rise' && !/opacity/.test(hero.inline), `the hero headline is not played in from CSS (${hero.animation}, style="${hero.inline}")`)
-  const total = await pending()
-  check(total > 0, 'nothing below the hero waits to play in')
 
-  const uat = page.locator('#uat [data-uat-step]').first()
-  await uat.scrollIntoViewIfNeeded()
-  await page.waitForTimeout(300)
-  check(await uat.evaluate((el) => el.classList.contains('is-in')), 'a card scrolled to did not play in')
-  check((await pending()) > 0, 'everything played in at once instead of as it was reached')
-  await page.evaluate(() => window.scrollTo(0, 0))
-  await page.waitForTimeout(300)
-  check(await uat.evaluate((el) => el.classList.contains('is-in')), 'a card played in was hidden again on the way back up')
+  const card = page.locator('#features [data-feature]').first()
+  check((await opacityOf(card)) < 0.5, 'a part far below the fold is already showing, so nothing plays in')
+  // Centred on screen with no time to animate: tied to scroll, it is already whole.
+  await card.evaluate((el) => window.scrollTo({ top: el.getBoundingClientRect().top + scrollY - innerHeight / 2, behavior: 'instant' }))
+  await page.waitForTimeout(50)
+  check((await opacityOf(card)) > 0.95, `a part in the middle of the screen is still coming in (opacity ${await opacityOf(card)})`)
+  // Past it, then back until it re-enters from the top edge.
+  await card.evaluate((el) => window.scrollTo({ top: el.getBoundingClientRect().bottom + scrollY - 40, behavior: 'instant' }))
+  await page.waitForTimeout(50)
+  check((await opacityOf(card)) > 0.95, 'a part coming back in from the top edge plays in again')
 
-  // Jump to the end without passing anything, then fly back up.
   await page.evaluate(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'instant' }))
   await page.locator('[data-scroll-top]').click()
-  check((await pending()) === 0, 'the back-to-top button flew past sections still hidden')
-  await page.close()
+  await page.waitForTimeout(120)
+  check((await page.evaluate(() => scrollY)) === 0, 'touch: the back-to-top button glides instead of jumping')
+  const hiddenOnScreen = await page.evaluate(() =>
+    [...document.querySelectorAll('[data-reveal]')].filter((el) => {
+      const b = el.getBoundingClientRect()
+      return b.bottom > 0 && b.top < innerHeight * 0.6 && parseFloat(getComputedStyle(el).opacity) < 0.95
+    }).length)
+  check(hiddenOnScreen === 0, `${hiddenOnScreen} parts at the top of the page are still hidden after back-to-top`)
+  await context.close()
 }
 
 // Behaviour, checked once on the English page at desktop width.

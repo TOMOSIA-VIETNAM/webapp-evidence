@@ -1,6 +1,8 @@
 /*
- * Plays the page in as it scrolls into view, once. Markup declares it:
- *   [data-reveal]         rises and fades in as it nears the viewport; `--i` staggers siblings
+ * Plays the page in as it scrolls into view. Markup declares it:
+ *   [data-reveal]         rises and fades in as it comes into view; `--i` staggers siblings.
+ *                         Where the browser supports scroll-driven animations this is CSS alone,
+ *                         tied to scroll position; elsewhere this file plays it once
  *   [data-reveal="load"]  plays from CSS at first paint instead — the hero, on screen before any
  *                         script has run
  *   [data-live]           gets `is-off` while off screen, so its endless animations pause instead
@@ -15,12 +17,22 @@
 const PENDING = '[data-reveal]:not([data-reveal="load"]):not(.is-in)'
 
 let observer: IntersectionObserver | null = null
+let started = false
 
 export function initReveal(): void {
-  if (!document.documentElement.classList.contains('motion') || observer) return
+  if (!document.documentElement.classList.contains('motion') || started) return
+  started = true
 
-  // A little below the fold, so a fast scroll finds each part already on its way in rather than
-  // arriving at empty space.
+  const live = new IntersectionObserver((entries) => {
+    for (const entry of entries) entry.target.classList.toggle('is-off', !entry.isIntersecting)
+  })
+  document.querySelectorAll('[data-live]').forEach((el) => live.observe(el))
+
+  // Where CSS ties the rise to scroll position (tokens.css), there is nothing to trigger.
+  if (CSS.supports('animation-timeline: view()')) return
+
+  // A quarter of a screen below the fold, so a fast scroll finds each part already on its way in
+  // rather than arriving at empty space.
   observer = new IntersectionObserver(
     (entries) => {
       for (const entry of entries) {
@@ -29,17 +41,12 @@ export function initReveal(): void {
         observer?.unobserve(entry.target)
       }
     },
-    { rootMargin: '0px 0px 12% 0px' },
+    { rootMargin: '0px 0px 25% 0px' },
   )
   document.querySelectorAll(PENDING).forEach((el) => observer?.observe(el))
-
-  const live = new IntersectionObserver((entries) => {
-    for (const entry of entries) entry.target.classList.toggle('is-off', !entry.isIntersecting)
-  })
-  document.querySelectorAll('[data-live]').forEach((el) => live.observe(el))
 }
 
-/** Shows everything still waiting, for a jump that would otherwise travel past empty sections. */
+/** Shows everything still waiting to be triggered, for a jump that would travel past it hidden. */
 export function revealAll(): void {
   document.querySelectorAll(PENDING).forEach((el) => {
     el.classList.add('is-in')
