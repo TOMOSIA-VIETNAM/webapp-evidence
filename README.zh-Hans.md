@@ -84,8 +84,8 @@ Cookie 和令牌通过文件交给 curl，并在视频、截图和 runbook 中�
 ## Steps in the video
 
 00:05 - 00:17  Terminal — the SEO meta the page serves, read off its URL
-00:24 - 00:41  UAT report — each criterion picks out the runbook lines that prove it
-00:59 - 01:07  Install — one panel per agent
+00:24 - 00:40  UAT report — each criterion picks out the runbook lines that prove it
+00:58 - 01:06  Install — one panel per agent
 
 ## Commands run in the terminal
 
