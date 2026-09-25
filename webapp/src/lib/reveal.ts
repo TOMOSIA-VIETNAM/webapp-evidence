@@ -5,8 +5,8 @@
  *                         tied to scroll position; elsewhere this file plays it once
  *   [data-reveal="load"]  plays from CSS at first paint instead — the hero, on screen before any
  *                         script has run
- *   [data-live]           gets `is-off` while off screen, so its endless animations pause instead
- *                         of repainting every frame for nothing
+ *   [data-live]           gets `is-off` while off screen, so the endless animations inside it,
+ *                         marked [data-loop], pause instead of repainting every frame for nothing
  *
  * The HTML renders every final state. The hidden starting state hangs off <html class="motion">,
  * which an inline script in the head sets before first paint unless the reader asked for reduced

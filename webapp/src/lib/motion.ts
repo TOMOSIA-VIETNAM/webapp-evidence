@@ -58,14 +58,30 @@ export function initSmoothScroll(): void {
   lenis.on('scroll', ScrollTrigger.update)
 }
 
+/** How far from its target a touch scroll still glides, in screen heights. */
+const TOUCH_GLIDE_SCREENS = 1.2
+
 /**
- * Scroll the page to an absolute position, through Lenis when it is running. A touch device jumps:
- * a scripted smooth scroll across the whole page outruns what a phone can draw, and it flew through
- * white screens on an iPhone.
+ * Scroll the page to an absolute position, through Lenis when it is running. On a touch device it
+ * jumps to within a screen or so of the target and glides the rest: a scripted smooth scroll across
+ * the whole page outruns what a phone can draw and flew through white screens on an iPhone, while a
+ * glide that short is drawn in time and still reads as the page travelling.
  */
 export function scrollToPosition(y: number): void {
-  if (lenis) lenis.scrollTo(y, { immediate: prefersReducedMotion() })
-  else window.scrollTo({ top: y, behavior: prefersReducedMotion() || isTouchFirst() ? 'instant' : 'smooth' })
+  if (lenis) {
+    lenis.scrollTo(y, { immediate: prefersReducedMotion() })
+    return
+  }
+  if (prefersReducedMotion()) {
+    window.scrollTo({ top: y, behavior: 'instant' })
+    return
+  }
+  if (isTouchFirst()) {
+    const glide = window.innerHeight * TOUCH_GLIDE_SCREENS
+    const distance = window.scrollY - y
+    if (Math.abs(distance) > glide) window.scrollTo({ top: y + Math.sign(distance) * glide, behavior: 'instant' })
+  }
+  window.scrollTo({ top: y, behavior: 'smooth' })
 }
 
 /**

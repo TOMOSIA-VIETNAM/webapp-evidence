@@ -25,13 +25,13 @@ const outputs = [
       own — so the two transforms never overwrite each other. */}
   <div class="pointer-events-none absolute inset-0 z-0" aria-hidden="true" data-decorative>
     <div class="absolute -top-32 -left-24 size-[32rem] md:size-[40rem]" data-blob="1">
-      <div class="drift drift--slow size-full rounded-full bg-firefly-300/45 blur-3xl"></div>
+      <div data-loop class="drift drift--slow size-full rounded-full bg-firefly-300/45 blur-3xl"></div>
     </div>
     <div class="absolute -top-16 right-[-10%] size-[26rem] md:size-[34rem]" data-blob="2">
-      <div class="drift drift--wide size-full rounded-full bg-firefly-200/55 blur-3xl"></div>
+      <div data-loop class="drift drift--wide size-full rounded-full bg-firefly-200/55 blur-3xl"></div>
     </div>
     <div class="absolute bottom-[-20%] left-1/3 size-[24rem] md:size-[30rem]" data-blob="3">
-      <div class="drift drift--deep size-full rounded-full bg-firefly-500/25 blur-3xl"></div>
+      <div data-loop class="drift drift--deep size-full rounded-full bg-firefly-500/25 blur-3xl"></div>
     </div>
   </div>
 
@@ -43,7 +43,7 @@ const outputs = [
           <FireflyMark class="size-8" title={t('hero.mark.alt')} recording />
         </span>
         <span class="glass-2 shadow-glass-1 inline-flex items-center gap-2 rounded-pill py-1.5 pr-4 pl-3 text-xs font-semibold text-ink-muted">
-          <span class="rec-dot size-2 rounded-pill bg-firefly-600" aria-hidden="true"></span>
+          <span data-loop class="rec-dot size-2 rounded-pill bg-firefly-600" aria-hidden="true"></span>
           <span class="font-mono tracking-wide text-accent-strong">REC</span>
           <span aria-hidden="true">·</span>
           {t('hero.badge')}
@@ -81,9 +81,9 @@ const outputs = [
     <div class="relative hidden size-80 justify-self-end lg:block xl:h-[30rem] xl:w-[30rem]" data-hero-stage>
       <div class="absolute top-1/2 left-1/2 size-72 -translate-x-1/2 -translate-y-1/2" data-hero-mascot>
         <div class="lantern pointer-events-none absolute inset-0" aria-hidden="true" data-decorative>
-          <span class="lantern__ring lantern__ring--1"></span>
-          <span class="lantern__ring lantern__ring--2"></span>
-          <span class="lantern__ring lantern__ring--3"></span>
+          <span data-loop class="lantern__ring lantern__ring--1"></span>
+          <span data-loop class="lantern__ring lantern__ring--2"></span>
+          <span data-loop class="lantern__ring lantern__ring--3"></span>
         </div>
         <FireflyMark class="relative size-72 drop-shadow-2xl" title={t('hero.mark.alt')} recording />
       </div>

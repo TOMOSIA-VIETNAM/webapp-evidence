@@ -65,14 +65,14 @@ const runbook = RUNBOOK_EXCERPT.split('\n').map((text, index) => ({
     <div class="pointer-events-none absolute -top-16 -left-10 -z-10 size-[22rem] rounded-full bg-firefly-200/50 blur-3xl" aria-hidden="true" data-decorative></div>
     <div class="pointer-events-none absolute -right-10 -bottom-16 -z-10 size-[24rem] rounded-full bg-firefly-300/30 blur-3xl" aria-hidden="true" data-decorative></div>
 
-    <GlassCard tier={3} class="rounded-panel" data-uat-report data-reveal>
-      <header class="mb-6 max-w-2xl">
+    <GlassCard tier={3} class="rounded-panel" data-uat-report>
+      <header class="mb-6 max-w-2xl" data-reveal>
         <h3 class="text-xl font-semibold text-balance">{t('uat.report.title')}</h3>
         <p class="mt-2 text-sm leading-relaxed text-ink-muted text-pretty">{t('uat.report.lead')}</p>
       </header>
 
       <div class="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-        <div class="flex min-w-0 flex-col gap-2">
+        <div class="flex min-w-0 flex-col gap-2" data-reveal>
           <p class="text-xs font-semibold tracking-wide text-ink-faint uppercase">{t('uat.report.criteria')}</p>
           <ul class="flex flex-col gap-2">
             {
@@ -108,7 +108,7 @@ const runbook = RUNBOOK_EXCERPT.split('\n').map((text, index) => ({
           </button>
         </div>
 
-        <figure class="m-0 flex min-w-0 flex-col gap-2">
+        <figure class="m-0 flex min-w-0 flex-col gap-2" data-reveal style="--i: 1">
           <figcaption class="flex items-center justify-between gap-3">
             <span class="text-xs font-semibold tracking-wide text-ink-faint uppercase">{t('uat.report.runbook')}</span>
             <span class="font-mono text-xs text-ink-faint">{DEMO_TAKE}-runbook.md</span>
