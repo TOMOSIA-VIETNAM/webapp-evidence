@@ -14,15 +14,17 @@ cannot be invoked by name.
 
 `tests/platform-layer.test.js` fails when these drift apart.
 
-## Three names, one skill
+## Four names, one skill
 
 | name | written in | read by |
 |---|---|---|
 | `webapp-evidence` | marketplace and every `plugin.json` | what a user installs |
 | `recording`, `vision`, `feedback` | the directory, and `name:` in its SKILL.md | Claude Code: `/webapp-evidence:recording` |
 | `webapp-evidence-recording` | nowhere — the installer derives it | the four platforms without a namespace |
+| `Webapp Evidence` | `docs/images/logo/build-firefly-assets.py`, outlined into the lockup | people: the logo, the site's titles and prose (`webapp/src/lib/brand.ts` reads it back) |
 
-Never write the derived name into a SKILL.md; `plugin.json` already holds that half of it.
+Never write the derived name into a SKILL.md; `plugin.json` already holds that half of it. The brand
+name is for people only — anything a user types stays `webapp-evidence`.
 
 ## In a SKILL.md
 
