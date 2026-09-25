@@ -28,6 +28,17 @@ export function prefersReducedMotion(): boolean {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
+/*
+ * A device driven by touch scrolls natively, on the compositor, and anything tied to that scroll by
+ * script can only follow a frame behind it. The same media query drops the costlier glass in
+ * tokens.css; keep the two in step.
+ */
+export const TOUCH_FIRST = '(hover: none), (pointer: coarse)'
+
+export function isTouchFirst(): boolean {
+  return window.matchMedia(TOUCH_FIRST).matches
+}
+
 /** A duration token from tokens.css in seconds, so JS and CSS never drift apart. */
 function seconds(name: string, fallbackMs: number): number {
   const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim() || `${fallbackMs}ms`
@@ -39,9 +50,14 @@ const EASE_IOS = 'cubic-bezier(0.32, 0.72, 0, 1)'
 
 let lenis: Lenis | null = null
 
-/** Smooth scrolling for the whole page. Does nothing under reduced motion. */
+/**
+ * Smooth scrolling for the wheel. Does nothing under reduced motion, and nothing on a touch device:
+ * Lenis leaves touch to the browser anyway, while its non-passive touch listeners make every swipe
+ * wait on the main thread and walk the DOM for nested scrollers — the stutter a phone showed most
+ * over the horizontally scrolling code panels.
+ */
 export function initSmoothScroll(): void {
-  if (prefersReducedMotion() || lenis) return
+  if (prefersReducedMotion() || isTouchFirst() || lenis) return
   lenis = new Lenis({ duration: 1.05, smoothWheel: true })
   const raf = (time: number) => {
     lenis?.raf(time)
@@ -84,10 +100,13 @@ export function fadeUp(targets: gsap.DOMTarget, options: { stagger?: number; dis
   })
 }
 
-/** One decorative layer drifting at its own speed while the page scrolls. */
+/**
+ * One decorative layer drifting at its own speed while the page scrolls. Not on a touch device: a
+ * transform scrubbed from script trails the native scroll there, and the layer visibly judders.
+ */
 export function parallaxLayer(target: gsap.DOMTarget, options: { distance?: number; scope?: Element } = {}): void {
   const elements = gsap.utils.toArray<HTMLElement>(target)
-  if (elements.length === 0 || prefersReducedMotion()) return
+  if (elements.length === 0 || prefersReducedMotion() || isTouchFirst()) return
   for (const element of elements) {
     gsap.to(element, {
       yPercent: options.distance ?? -18,

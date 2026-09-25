@@ -116,6 +116,28 @@ for (const [width, motion] of [[1280, 'no-preference'], [390, 'no-preference'], 
   await page.close()
 }
 
+// On a touch device the page scrolls natively and drops what costs frames there: no Lenis (its
+// non-passive touch listeners make every swipe wait on script), no scroll-scrubbed parallax, no
+// autoplaying video, no blur behind the cards.
+{
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
+  const page = await context.newPage()
+  await page.goto(BASE + '/', { waitUntil: 'networkidle' })
+  check(!(await page.evaluate(() => document.documentElement.classList.contains('lenis'))), 'touch: Lenis took over scrolling')
+  const cardBlur = await page.evaluate(() => getComputedStyle(document.querySelector('[data-uat-step]')).backdropFilter)
+  check(cardBlur === 'none', `touch: the cards still blur what is behind them (${cardBlur})`)
+  const video = page.locator('[data-demo-video]')
+  await video.scrollIntoViewIfNeeded()
+  await page.waitForTimeout(1500)
+  check(await video.evaluate((v) => v.paused), 'touch: the recording started playing on its own')
+  const blob = await page.evaluate(() => getComputedStyle(document.querySelector('[data-blob="1"]')).transform)
+  await page.evaluate(() => window.scrollTo(0, 400))
+  await page.waitForTimeout(600)
+  const blobAfter = await page.evaluate(() => getComputedStyle(document.querySelector('[data-blob="1"]')).transform)
+  check(blob === blobAfter, 'touch: a hero layer is still moved by the scroll')
+  await context.close()
+}
+
 // Behaviour, checked once on the English page at desktop width.
 {
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
