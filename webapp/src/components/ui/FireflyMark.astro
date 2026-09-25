@@ -28,7 +28,7 @@ const { viewBox, parts } = firefly
   class:list={['firefly', recording && 'firefly--recording', flapOnHover && 'firefly--flap-on-hover', className]}
   {...rest}
 >
-  <g class="firefly__light">
+  <g class="firefly__light" data-loop>
     {parts.light.map((p) => <polygon points={p.points} fill={p.fill} />)}
   </g>
   <g class="firefly__wing firefly__wing--left">

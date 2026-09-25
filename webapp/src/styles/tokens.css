@@ -264,8 +264,10 @@
     .motion [data-reveal]:not([data-reveal='load']) {
       animation: reveal-rise linear both;
       animation-timeline: view();
-      /* Whole by the time it is a third of the way up the screen; siblings a step behind. */
-      animation-range: entry calc(var(--i, 0) * 6%) entry calc(55% + var(--i, 0) * 6%);
+      /* Whole after a quarter of a screen of scrolling, measured in screen height rather than the
+         part's own: a tall block — the runbook, the request panel — otherwise stayed half faded
+         while already filling the screen, then snapped in. Siblings a step behind. */
+      animation-range: entry calc(var(--i, 0) * 3vh) entry calc(24vh + var(--i, 0) * 3vh);
     }
   }
 
@@ -283,15 +285,17 @@
     }
   }
 
+  /* Backwards, not both: once played, the animation lets go of the element instead of holding it
+     on a layer of its own, which a phone could drop and redraw — the headline blinking out. */
   .motion [data-reveal='load'] {
-    animation: reveal-rise var(--duration-slower) var(--ease-ios) both;
+    animation: reveal-rise var(--duration-slower) var(--ease-ios) backwards;
     animation-delay: calc(var(--i, 0) * var(--reveal-stagger));
   }
 
-  /* Endless animations inside a part scrolled off screen stop, instead of repainting for nothing. */
-  [data-live].is-off *,
-  [data-live].is-off *::before,
-  [data-live].is-off *::after {
+  /* Endless animations, marked [data-loop], stop while their part is off screen instead of
+     repainting for nothing. Only those: pausing every descendant restyled the whole hero each time
+     it crossed the edge of the screen, just as the next section was playing in. */
+  [data-live].is-off [data-loop] {
     animation-play-state: paused !important;
   }
 }
