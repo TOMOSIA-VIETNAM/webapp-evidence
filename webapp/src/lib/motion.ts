@@ -58,10 +58,14 @@ export function initSmoothScroll(): void {
   lenis.on('scroll', ScrollTrigger.update)
 }
 
-/** Scroll the page to an absolute position, through Lenis when it is running. */
+/**
+ * Scroll the page to an absolute position, through Lenis when it is running. A touch device jumps:
+ * a scripted smooth scroll across the whole page outruns what a phone can draw, and it flew through
+ * white screens on an iPhone.
+ */
 export function scrollToPosition(y: number): void {
   if (lenis) lenis.scrollTo(y, { immediate: prefersReducedMotion() })
-  else window.scrollTo({ top: y, behavior: prefersReducedMotion() ? 'auto' : 'smooth' })
+  else window.scrollTo({ top: y, behavior: prefersReducedMotion() || isTouchFirst() ? 'instant' : 'smooth' })
 }
 
 /**

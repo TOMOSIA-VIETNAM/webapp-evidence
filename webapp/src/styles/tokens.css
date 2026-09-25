@@ -244,8 +244,13 @@
 }
 
 /*
- * The page coming into view, driven by src/lib/reveal.ts. The hidden state exists only under
- * <html class="motion">, set before first paint, so a part is never shown and then hidden.
+ * The page coming into view. The hidden state exists only under <html class="motion">, set before
+ * first paint, so a part is never shown and then hidden.
+ *
+ * Where the browser can tie an animation to scroll position, a part's rise is exactly as far along
+ * as it is into the viewport: the compositor runs it with the scroll, so a fast flick never outruns
+ * it into empty space, and a part coming back in from the top edge is already whole. Elsewhere
+ * src/lib/reveal.ts plays it once, as it nears the viewport.
  */
 @keyframes reveal-rise {
   from {
@@ -255,16 +260,27 @@
 }
 
 @layer base {
-  .motion [data-reveal]:not([data-reveal='load']) {
-    transition:
-      opacity var(--duration-slow) var(--ease-ios),
-      transform var(--duration-slower) var(--ease-ios);
-    transition-delay: calc(var(--i, 0) * var(--reveal-stagger));
+  @supports (animation-timeline: view()) {
+    .motion [data-reveal]:not([data-reveal='load']) {
+      animation: reveal-rise linear both;
+      animation-timeline: view();
+      /* Whole by the time it is a third of the way up the screen; siblings a step behind. */
+      animation-range: entry calc(var(--i, 0) * 6%) entry calc(55% + var(--i, 0) * 6%);
+    }
   }
 
-  .motion [data-reveal]:not([data-reveal='load']):not(.is-in) {
-    opacity: 0;
-    transform: translate3d(0, var(--reveal-distance), 0);
+  @supports not (animation-timeline: view()) {
+    .motion [data-reveal]:not([data-reveal='load']) {
+      transition:
+        opacity var(--duration-slow) var(--ease-ios),
+        transform var(--duration-slower) var(--ease-ios);
+      transition-delay: calc(var(--i, 0) * var(--reveal-stagger));
+    }
+
+    .motion [data-reveal]:not([data-reveal='load']):not(.is-in) {
+      opacity: 0;
+      transform: translate3d(0, var(--reveal-distance), 0);
+    }
   }
 
   .motion [data-reveal='load'] {
