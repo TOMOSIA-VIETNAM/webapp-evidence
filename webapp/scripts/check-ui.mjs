@@ -126,6 +126,12 @@ for (const [width, motion] of [[1280, 'no-preference'], [390, 'no-preference'], 
   check(!(await page.evaluate(() => document.documentElement.classList.contains('lenis'))), 'touch: Lenis took over scrolling')
   const cardBlur = await page.evaluate(() => getComputedStyle(document.querySelector('[data-uat-step]')).backdropFilter)
   check(cardBlur === 'none', `touch: the cards still blur what is behind them (${cardBlur})`)
+  const navBlur = await page.evaluate(() => getComputedStyle(document.querySelector('header nav')).backdropFilter)
+  check(navBlur === 'none', `touch: the fixed nav still blurs the page scrolling under it (${navBlur})`)
+  const drift = await page.evaluate(() => getComputedStyle(document.querySelector('.drift')).animationName)
+  check(drift === 'none', `touch: the hero's colour still drifts (${drift})`)
+  const lantern = await page.evaluate(() => getComputedStyle(document.querySelector('[data-hero-mark] .firefly__light')).animationName)
+  check(lantern === 'none', `touch: the firefly's lantern, inside an SVG, still animates on the main thread (${lantern})`)
   const video = page.locator('[data-demo-video]')
   await video.scrollIntoViewIfNeeded()
   await page.waitForTimeout(1500)
@@ -136,6 +142,40 @@ for (const [width, motion] of [[1280, 'no-preference'], [390, 'no-preference'], 
   const blobAfter = await page.evaluate(() => getComputedStyle(document.querySelector('[data-blob="1"]')).transform)
   check(blob === blobAfter, 'touch: a hero layer is still moved by the scroll')
   await context.close()
+}
+
+// Parts play in once, as they near the viewport, from CSS: the hero at first paint with nothing
+// written into its style by script (that was a frame shown and then hidden), each section as it is
+// reached, none hidden again on the way back up, and nothing left hidden when the back-to-top
+// button flies past sections the reader never scrolled through.
+{
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 } })
+  await page.goto(BASE + '/', { waitUntil: 'networkidle' })
+  const pending = () => page.evaluate(() =>
+    [...document.querySelectorAll('[data-reveal]:not([data-reveal="load"])')].filter((el) => !el.classList.contains('is-in')).length)
+  check(await page.evaluate(() => document.documentElement.classList.contains('motion')), 'the head script did not set <html class="motion">')
+  const hero = await page.evaluate(() => {
+    const h1 = document.querySelector('[data-hero] h1')
+    return { animation: getComputedStyle(h1).animationName, inline: h1.getAttribute('style') ?? '' }
+  })
+  check(hero.animation === 'reveal-rise' && !/opacity/.test(hero.inline), `the hero headline is not played in from CSS (${hero.animation}, style="${hero.inline}")`)
+  const total = await pending()
+  check(total > 0, 'nothing below the hero waits to play in')
+
+  const uat = page.locator('#uat [data-uat-step]').first()
+  await uat.scrollIntoViewIfNeeded()
+  await page.waitForTimeout(300)
+  check(await uat.evaluate((el) => el.classList.contains('is-in')), 'a card scrolled to did not play in')
+  check((await pending()) > 0, 'everything played in at once instead of as it was reached')
+  await page.evaluate(() => window.scrollTo(0, 0))
+  await page.waitForTimeout(300)
+  check(await uat.evaluate((el) => el.classList.contains('is-in')), 'a card played in was hidden again on the way back up')
+
+  // Jump to the end without passing anything, then fly back up.
+  await page.evaluate(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'instant' }))
+  await page.locator('[data-scroll-top]').click()
+  check((await pending()) === 0, 'the back-to-top button flew past sections still hidden')
+  await page.close()
 }
 
 // Behaviour, checked once on the English page at desktop width.
@@ -209,6 +249,9 @@ for (const [width, motion] of [[1280, 'no-preference'], [390, 'no-preference'], 
   const panels = await page.locator('[data-install-panel]:visible').count()
   check(panels === 5, `without script, ${panels} of 5 install panels are visible`)
   check((await page.locator('[data-runbook] li:visible').count()) > 5, 'without script, the runbook is hidden')
+  const hidden = await page.evaluate(() =>
+    [...document.querySelectorAll('[data-reveal]')].filter((el) => getComputedStyle(el).opacity !== '1').length)
+  check(hidden === 0, `without script, ${hidden} parts wait to play in and never will`)
   await context.close()
 }
 

@@ -1,7 +1,8 @@
 /*
- * Every animation on this site starts here. Sections call a preset; they never import
- * gsap or build a ScrollTrigger themselves, so the reduced-motion guard below cannot be
- * bypassed by a section that forgot about it.
+ * The scroll-linked motion on this site: smooth wheel scrolling and the hero's parallax. Sections
+ * call these; they never import gsap or build a ScrollTrigger themselves, so the reduced-motion
+ * and touch guards below cannot be bypassed. Parts playing in as they come into view are CSS,
+ * driven by src/lib/reveal.ts.
  *
  * Contract of every preset: when the visitor asks for reduced motion, the preset puts the
  * element in its FINAL state immediately and registers nothing. The page must read the
@@ -15,13 +16,12 @@ import Lenis from 'lenis'
 gsap.registerPlugin(ScrollTrigger)
 
 /*
- * Trigger positions are measured when a section registers, which is before the images below it
- * have loaded and taken up their space. Without this a section can sit at its start state forever
- * because the scroll never reaches where it thinks it is.
+ * Trigger positions are measured when the parallax registers, before the images below have loaded
+ * and taken their space. ScrollTrigger refreshes on resize by itself — debounced, and ignoring the
+ * iOS toolbar showing and hiding; a resize listener of our own would recompute on every one.
  */
 if (typeof window !== 'undefined') {
   window.addEventListener('load', () => ScrollTrigger.refresh())
-  window.addEventListener('resize', () => ScrollTrigger.refresh())
 }
 
 export function prefersReducedMotion(): boolean {
@@ -38,15 +38,6 @@ export const TOUCH_FIRST = '(hover: none), (pointer: coarse)'
 export function isTouchFirst(): boolean {
   return window.matchMedia(TOUCH_FIRST).matches
 }
-
-/** A duration token from tokens.css in seconds, so JS and CSS never drift apart. */
-function seconds(name: string, fallbackMs: number): number {
-  const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim() || `${fallbackMs}ms`
-  return raw.endsWith('ms') ? parseFloat(raw) / 1000 : parseFloat(raw)
-}
-
-/** The iOS-leaning easing from tokens.css, expressed for gsap. */
-const EASE_IOS = 'cubic-bezier(0.32, 0.72, 0, 1)'
 
 let lenis: Lenis | null = null
 
@@ -71,33 +62,6 @@ export function initSmoothScroll(): void {
 export function scrollToPosition(y: number): void {
   if (lenis) lenis.scrollTo(y, { immediate: prefersReducedMotion() })
   else window.scrollTo({ top: y, behavior: prefersReducedMotion() ? 'auto' : 'smooth' })
-}
-
-/** Elements rise and fade in as they enter the viewport. */
-export function fadeUp(targets: gsap.DOMTarget, options: { stagger?: number; distance?: number } = {}): void {
-  const elements = gsap.utils.toArray<HTMLElement>(targets)
-  if (elements.length === 0) return
-  if (prefersReducedMotion()) {
-    gsap.set(elements, { clearProps: 'all', opacity: 1, y: 0 })
-    return
-  }
-  // A `from` tween re-applies its start values whenever ScrollTrigger refreshes, which leaves an
-  // element that already played stuck at opacity 0. Setting the start state and animating to the
-  // end state inside onEnter has no such state to lose.
-  gsap.set(elements, { opacity: 0, y: options.distance ?? 24 })
-  ScrollTrigger.create({
-    trigger: elements[0],
-    start: 'top 90%',
-    once: true,
-    onEnter: () =>
-      gsap.to(elements, {
-        opacity: 1,
-        y: 0,
-        duration: seconds('--duration-slow', 480),
-        ease: EASE_IOS,
-        stagger: options.stagger ?? 0.08,
-      }),
-  })
 }
 
 /**

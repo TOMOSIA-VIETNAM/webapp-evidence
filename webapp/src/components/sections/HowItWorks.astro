@@ -18,7 +18,7 @@ const steps = [
   <ol class="grid gap-4 md:grid-cols-3" data-how-steps>
     {
       steps.map((step, index) => (
-        <GlassCard as="li" tier={2} class="relative isolate flex flex-col gap-3 overflow-hidden" data-how-step>
+        <GlassCard as="li" tier={2} class="relative isolate flex flex-col gap-3 overflow-hidden" data-how-step data-reveal style={`--i: ${index}`}>
           <span class="glow-light" aria-hidden="true" data-decorative />
           <div class="flex items-center gap-3">
             <span class="flex size-9 items-center justify-center rounded-control bg-accent-soft text-accent-strong">
@@ -33,7 +33,7 @@ const steps = [
     }
   </ol>
 
-  <div class="relative isolate mt-6" data-how-demo>
+  <div class="relative isolate mt-6" data-how-demo data-reveal>
     <div class="pointer-events-none absolute top-1/2 left-1/2 -z-10 size-[34rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-firefly-200/45 blur-3xl" aria-hidden="true" data-decorative></div>
     <figure class="glass-3 shadow-glass-3 m-0 mx-auto max-w-4xl rounded-panel p-3">
       {/* This page, recorded by the skill it describes. Nothing downloads until it plays; with a
@@ -58,11 +58,9 @@ const steps = [
 </Section>
 
 <script>
-  import { fadeUp, isTouchFirst, prefersReducedMotion } from '../../lib/motion'
+  import { isTouchFirst, prefersReducedMotion } from '../../lib/motion'
   import { followGlow } from '../../lib/glow'
 
-  fadeUp('[data-how-step]', { stagger: 0.09 })
-  fadeUp('[data-how-demo]', { distance: 16 })
 
   // Plays while at least half of it is on screen. A reader who asked for less motion, or one on a
   // phone — where decoding it mid-scroll costs frames and data — starts it with the controls instead.

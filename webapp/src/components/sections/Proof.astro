@@ -16,15 +16,15 @@ const layers = [
 
 <Section id="proof" eyebrow={t('proof.eyebrow')} heading={t('proof.heading')} lead={t('proof.lead')}>
   <div class="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:items-stretch">
-    <figure class="m-0 flex min-w-0 flex-col gap-2 rounded-card bg-surface-console p-(--card-padding) shadow-glass-3" data-proof-item>
+    <figure class="m-0 flex min-w-0 flex-col gap-2 rounded-card bg-surface-console p-(--card-padding) shadow-glass-3" data-proof-item data-reveal>
       <figcaption class="text-xs font-semibold tracking-wide text-firefly-300 uppercase">{t('proof.request.label')}</figcaption>
       <pre class="m-0 overflow-x-auto overscroll-x-contain font-mono text-sm leading-relaxed whitespace-pre-wrap text-ink-console"><code>{EXAMPLE_REQUEST}</code></pre>
     </figure>
 
     <ol class="flex flex-col gap-4" data-proof-layers>
       {
-        layers.map((layer) => (
-          <GlassCard as="li" tier={2} class="relative isolate flex items-start gap-4 overflow-hidden" data-proof-item data-proof-layer>
+        layers.map((layer, index) => (
+          <GlassCard as="li" tier={2} class="relative isolate flex items-start gap-4 overflow-hidden" data-proof-item data-proof-layer data-reveal style={`--i: ${index + 1}`}>
             <span class="glow-light" aria-hidden="true" data-decorative />
             <span class="flex size-9 shrink-0 items-center justify-center rounded-control bg-accent-soft text-accent-strong">
               <layer.icon class="size-4.5" aria-hidden="true" />
@@ -39,17 +39,15 @@ const layers = [
     </ol>
   </div>
 
-  <p class="mt-6 flex items-start gap-2 text-sm text-ink-muted" data-proof-item>
+  <p class="mt-6 flex items-start gap-2 text-sm text-ink-muted" data-proof-item data-reveal>
     <ShieldCheck class="mt-0.5 size-4 shrink-0 text-accent" aria-hidden="true" />
     {t('proof.secrets')}
   </p>
 </Section>
 
 <script>
-  import { fadeUp } from '../../lib/motion'
   import { followGlow } from '../../lib/glow'
 
-  fadeUp('[data-proof-item]', { stagger: 0.08 })
   followGlow(
     document.querySelector<HTMLElement>('[data-proof-layers]'),
     [...document.querySelectorAll<HTMLElement>('[data-proof-layer]')],

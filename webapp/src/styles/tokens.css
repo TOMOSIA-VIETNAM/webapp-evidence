@@ -73,10 +73,10 @@
   --color-glass-3-border: #ffffff;
 
   --blur-glass: 20px;
-  --blur-glass-touch: 10px; /* the nav and large panels on a touch device, where blur costs frames */
   /* Cards on a touch device drop the blur, so their fill carries the frosting instead. */
   --color-glass-1-touch-bg: color-mix(in oklab, #ffffff 84%, transparent);
   --color-glass-2-touch-bg: color-mix(in oklab, #ffffff 90%, transparent);
+  --color-glass-3-touch-bg: color-mix(in oklab, #ffffff 96%, transparent);
 
   /* Layered soft shadows: a tight contact shadow plus a wide ambient one. */
   --shadow-glass-1: 0 1px 2px rgb(23 19 15 / 0.04), 0 8px 24px -12px rgb(23 19 15 / 0.12);
@@ -123,6 +123,8 @@
   --nav-height: 4rem;
   --section-padding-block: clamp(4rem, 2.5rem + 6vw, 7.5rem);
   --card-padding: clamp(1.25rem, 1rem + 1vw, 1.75rem);
+  --reveal-distance: 1.25rem; /* how far a part rises as it comes into view */
+  --reveal-stagger: 70ms; /* the gap between siblings coming in one after another */
   --sheet-aspect: 1950 / 1386; /* a vision contact sheet */
 }
 
@@ -205,7 +207,8 @@
  *
  * On a touch device (the query isTouchFirst in src/lib/motion.ts uses — keep them in step) every
  * blurred surface is re-blurred on every frame of a scroll, which a phone's GPU cannot keep up
- * with. Cards there drop the blur for a denser fill; the nav and large panels keep a smaller one.
+ * with — the fixed nav above all, since the page moves under it the whole time. There every tier
+ * drops the blur for a denser fill.
  */
 @utility glass-1 {
   background-color: var(--color-glass-1-bg);
@@ -235,6 +238,44 @@
   backdrop-filter: blur(var(--blur-glass)) saturate(180%);
 
   @media (hover: none), (pointer: coarse) {
-    backdrop-filter: blur(var(--blur-glass-touch)) saturate(160%);
+    background-color: var(--color-glass-3-touch-bg);
+    backdrop-filter: none;
+  }
+}
+
+/*
+ * The page coming into view, driven by src/lib/reveal.ts. The hidden state exists only under
+ * <html class="motion">, set before first paint, so a part is never shown and then hidden.
+ */
+@keyframes reveal-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, var(--reveal-distance), 0);
+  }
+}
+
+@layer base {
+  .motion [data-reveal]:not([data-reveal='load']) {
+    transition:
+      opacity var(--duration-slow) var(--ease-ios),
+      transform var(--duration-slower) var(--ease-ios);
+    transition-delay: calc(var(--i, 0) * var(--reveal-stagger));
+  }
+
+  .motion [data-reveal]:not([data-reveal='load']):not(.is-in) {
+    opacity: 0;
+    transform: translate3d(0, var(--reveal-distance), 0);
+  }
+
+  .motion [data-reveal='load'] {
+    animation: reveal-rise var(--duration-slower) var(--ease-ios) both;
+    animation-delay: calc(var(--i, 0) * var(--reveal-stagger));
+  }
+
+  /* Endless animations inside a part scrolled off screen stop, instead of repainting for nothing. */
+  [data-live].is-off *,
+  [data-live].is-off *::before,
+  [data-live].is-off *::after {
+    animation-play-state: paused !important;
   }
 }
