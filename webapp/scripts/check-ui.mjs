@@ -147,7 +147,8 @@ for (const [width, motion] of [[1280, 'no-preference'], [390, 'no-preference'], 
 // Parts play in as they come into view: the hero at first paint from CSS, with nothing written into
 // its style by script (that was a frame shown and then hidden); the rest tied to scroll position, so
 // a fast flick never shows empty space and a part coming back in from the top is already whole; and
-// on a touch device the back-to-top button jumps rather than flying through undrawn screens.
+// on a touch device the back-to-top button glides only the last screen or so rather than flying
+// through a page of undrawn screens.
 {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
   const page = await context.newPage()
@@ -171,10 +172,40 @@ for (const [width, motion] of [[1280, 'no-preference'], [390, 'no-preference'], 
   await page.waitForTimeout(50)
   check((await opacityOf(card)) > 0.95, 'a part coming back in from the top edge plays in again')
 
+  // The dark blocks play in like everything else, over about a quarter of a screen: part-way in just
+  // after their top appears (not already whole, not snapped), whole by the middle of the screen.
+  for (const selector of ['[data-uat-report] figure', '#proof figure']) {
+    const block = page.locator(selector)
+    const at = async (share) => {
+      await block.evaluate((el, s) => window.scrollTo({ top: el.getBoundingClientRect().top + scrollY - innerHeight * s, behavior: 'instant' }), share)
+      await page.waitForTimeout(50)
+      return block.evaluate((el) => { let o = 1; for (let e = el; e; e = e.parentElement) o *= parseFloat(getComputedStyle(e).opacity); return o })
+    }
+    const entering = await at(0.85)
+    check(entering > 0.2 && entering < 0.9, `${selector} does not play in with the scroll (opacity ${entering.toFixed(2)} just after its top appears)`)
+    check((await at(0.55)) > 0.95, `${selector} is still coming in with its top past the middle of the screen`)
+  }
+
+  // Off screen, the hero's endless animations stop; its headline, which played once, is left alone.
+  await page.evaluate(() => window.scrollTo({ top: 3000, behavior: 'instant' }))
+  await page.waitForTimeout(300)
+  const away = await page.evaluate(() => {
+    const loop = document.querySelector('[data-hero] [data-loop]')
+    return {
+      loop: loop ? getComputedStyle(loop).animationPlayState : 'no [data-loop] in the hero',
+      headline: getComputedStyle(document.querySelector('[data-hero] h1')).animationPlayState,
+    }
+  })
+  check(away.loop === 'paused', `the hero's endless animations keep running off screen (${away.loop})`)
+  check(away.headline !== 'paused', 'pausing the hero off screen reaches its headline too')
+
+  // Back to the top: a short glide from within a screen or so, not a jump and not a page-long flight.
   await page.evaluate(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'instant' }))
   await page.locator('[data-scroll-top]').click()
-  await page.waitForTimeout(120)
-  check((await page.evaluate(() => scrollY)) === 0, 'touch: the back-to-top button glides instead of jumping')
+  await page.waitForTimeout(60)
+  const glide = await page.evaluate(() => ({ y: scrollY, screen: innerHeight }))
+  check(glide.y > 0 && glide.y <= glide.screen * 1.3, `touch: back-to-top should glide the last screen or so, but was at ${glide.y}px (screen ${glide.screen}px) just after the click`)
+  await page.waitForFunction(() => scrollY === 0, null, { timeout: 3000 }).catch(() => check(false, 'touch: back-to-top never reached the top'))
   const hiddenOnScreen = await page.evaluate(() =>
     [...document.querySelectorAll('[data-reveal]')].filter((el) => {
       const b = el.getBoundingClientRect()
