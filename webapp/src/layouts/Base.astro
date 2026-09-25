@@ -28,6 +28,12 @@ const otherLocales = LOCALES.filter((l) => l !== DEFAULT_LOCALE)
     <meta name="theme-color" content={THEME_COLOR} />
     <meta name="color-scheme" content="light" />
     <meta name="generator" content={Astro.generator} />
+    {/* Before first paint: the hidden starting state of everything that plays in hangs off this
+        class, so nothing is drawn and then hidden. Without script, or with reduced motion, it is
+        never set and the page shows as rendered. */}
+    <script is:inline>
+      if (!matchMedia('(prefers-reduced-motion: reduce)').matches) document.documentElement.classList.add('motion')
+    </script>
     <SEO locale={locale} />
     {
       redirectsToStoredLanguage && (
@@ -75,7 +81,9 @@ const otherLocales = LOCALES.filter((l) => l !== DEFAULT_LOCALE)
 
     <script>
       import { initSmoothScroll } from '../lib/motion'
+      import { initReveal } from '../lib/reveal'
 
+      initReveal()
       initSmoothScroll()
     </script>
   </body>

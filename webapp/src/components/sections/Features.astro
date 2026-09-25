@@ -19,8 +19,8 @@ const features = [
 <Section id="features" eyebrow={t('features.eyebrow')} heading={t('features.heading')}>
   <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" data-features>
     {
-      features.map((feature) => (
-        <GlassCard as="li" tier={2} class="relative isolate flex flex-col gap-3 overflow-hidden" data-feature>
+      features.map((feature, index) => (
+        <GlassCard as="li" tier={2} class="relative isolate flex flex-col gap-3 overflow-hidden" data-feature data-reveal style={`--i: ${index}`}>
           <span class="glow-light" aria-hidden="true" data-decorative />
           <span class="flex size-9 items-center justify-center rounded-control bg-accent-soft text-accent-strong">
             <feature.icon class="size-4.5" aria-hidden="true" />
@@ -34,10 +34,8 @@ const features = [
 </Section>
 
 <script>
-  import { fadeUp } from '../../lib/motion'
   import { followGlow } from '../../lib/glow'
 
-  fadeUp('[data-feature]', { stagger: 0.06 })
   followGlow(
     document.querySelector<HTMLElement>('[data-features]'),
     [...document.querySelectorAll<HTMLElement>('[data-feature]')],

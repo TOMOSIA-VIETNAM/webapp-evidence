@@ -17,7 +17,7 @@ const platforms = PLATFORMS.map((name) => ({
 ---
 
 <Section id="install" eyebrow={t('install.eyebrow')} heading={t('install.heading')} lead={t('install.lead')}>
-  <GlassCard tier={3} class="flex flex-col gap-5" data-install>
+  <GlassCard tier={3} class="flex flex-col gap-5" data-install data-reveal>
     <div class="flex flex-wrap gap-2" role="tablist" aria-label={t('install.eyebrow')} hidden data-install-tablist>
       {
         platforms.map((platform, index) => (
@@ -107,7 +107,6 @@ const platforms = PLATFORMS.map((name) => ({
 </noscript>
 
 <script>
-  import { fadeUp } from '../../lib/motion'
 
   const tabs = [...document.querySelectorAll<HTMLButtonElement>('[data-install-tab]')]
   const panels = [...document.querySelectorAll<HTMLElement>('[data-install-panel]')]
@@ -132,5 +131,4 @@ const platforms = PLATFORMS.map((name) => ({
     })
   })
 
-  fadeUp('[data-install]', { distance: 16 })
 </script>

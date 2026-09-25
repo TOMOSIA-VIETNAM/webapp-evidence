@@ -17,14 +17,14 @@ const large = await Promise.all(sheets.map((sheet) => getImage({ src: sheet, wid
 ---
 
 <Section id="vision" eyebrow={t('vision.eyebrow')} heading={t('vision.heading')} lead={t('vision.lead')}>
-  <div class="mb-8 max-w-xl" data-vision-item>
+  <div class="mb-8 max-w-xl" data-vision-item data-reveal>
     <CopyCommand command={`${commandFor('Claude Code', 'vision')} ${DEMO_TAKE}.mp4`} />
   </div>
 
   <ul class="grid gap-4 md:grid-cols-3">
     {
       sheets.map((sheet, index) => (
-        <li data-vision-item>
+        <li data-vision-item data-reveal style={`--i: ${index + 1}`}>
           {/* Each thumbnail opens the sheet large, where the timestamps are legible: in the viewer
               below once the script runs, as the image itself before that. */}
           <a
@@ -126,9 +126,7 @@ const large = await Promise.all(sheets.map((sheet) => getImage({ src: sheet, wid
 </style>
 
 <script>
-  import { fadeUp } from '../../lib/motion'
 
-  fadeUp('[data-vision-item]', { stagger: 0.08 })
 
   // The viewer: a native modal dialog, so focus stays inside it, Escape closes it and focus goes
   // back to the thumbnail that opened it. A click on the backdrop closes it too; arrows step.

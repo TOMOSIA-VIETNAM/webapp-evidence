@@ -45,7 +45,7 @@ const runbook = RUNBOOK_EXCERPT.split('\n').map((text, index) => ({
   <ol class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" data-uat-steps>
     {
       steps.map((step, index) => (
-        <GlassCard as="li" tier={2} class="relative isolate flex flex-col gap-3 overflow-hidden" data-uat-step>
+        <GlassCard as="li" tier={2} class="relative isolate flex flex-col gap-3 overflow-hidden" data-uat-step data-reveal style={`--i: ${index}`}>
           <span class="glow-light" aria-hidden="true" data-decorative />
           <div class="flex items-center gap-3">
             <span class="flex size-9 items-center justify-center rounded-control bg-accent-soft text-accent-strong">
@@ -65,7 +65,7 @@ const runbook = RUNBOOK_EXCERPT.split('\n').map((text, index) => ({
     <div class="pointer-events-none absolute -top-16 -left-10 -z-10 size-[22rem] rounded-full bg-firefly-200/50 blur-3xl" aria-hidden="true" data-decorative></div>
     <div class="pointer-events-none absolute -right-10 -bottom-16 -z-10 size-[24rem] rounded-full bg-firefly-300/30 blur-3xl" aria-hidden="true" data-decorative></div>
 
-    <GlassCard tier={3} class="rounded-panel" data-uat-report>
+    <GlassCard tier={3} class="rounded-panel" data-uat-report data-reveal>
       <header class="mb-6 max-w-2xl">
         <h3 class="text-xl font-semibold text-balance">{t('uat.report.title')}</h3>
         <p class="mt-2 text-sm leading-relaxed text-ink-muted text-pretty">{t('uat.report.lead')}</p>
@@ -167,11 +167,8 @@ const runbook = RUNBOOK_EXCERPT.split('\n').map((text, index) => ({
 </style>
 
 <script>
-  import { fadeUp } from '../../lib/motion'
   import { followGlow } from '../../lib/glow'
 
-  fadeUp('[data-uat-step]', { stagger: 0.08 })
-  fadeUp('[data-uat-report]', { distance: 16 })
   followGlow(
     document.querySelector<HTMLElement>('[data-uat-steps]'),
     [...document.querySelectorAll<HTMLElement>('[data-uat-step]')],

@@ -68,18 +68,18 @@ const { viewBox, parts } = firefly
     }
   }
 
-  /* The lantern is a record dot: it brightens and swells on a slow, steady clock. */
+  /* The lantern is a record dot: it brightens and swells on a slow, steady clock. Only opacity and
+     scale move — the compositor runs those — while its glow stays put; an animated filter was
+     repainted on every frame, on a phone for as long as the page was open. */
   @keyframes firefly-record {
     0%,
     100% {
       opacity: 0.55;
       transform: scale(0.94);
-      filter: drop-shadow(0 0 0 transparent);
     }
     50% {
       opacity: 1;
       transform: scale(1.06);
-      filter: drop-shadow(0 0 0.6rem var(--color-accent-glow));
     }
   }
 
@@ -99,12 +99,22 @@ const { viewBox, parts } = firefly
   }
 
   .firefly--recording .firefly__light {
+    filter: drop-shadow(0 0 0.4rem var(--color-accent-glow));
     animation: firefly-record 2.4s cubic-bezier(0.37, 0, 0.63, 1) infinite;
   }
 
   .firefly--flap-on-hover:hover .firefly__wing,
   .firefly--recording:hover .firefly__wing {
     animation: firefly-flap 0.5s var(--ease-ios) infinite;
+  }
+
+  /* Parts inside an SVG animate on the main thread in every browser, whatever the property. On a
+     touch device the lantern holds its light rather than repaint for as long as the page is open;
+     the REC dot beside the headline, an ordinary element, still blinks. */
+  @media (hover: none), (pointer: coarse) {
+    .firefly--recording .firefly__light {
+      animation: none;
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {
