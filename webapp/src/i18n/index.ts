@@ -3,6 +3,7 @@ import { vi } from './vi'
 import { ja } from './ja'
 import { zh } from './zh'
 import { LOCALES, DEFAULT_LOCALE, type Locale } from './locales'
+import { BRAND } from '../lib/brand'
 
 export { LOCALES, DEFAULT_LOCALE, type Locale }
 
@@ -31,13 +32,16 @@ export function localePath(locale: Locale, path = '/'): string {
   return `/${locale}${suffix === '/' ? '/' : suffix}`
 }
 
-/** Translator bound to one locale. Missing keys throw at build time, never render blank. */
+/**
+ * Translator bound to one locale. Missing keys throw at build time, never render blank. `{brand}`
+ * in a string is the product's name as the logo writes it, so no dictionary spells it out.
+ */
 export function useTranslations(locale: Locale) {
   const dict = DICTIONARIES[locale]
   return function t(key: keyof Dictionary): string {
     const value = dict[key]
     if (value === undefined) throw new Error(`Missing ${locale} translation for "${String(key)}"`)
-    return value
+    return value.replaceAll('{brand}', BRAND)
   }
 }
 

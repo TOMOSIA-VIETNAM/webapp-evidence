@@ -1,8 +1,9 @@
 // English is the source of truth: every key added here is added to vi.ts, ja.ts and zh.ts in the
 // same change. `pnpm check` fails on any key that exists in one language only.
 // Technical strings (command names, code, file names, PASS/FAIL marks) stay English everywhere.
+// `{brand}` stands for the product's name as the logo writes it (src/lib/brand.ts).
 export const en = {
-  'meta.title': 'webapp-evidence — describe the flow, get the recording',
+  'meta.title': '{brand} — Describe the flow, get the recording',
   'meta.description':
     'An open-source skill for AI coding agents that records your web app and returns a video, screenshots and a runbook — evidence for UAT, hand-offs, bug reports and reviews.',
 
@@ -35,7 +36,7 @@ export const en = {
   'hero.cta.github': 'View on GitHub',
   'hero.command.label': 'Then type this in your agent',
   'hero.platforms': 'Works in',
-  'hero.mark.alt': 'The webapp-evidence firefly, its lantern lit like a record light',
+  'hero.mark.alt': 'The {brand} firefly, its lantern lit like a record light',
   'hero.output.video': 'The operation video',
   'hero.output.shots': 'Screenshots of the main steps',
   'hero.output.runbook': 'The runbook',
@@ -83,7 +84,7 @@ export const en = {
   'how.step3.title': 'Get the evidence',
   'how.step3.body':
     'An mp4, numbered screenshots and a runbook, on your disk. Attaching them to a ticket, an MR or a report is yours to do — nothing is committed.',
-  'how.demo.caption': 'This page, recorded by webapp-evidence itself — the take the UAT report above quotes.',
+  'how.demo.caption': 'This page, recorded by {brand} itself — the take the UAT report above quotes.',
   'how.demo.alt': 'A take of this page: the language menu, the firefly under the pointer, the command copied, each acceptance criterion picked in the UAT report, the sections read down to the install tabs, and the SEO meta read in the terminal panel.',
 
   'proof.eyebrow': 'Full-stack evidence',

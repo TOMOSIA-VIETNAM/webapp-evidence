@@ -1,7 +1,7 @@
 import type { Dictionary } from './en'
 
 export const ja: Dictionary = {
-  'meta.title': 'webapp-evidence — フローを書けば、録画が届く',
+  'meta.title': '{brand} — フローを書けば、録画が届く',
   'meta.description':
     'AI コーディングエージェント向けのオープンソース skill。Web アプリを録画し、動画・スクリーンショット・ランブックを返します。UAT、引き継ぎ、バグ報告、レビューのエビデンスに。',
 
@@ -34,7 +34,7 @@ export const ja: Dictionary = {
   'hero.cta.github': 'GitHub で見る',
   'hero.command.label': 'あとはエージェントでこれを入力',
   'hero.platforms': '対応環境',
-  'hero.mark.alt': 'webapp-evidence のホタル。お尻の光が録画ランプのように灯っている',
+  'hero.mark.alt': '{brand} のホタル。お尻の光が録画ランプのように灯っている',
   'hero.output.video': '操作動画',
   'hero.output.shots': '主要ステップのスクリーンショット',
   'hero.output.runbook': 'ランブック',
@@ -82,7 +82,7 @@ export const ja: Dictionary = {
   'how.step3.title': 'エビデンスを受け取る',
   'how.step3.body':
     'mp4、番号付きスクリーンショット、ランブックがあなたのディスクに。チケット、MR、報告書への添付はあなたの手で。何もコミットされません。',
-  'how.demo.caption': 'webapp-evidence 自身が録画したこのページ。上の UAT 報告書が引用しているテイクです。',
+  'how.demo.caption': '{brand} 自身が録画したこのページ。上の UAT 報告書が引用しているテイクです。',
   'how.demo.alt': 'このページのテイク: 言語メニュー、ポインターに反応するホタル、コマンドのコピー、UAT 報告書で基準をひとつずつ選択、インストールタブまで読み進め、ターミナルパネルで SEO メタを読む。',
 
   'proof.eyebrow': 'フルスタックのエビデンス',

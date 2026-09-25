@@ -1,7 +1,7 @@
 import type { Dictionary } from './en'
 
 export const vi: Dictionary = {
-  'meta.title': 'webapp-evidence — mô tả luồng, nhận bản ghi',
+  'meta.title': '{brand} — Mô tả luồng, nhận bản ghi',
   'meta.description':
     'Skill mã nguồn mở cho AI coding agent: ghi lại web app của bạn và trả về video, ảnh chụp màn hình và runbook — bằng chứng cho UAT, bàn giao, báo lỗi và review.',
 
@@ -34,7 +34,7 @@ export const vi: Dictionary = {
   'hero.cta.github': 'Xem trên GitHub',
   'hero.command.label': 'Rồi gõ lệnh này trong agent',
   'hero.platforms': 'Chạy trên',
-  'hero.mark.alt': 'Con đom đóm của webapp-evidence, đèn bụng sáng như đèn ghi hình',
+  'hero.mark.alt': 'Con đom đóm của {brand}, đèn bụng sáng như đèn ghi hình',
   'hero.output.video': 'Video thao tác',
   'hero.output.shots': 'Ảnh chụp các bước chính',
   'hero.output.runbook': 'Runbook',
@@ -82,7 +82,7 @@ export const vi: Dictionary = {
   'how.step3.title': 'Nhận bằng chứng',
   'how.step3.body':
     'Một file mp4, ảnh chụp đánh số và runbook, nằm trên máy bạn. Đính kèm vào ticket, MR hay báo cáo là việc của bạn — không có gì bị commit.',
-  'how.demo.caption': 'Chính trang này, do webapp-evidence tự quay — lần quay mà báo cáo UAT phía trên trích dẫn.',
+  'how.demo.caption': 'Chính trang này, do {brand} tự quay — lần quay mà báo cáo UAT phía trên trích dẫn.',
   'how.demo.alt': 'Một lần quay trang này: menu ngôn ngữ, con đom đóm dưới con trỏ, lệnh được sao chép, từng tiêu chí trong báo cáo UAT được chọn, các phần được đọc xuống tới tab cài đặt, và thẻ SEO được đọc trong panel terminal.',
 
   'proof.eyebrow': 'Bằng chứng full-stack',

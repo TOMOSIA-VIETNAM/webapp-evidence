@@ -6,7 +6,7 @@ import GithubMark from './GithubMark.astro'
 import lockup from '../../assets/upstream/brand/logo-lockup.svg'
 import { localeFromUrl, localePath, useTranslations } from '../../i18n'
 import { REPO_URL } from '../../lib/site'
-import { PLUGIN } from '../../lib/upstream'
+import { BRAND } from '../../lib/brand'
 
 const locale = localeFromUrl(Astro.url)
 const t = useTranslations(locale)
@@ -26,7 +26,7 @@ const links = [
     aria-label={t('nav.label')}
   >
     <a href={home} class="flex min-h-10 shrink-0 items-center gap-2 no-underline">
-      <Image src={lockup} alt={PLUGIN} height={32} class="h-7 w-auto sm:h-8" loading="eager" />
+      <Image src={lockup} alt={BRAND} height={32} class="h-7 w-auto sm:h-8" loading="eager" />
     </a>
 
     <ul class="ml-auto hidden items-center gap-1 lg:flex" data-nav-links>

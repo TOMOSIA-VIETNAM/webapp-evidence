@@ -14,7 +14,7 @@ export const TOMOSIA_URL = 'https://tomosia.com'
  * Bumped whenever the social cards in public/og/ are redrawn. Chat apps and crawlers cache a card by
  * its URL and will not fetch it again on their own, so the version is what makes them look.
  */
-export const OG_VERSION = '1'
+export const OG_VERSION = '2'
 
 /** The card's pixel size, declared in the page so a crawler can lay out the preview before fetching. */
 export const OG_SIZE = { width: 1200, height: 630 }

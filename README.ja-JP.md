@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="./docs/images/logo/logo-lockup-dark.svg">
-    <img src="./docs/images/logo/logo-lockup.svg" alt="webapp-evidence" width="420">
+    <img src="./docs/images/logo/logo-lockup.svg" alt="Webapp Evidence" width="420">
   </picture>
 </p>
 

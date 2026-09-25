@@ -1,7 +1,7 @@
 import type { Dictionary } from './en'
 
 export const zh: Dictionary = {
-  'meta.title': 'webapp-evidence — 描述流程，拿到录屏',
+  'meta.title': '{brand} — 描述流程，拿到录屏',
   'meta.description':
     '面向 AI 编程智能体的开源 skill：录制你的 Web 应用，返回视频、截图和运行手册 —— 用于 UAT、交接、缺陷报告和评审的证据。',
 
@@ -34,7 +34,7 @@ export const zh: Dictionary = {
   'hero.cta.github': '在 GitHub 查看',
   'hero.command.label': '然后在智能体里输入',
   'hero.platforms': '支持',
-  'hero.mark.alt': 'webapp-evidence 的萤火虫，尾部的光像录制指示灯一样亮着',
+  'hero.mark.alt': '{brand} 的萤火虫，尾部的光像录制指示灯一样亮着',
   'hero.output.video': '操作视频',
   'hero.output.shots': '关键步骤截图',
   'hero.output.runbook': '运行手册',
@@ -81,7 +81,7 @@ export const zh: Dictionary = {
   'how.step3.title': '拿到证据',
   'how.step3.body':
     '一个 mp4、编号截图和运行手册，都在你的磁盘上。附到工单、MR 或报告里由你决定 —— 不会提交任何东西。',
-  'how.demo.caption': '由 webapp-evidence 亲自录制的本页 —— 也就是上方 UAT 报告所引用的那次录制。',
+  'how.demo.caption': '由 {brand} 亲自录制的本页 —— 也就是上方 UAT 报告所引用的那次录制。',
   'how.demo.alt': '本页的一次录制：语言菜单、随指针而动的萤火虫、复制命令、在 UAT 报告中逐条选择验收标准、向下阅读到安装标签页，并在终端面板中读取 SEO 元数据。',
 
   'proof.eyebrow': '全栈证据',
