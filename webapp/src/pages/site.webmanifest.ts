@@ -1,14 +1,14 @@
 import type { APIRoute } from 'astro'
 import { useTranslations, DEFAULT_LOCALE } from '../i18n'
-import { PLUGIN } from '../lib/upstream'
+import { BRAND } from '../lib/brand'
 import { THEME_COLOR } from '../lib/site'
 
 /** The install manifest, from the same names and colour the page uses; icons from scripts/build-social.mjs. */
 export const GET: APIRoute = () => {
   const t = useTranslations(DEFAULT_LOCALE)
   const manifest = {
-    name: PLUGIN,
-    short_name: PLUGIN,
+    name: BRAND,
+    short_name: BRAND,
     description: t('meta.description'),
     start_url: '/',
     display: 'browser',

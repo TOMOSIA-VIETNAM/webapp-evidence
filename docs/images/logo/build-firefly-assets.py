@@ -11,9 +11,20 @@ Run this script to regenerate every asset after editing the geometry below:
 Outputs land beside this script (mark, dark variant, lockups, favicon, sheet).
 Everything is flat polygons in one 128x128 coordinate system, four tones of a
 single hue, no gradients and no strokes.
+
+The wordmark in the lockups is outlined, not set as text: an SVG shown through
+<img> — a README, a social card — draws <text> in whatever font the viewer has,
+so the name looked different everywhere. Outlining needs fontTools and brotli
+(pip install fonttools brotli) and the Inter font the site already installs
+(pnpm install in webapp/).
 """
 import math
 import pathlib
+
+from fontTools.pens.svgPathPen import SVGPathPen
+from fontTools.pens.transformPen import TransformPen
+from fontTools.ttLib import TTFont
+from fontTools.varLib.instancer import instantiateVariableFont
 
 OUT = pathlib.Path(__file__).resolve().parent
 
@@ -128,12 +139,83 @@ PANEL = [
     dict(name="On dark",  bg="#12140D", label="#A8A29E", tones=DARK_BG,  ink=WORDMARK_INK["dark"]),
 ]
 
-WORDMARK = "webapp-evidence"
+# The product's name as a brand, in two weights: the kind of thing, then what it
+# gives you. Commands and packages keep the handle webapp-evidence.
+WORDMARK = (("Webapp", 400), (" ", 400), ("Evidence", 600))
+BRAND = "".join(part for part, _ in WORDMARK)
 WORD_SIZE = 46
 WORD_X = 138
-# The wordmark ends at x=513 at this size; the rest is breathing room, with a
-# few pixels of slack for machines that substitute a wider fallback font.
-LOCKUP_W = 534
+WORD_BASELINE = 82
+WORD_TRACKING = -1        # units of the SVG, per letter, as the text version had
+LOCKUP_PAD = 20           # room after the last letter
+
+INTER = OUT.parents[2] / "webapp/node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2"
+
+
+def _font(weight, cache={}):
+    if weight not in cache:
+        if not INTER.exists():
+            raise SystemExit(f"{INTER} not found: run pnpm install in webapp/ first")
+        cache[weight] = instantiateVariableFont(TTFont(INTER), {"wght": weight})
+    return cache[weight]
+
+
+def _kerning(font):
+    """Pair adjustments from the font's GPOS, for the pairs a name this short needs."""
+    pairs, classed = {}, []
+    for lookup in font["GPOS"].table.LookupList.Lookup:
+        for sub in lookup.SubTable:
+            sub = getattr(sub, "ExtSubTable", sub)
+            if getattr(sub, "LookupType", None) != 2 and type(sub).__name__ != "PairPos":
+                continue
+            first = sub.Coverage.glyphs
+            if sub.Format == 1:
+                for i, left in enumerate(first):
+                    for record in sub.PairSet[i].PairValueRecord:
+                        value = getattr(record.Value1, "XAdvance", 0) if record.Value1 else 0
+                        pairs.setdefault((left, record.SecondGlyph), value)
+            elif sub.Format == 2:
+                classed.append((set(first), sub))
+    return pairs, classed
+
+
+def _kern(font, left, right, table):
+    pairs, classed = table
+    if (left, right) in pairs:
+        return pairs[(left, right)]
+    for coverage, sub in classed:
+        if left not in coverage:
+            continue
+        c1 = sub.ClassDef1.classDefs.get(left, 0)
+        c2 = sub.ClassDef2.classDefs.get(right, 0)
+        value = sub.Class1Record[c1].Class2Record[c2].Value1
+        if value and getattr(value, "XAdvance", 0):
+            return value.XAdvance
+    return 0
+
+
+def _outline():
+    """The wordmark as one path, in lockup units, and where it ends."""
+    x, paths, prev = WORD_X, [], None
+    for text, weight in WORDMARK:
+        font = _font(weight)
+        scale = WORD_SIZE / font["head"].unitsPerEm
+        cmap, glyphs, table = font.getBestCmap(), font.getGlyphSet(), _kerning(font)
+        for ch in text:
+            name = cmap[ord(ch)]
+            if prev and prev[1] is font:
+                x += _kern(font, prev[0], name, table) * scale
+            pen = SVGPathPen(glyphs)
+            glyphs[name].draw(TransformPen(pen, (scale, 0, 0, -scale, x, WORD_BASELINE)))
+            if pen.getCommands():
+                paths.append(pen.getCommands())
+            x += glyphs[name].width * scale + WORD_TRACKING
+            prev = (name, font)
+    return " ".join(paths), x - WORD_TRACKING
+
+
+WORD_PATH, WORD_END = _outline()
+LOCKUP_W = math.ceil(WORD_END + LOCKUP_PAD)
 
 
 def _label(x, y, text, fill, size=13, weight="500"):
@@ -142,8 +224,7 @@ def _label(x, y, text, fill, size=13, weight="500"):
 
 
 def _wordmark(ink):
-    return (f'<text x="{WORD_X}" y="82" font-family="{FONT}" font-size="{WORD_SIZE}" '
-            f'font-weight="600" fill="{ink}" letter-spacing="-1">{WORDMARK}</text>')
+    return f'<path d="{WORD_PATH}" fill="{ink}"/>'
 
 
 def _panel(p, dy):
@@ -182,18 +263,18 @@ def sheet_svg():
     panels = "".join(_panel(p, i * PANEL_H) for i, p in enumerate(PANEL))
     return ('<svg xmlns="http://www.w3.org/2000/svg" '
             f'viewBox="0 0 {SHEET_W} {PANEL_H * len(PANEL)}" role="img" '
-            'aria-label="webapp-evidence logo variants on light and dark grounds">\n'
+            f'aria-label="{BRAND} logo variants on light and dark grounds">\n'
             f'  {panels}\n</svg>\n')
 
 
 def icon_svg(body):
     return ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" '
-            f'role="img" aria-label="{WORDMARK}">\n  {body}\n</svg>\n')
+            f'role="img" aria-label="{BRAND}">\n  {body}\n</svg>\n')
 
 
 def lockup_svg(body, ink):
     return ('<svg xmlns="http://www.w3.org/2000/svg" '
-            f'viewBox="0 0 {LOCKUP_W} 128" role="img" aria-label="{WORDMARK}">\n'
+            f'viewBox="0 0 {LOCKUP_W} 128" role="img" aria-label="{BRAND}">\n'
             f'  {body}\n  {_wordmark(ink)}\n</svg>\n')
 
 

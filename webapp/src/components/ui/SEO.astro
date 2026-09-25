@@ -2,6 +2,7 @@
 import { LOCALES, localePath, useTranslations, type Locale } from '../../i18n'
 import { REPO_URL, LICENSE, TOMOSIA_NAME, TOMOSIA_URL, OG_VERSION, OG_SIZE, OG_LOCALE } from '../../lib/site'
 import { PLUGIN } from '../../lib/upstream'
+import { BRAND } from '../../lib/brand'
 
 /** Head metadata for one page in one language: canonical, hreflang, social cards, JSON-LD. */
 interface Props {
@@ -18,14 +19,15 @@ const ogImage = new URL(`/og/${locale}.png?v=${OG_VERSION}`, site)
 // The title stays under the ~60 characters a results page shows; the organisation is carried by
 // og:site_name, the author meta and the structured data instead.
 const title = t('meta.title')
-const imageAlt = `${PLUGIN} — ${t('hero.headline')}`
+const imageAlt = `${BRAND} — ${t('hero.headline')}`
 
 const organisation = { '@type': 'Organization', name: TOMOSIA_NAME, url: TOMOSIA_URL }
 
 const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
-  name: PLUGIN,
+  name: BRAND,
+  alternateName: PLUGIN,
   description: t('meta.description'),
   applicationCategory: 'DeveloperApplication',
   operatingSystem: 'macOS, Linux, Windows',
@@ -59,7 +61,7 @@ const jsonLd = {
 <meta property="og:image:alt" content={imageAlt} />
 <meta property="og:locale" content={OG_LOCALE[locale]} />
 {LOCALES.filter((alt) => alt !== locale).map((alt) => <meta property="og:locale:alternate" content={OG_LOCALE[alt]} />)}
-<meta property="og:site_name" content={`${PLUGIN} · ${TOMOSIA_NAME}`} />
+<meta property="og:site_name" content={`${BRAND} · ${TOMOSIA_NAME}`} />
 <meta name="author" content={TOMOSIA_NAME} />
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content={title} />
