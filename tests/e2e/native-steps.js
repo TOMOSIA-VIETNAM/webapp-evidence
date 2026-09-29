@@ -48,8 +48,8 @@ module.exports = {
     await shot('alert-acknowledged');
 
     mark('Choose a file through the real picker');
-    // In a folder of its own, so the picker has somewhere to be sent: it opens on whatever folder
-    // it last used, and the jump from there to this one is what the take cuts out.
+    // upload() copies the file into a folder of its own and sends the picker there; the stretch
+    // on whatever folder the picker opened on is what the take cuts out.
     await upload(page.locator('#import_file'), require('path').join(__dirname, 'fixtures', 'picker', 'import-users.csv'));
     await shot('file-chosen');
 

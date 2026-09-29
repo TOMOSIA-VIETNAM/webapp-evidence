@@ -385,11 +385,17 @@ async function chooseFile({
 
   try {
     const fitted = io.fit(pid, rect);
-    if (!fitted || !inside(fitted.sheet, rect)) {
-      const size = fitted ? `${Math.round(fitted.sheet.width)}x${Math.round(fitted.sheet.height)}` : 'unknown';
+    if (!fitted) {
+      throw new Error(
+        'upload() saw a file picker open over the browser and could not find it among the ' +
+        'browser\'s windows through the Accessibility API, so it cannot be fitted or driven.'
+      );
+    }
+    if (!inside(fitted.sheet, rect)) {
       throw new Error(
         `upload() opened the file picker and it does not fit inside the browser window: the picker ` +
-        `is ${size} at its smallest, the window ${rect.width}x${rect.height}.\n` +
+        `is ${Math.round(fitted.sheet.width)}x${Math.round(fitted.sheet.height)} at its smallest, ` +
+        `the window ${rect.width}x${rect.height}.\n` +
         'Part of it would be outside the recording. Raise recording.viewport and record again.'
       );
     }

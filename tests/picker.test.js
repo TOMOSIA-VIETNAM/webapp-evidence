@@ -87,6 +87,13 @@ test('the picker goes to the folder, then the file is selected in it, then confi
   assert.equal(sys.state.open, false);
 });
 
+test('a picker the Accessibility API cannot find is not reported as too big', async () => {
+  const sys = fakeSystem();
+  sys.io.fit = () => null;
+  await assert.rejects(run(sys), (error) => !/viewport/.test(error.message));
+  assert.deepEqual(keysOf(sys.state), ['escape']);
+});
+
 test('a picker showing a list selects with Down once Right changed nothing', async () => {
   const sys = fakeSystem({ selectsOn: 'down' });
   await run(sys);
