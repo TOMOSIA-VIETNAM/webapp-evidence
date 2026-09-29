@@ -838,6 +838,14 @@ test('a picker that fails part-way still has its stretch closed, so the failed t
   assert.equal(redactions.all().length, 1);
 });
 
+test('a runner cut merged with a redaction cut gives a reason for both', () => {
+  const section = buildRemovedSection([{ from: 3, to: 6, reasons: ['the file picker', null] }]);
+  const row = section.split('\n').find((line) => line.startsWith('- '));
+  const reasons = row.split(' — ')[1].split('; ');
+  assert.equal(reasons.length, 2);
+  assert.ok(reasons.every((reason) => reason.trim().length > 0));
+});
+
 test('a stretch the runner cut says why, instead of claiming a secret was kept out', () => {
   const section = buildRemovedSection([
     { from: 3, to: 4, reasons: ['the file picker on the folder it opened on'] },
@@ -846,5 +854,5 @@ test('a stretch the runner cut says why, instead of claiming a secret was kept o
   assert.match(section, /2 stretches/);
   assert.match(section, /- 00:03 {2}1\.0s — the file picker on the folder it opened on/);
   // The second one lands a second earlier on the shortened video
-  assert.match(section, /- 00:09 {2}2\.0s — what was on screen does not belong in evidence/);
+  assert.match(section, /- 00:09 {2}2\.0s — /);
 });

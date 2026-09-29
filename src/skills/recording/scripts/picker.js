@@ -133,16 +133,19 @@ def post(code, flags=0, text=None):
         time.sleep(0.008)
 
 def keys(pid, actions):
-    # Checked here as well as by the caller, right before the first key goes out: the gap between
-    # the two is a process start, and what is typed next is a path followed by Return.
-    if frontmost() != pid:
-        sys.exit(3)
+    # Checked before every key, not once per batch: a batch holds a wait and a whole path, and
+    # whatever comes to the front during them would receive the rest of it, Return included.
+    def check():
+        if frontmost() != pid:
+            sys.exit(3)
     for action in actions:
+        check()
         if 'wait' in action:
             time.sleep(action['wait'] / 1000)
         elif 'text' in action:
             # One character per event: the field drops what arrives in a single long event.
             for ch in action['text']:
+                check()
                 post(0, 0, ch)
         else:
             flags = 0
@@ -243,7 +246,7 @@ async function chooseFile({
       throw new Error(
         `upload() stopped before ${what}: another application came to the front while the file ` +
         'picker was open, and the keys would have gone to it.\n' +
-        'Nothing was typed. Leave the machine alone for the length of the take and record it again.'
+        'Nothing was typed into it. Leave the machine alone for the length of the take and record it again.'
       );
     }
   };
@@ -260,7 +263,8 @@ async function chooseFile({
   onOpened();
 
   let panel = null;
-  for (let waited = 0; !panel && waited <= openTimeoutMs; waited += pollMs) {
+  // Against the clock rather than a sum of sleeps: every look at the window list starts a process.
+  for (const until = Date.now() + openTimeoutMs; !panel && Date.now() <= until;) {
     panel = newWindowOver(before, io.windows(), rect);
     if (!panel) await sleep(pollMs);
   }
@@ -288,7 +292,7 @@ async function chooseFile({
     throw error;
   }
 
-  for (let waited = 0; waited <= closeTimeoutMs; waited += pollMs) {
+  for (const until = Date.now() + closeTimeoutMs; Date.now() <= until;) {
     if (!io.windows().some((w) => w.id === panel.id)) return;
     await sleep(pollMs);
   }

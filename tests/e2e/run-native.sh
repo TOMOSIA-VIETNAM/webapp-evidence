@@ -6,8 +6,8 @@
 #   tests/e2e/run-native.sh              without DevTools
 #   tests/e2e/run-native.sh --devtools   with DevTools opened alongside the page
 #
-# Needs a display, Screen Recording permission, and the machine left alone for about half a
-# minute. The output is always kept: what this produces is meant to be watched.
+# Needs a display, Screen Recording and Accessibility permission, and the machine left alone for
+# about half a minute. The output is always kept: what this produces is meant to be watched.
 set -euo pipefail
 
 REPO="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"

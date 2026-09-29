@@ -40,11 +40,12 @@ npm install --prefix src/skills/recording/scripts --no-audit --no-fund   # first
 node --test 'tests/*.test.js'     # no browser needed
 ./tests/e2e/run.sh                # records the demo app in real Chrome
 ./tests/e2e/run-window.sh         # records the browser WINDOW — needs a screen and permission
-./tests/e2e/run-native.sh         # the <select> menu, the browser's dialogs, optionally DevTools
+./tests/e2e/run-native.sh         # the <select> menu, the browser's dialogs, the file picker, optionally DevTools
 ```
 
 The last two cannot run headless or in CI: they record what is on a screen, so they need Screen
-Recording permission and the machine left alone for half a minute. `run.sh` covers everything
+Recording permission and the machine left alone for half a minute. `run-native.sh` also chooses a
+file in the real picker, which needs Accessibility permission. `run.sh` covers everything
 else, and both screen checks are macOS only — see `backlogs/screen-capture/other-platforms.md`.
 
 Run `run-window.sh` when the capture backend or the crop arithmetic changes. It measures the

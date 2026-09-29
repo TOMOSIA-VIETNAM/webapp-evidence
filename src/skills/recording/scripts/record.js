@@ -883,7 +883,8 @@ function buildRemovedSection(removed) {
   // would send a reader looking for one. Each row says where the cut is on the shortened video.
   let before = 0;
   const rows = removed.map((r) => {
-    const why = r.reasons ? r.reasons.join('; ') : 'what was on screen does not belong in evidence';
+    const secret = 'what was on screen does not belong in evidence';
+    const why = r.reasons ? r.reasons.map((reason) => reason || secret).join('; ') : secret;
     const row = `- ${fmt(r.from - before)}  ${(r.to - r.from).toFixed(1)}s — ${why}`;
     before += r.to - r.from;
     return row;

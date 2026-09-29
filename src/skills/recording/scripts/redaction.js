@@ -155,21 +155,23 @@ function buildFilter(redactions, trimAt) {
 
 // Overlapping or touching cuts have to become one range before anything counts their duration,
 // or the same second is subtracted from the timeline twice. A merged range keeps the reason of
-// every range in it; one with none keeps none, so the runbook falls back to the redaction's.
+// every range in it, with null standing for one that gave none, so the runbook still gives the
+// redaction's reason for that part. A range where no cut gave a reason keeps none at all.
 function mergeRanges(ranges) {
   const sorted = [...ranges].sort((a, b) => a.from - b.from);
   const merged = [];
   for (const { reason, ...range } of sorted) {
     const last = merged[merged.length - 1];
-    const reasons = reason ? [reason] : [];
     if (last && range.from <= last.to) {
       last.to = Math.max(last.to, range.to);
-      if (reasons.length) last.reasons = [...new Set([...(last.reasons || []), ...reasons])];
+      last.reasons = [...new Set([...last.reasons, reason || null])];
     } else {
-      merged.push({ ...range, ...(reasons.length ? { reasons } : {}) });
+      merged.push({ ...range, reasons: [reason || null] });
     }
   }
-  return merged;
+  return merged.map(({ reasons, ...range }) => (
+    reasons.some(Boolean) ? { ...range, reasons } : range
+  ));
 }
 
 // What is left once the removed ranges are taken out. The final segment has no end: the encode
