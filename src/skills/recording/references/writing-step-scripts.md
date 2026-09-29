@@ -12,7 +12,7 @@ The module returns `{ app, name, start, run(ctx) }`. Inside `run`, use the helpe
 | `scrollTo(locator, { pause })` | Travels to something there is nothing to click on — a section of a long page — and comes to rest on it. Same `pause` vocabulary as `click`, defaulting to the wait for something that has to be read |
 | `drag(locator, to, { pause })` | Drags a handle: a slider's thumb, a control point, a row being reordered. `to` is a locator to drop onto — already in the frame, since the cursor has to be seen travelling to it — or `{ x, y }` for a point on the page, or `{ dx, dy }` for an offset from where it started |
 | `select(locator, 'label')` | Opens a `<select>` inside the page and picks the option |
-| `upload(locator, path)` | Loads a file into a file input, then pauses so the filename becomes visible. Recording the window, it opens the real picker instead — see below |
+| `upload(locator, path)` | `locator` is the file input or the element the page opens it from. Loads the file, then pauses so the filename becomes visible. With `capture` set to `'window'` or `'screen'` and Accessibility permission granted, it drives the real picker instead — see `recording-a-screen.md` |
 | `hotkey('ControlOrMeta+C', { label, target })` | Presses a shortcut and shows a key hint overlay in the video |
 | `note('a sentence')` | Shows one caption along the bottom of the video, the way a film shows a subtitle |
 | `shot('name')` | Takes a screenshot, numbered in capture order |
@@ -188,8 +188,7 @@ The video records **page content**, not the machine's screen. Consequences:
   evidence is worthless.
 - **The operating system's file picker**: not recordable. The `upload()` helper loads the file,
   pauses long enough for the filename to appear in the field, and captions which file was chosen.
-  What can be proved is the state after choosing, not the dialog. `locator` is the file input, or
-  the element the page opens it from.
+  What can be proved is the state after choosing, not the dialog.
 - **The browser's `confirm`/`alert` dialogs**: drawn by the browser, over the page rather than in
   it. `dialog()` drives them, and its own section is below — a click that raises one and is
   awaited never returns.
@@ -207,21 +206,8 @@ the video. That backend needs a screen, Screen Recording permission and the oper
 and it cannot run headless or in CI, so it is worth reaching for only when one of these is the
 thing being proved.
 
-In that backend `upload()` opens the real picker and uses it the way a person would. It copies the
-file into a folder of its own, so the picker shows that one file and nothing else from where the
-step script keeps it. Then it clicks the field, goes to that folder with Go to Folder, holds on it
-for a second (`pace.pickerHoldMs`), selects the file, holds again and opens it. The picker starts
-on whatever folder it last used, possibly at a size larger than the window, so it is fitted into
-the window and that stretch — about a second — is cut from the video and listed in the runbook as
-removed. A picker that cannot be made small enough for the window stops the take and says how
-big a viewport it needs.
-
-Driving the picker needs Accessibility permission for the application the agent runs in (System
-Settings → Privacy & Security → Accessibility). Without it the runner says so with a `WARNING:`
-line before the take and `upload()` sets the file directly, as it does headless. The path is set
-in the Go to Folder field rather than typed, so an input method cannot rewrite it. Before every
-key the runner checks that the browser is still the application in front; if something else came
-forward, nothing is sent and the take stops.
+With `'window'` or `'screen'`, `upload()` drives the real picker, which also needs Accessibility
+permission; `recording-a-screen.md` says what it does and what the runbook lists as cut.
 
 If the flow creates real data in the dev database (submitting a form that creates a record), say so
 in the report so that whoever sees that data later knows where it came from.

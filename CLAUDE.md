@@ -44,9 +44,9 @@ node --test 'tests/*.test.js'     # no browser needed
 ```
 
 The last two cannot run headless or in CI: they record what is on a screen, so they need Screen
-Recording permission and the machine left alone for half a minute. `run-native.sh` also chooses a
-file in the real picker, which needs Accessibility permission. `run.sh` covers everything
-else, and both screen checks are macOS only — see `backlogs/screen-capture/other-platforms.md`.
+Recording permission and the machine left alone for half a minute. `run-native.sh` also needs
+Accessibility permission, for the file picker. `run.sh` covers everything else, and both screen
+checks are macOS only — see `backlogs/screen-capture/other-platforms.md`.
 
 Run `run-window.sh` when the capture backend or the crop arithmetic changes. It measures the
 video against the rectangle the runner recorded, which is the only assertion that tells the whole

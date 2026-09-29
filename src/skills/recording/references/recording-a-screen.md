@@ -65,41 +65,23 @@ off stops every window capture.
 
 ### The file picker, and the second permission
 
-On a headless take `upload()` sets the file on the field and no picker opens. On a take that
-records the window or the screen, it opens the real picker, because seeing the picker is usually
-why the take records the screen at all, and uses it the way a person would:
+On a `window` or `screen` take `upload()` drives the real picker: it copies the file into a folder
+of its own, sends the picker there with Go to Folder, holds on it (`recording.pace.pickerHoldMs`),
+then selects and opens the file. The stretch before the picker reaches that folder is cut from
+the video and listed in the runbook. A viewport too small for the picker stops the take and says
+the size it needs.
 
-1. The file is copied into a folder of its own, so the picker shows that one file and nothing
-   else from wherever the step script keeps it.
-2. The picker is sent to that folder with Go to Folder, and held there for about a second.
-3. The file is selected, held again, and opened.
-
-The picker opens on whatever folder it last used, at whatever size it was last left, and a
-picker wider than the browser pushes the window aside. So the window is put back, the picker is
-fitted inside it, and that whole stretch — the operator's own folder, the path they last went
-to — is cut out of the video. The runbook says so. A viewport too small for the picker at its
-smallest stops the take and says how big it has to be.
-
-Choosing a file in the operating system's picker means sending it key presses, and Playwright
-cannot: it types into the page, and the picker is not part of the page. So the runner sends
-them itself, and macOS wants **Accessibility** permission for that. Like Screen Recording, it is
-granted to the application running the agent, under System Settings › Privacy & Security ›
-Accessibility. Ask for both at the same time, when asking to record the screen.
-
-Without it the take still runs: the runner says so once before the first frame, and `upload()`
-sets the file without showing the picker, the same as a headless take. Keys go only to the
-browser. If anything else has come to the front, the runner stops the take and types nothing.
-The path itself is set in the field, not typed: an input method that composes characters — a
-Vietnamese one was measured — rewrites a typed path on the way in.
+The runner sends the picker's keys itself, which needs **Accessibility** permission for the
+application running the agent (System Settings › Privacy & Security › Accessibility). Ask for it
+together with Screen Recording. Without it the runner prints a `WARNING:` before the take and
+`upload()` sets the file without the picker, as on a headless take. If another application comes
+to the front while the picker is open, the take stops and nothing is typed.
 
 ### Everything else, hidden
 
-For the length of a window or screen take the runner hides every other application, the way
-Hide Others does, and shows them again when the recording stops, however it stops. Only what it
-hid comes back; an application the operator had already hidden stays hidden. That keeps the
-desktop out of anything the browser uncovers, and most of the display out of a `screen` take. It
-does not stop a notification or an application that brings itself forward, which is still what
-Do Not Disturb and leaving the machine alone are for.
+For a `window` or `screen` take the runner hides every other application and, when the recording
+stops, shows again only those it hid. A notification or an application that brings itself
+forward still gets in — that is what Do Not Disturb and leaving the machine alone are for.
 
 ### The operator's own pointer
 
@@ -112,10 +94,6 @@ application.
 So the runner parks it in the far corner of the display before the first frame and puts it back
 where it was afterwards. With `capture: 'screen'` the frame is the whole display and there is
 nowhere outside it to park — the pointer stays in the corner of the take, and the runner says so.
-
-Neither backend can keep out something drawn *on top of* the browser: a notification that lands
-there, another application brought to the front. That is what the Do Not Disturb line in the
-notice is for, and why the machine has to be left alone.
 
 Recording one display while the operator keeps working on another is the best answer to all of
 this, and it is not implemented — `backlogs/screen-capture/other-platforms.md` says what it
@@ -156,7 +134,7 @@ them second, in that order:
    | Answer | What it means | Recommend it when |
    |---|---|---|
    | Record headless instead | they keep the machine; the operating system's widgets are captioned rather than shown | the widget is incidental to what the MR proves — which is most of the time |
-   | Record the browser window | they hand the machine over for about a minute and do not touch it | the widget itself is the evidence: a menu that renders wrong, a picker on the wrong folder, a dialog whose wording is the change |
+   | Record the browser window | they hand the machine over for about a minute and do not touch it | the widget itself is the evidence: a menu that renders wrong, a dialog whose wording is the change |
    | Not now | nothing is recorded | |
 
    The recommendation is not "the one that shows more". A window capture costs a person's
@@ -185,25 +163,22 @@ take is finished, and tell them plainly when it is.
 
 ## Looking at the take afterwards
 
-Look at the recording **once** with the `vision` skill before handing it over. The look is for
-one question: did the take record the flow that was asked for — the right screens, in order,
-ending where the claim is proved? If it did not, say what went wrong and ask before recording
-again; the operator hands their machine over a second time, so it is their call.
+Look at the recording **once** with the `vision` skill, for one question: did it record the flow
+that was asked for — the right screens, in order, ending where the claim is proved? If not, say
+what went wrong and ask before recording again; it takes their machine a second time.
 
-The same look will pass over whatever else was on that screen: a notification, a file name in
-the picker, another window. Report it with its timestamp and stop there. Do not blur, cut or
-re-record on your own to remove it, and do not look again to check that it is gone. Covering
-something after the fact in a screen recording is a job for the person who can see the whole
-screen and knows what matters on it. An agent trying to do it goes round in circles.
+Anything else on the screen — a notification, a file name, another window — report with its
+timestamp and stop there. Do not blur, cut or re-record it on your own, and do not look again to
+check it is gone: only the person who saw the whole screen can judge it.
 
-Hand over with one line in chat, whether anything was found or not, in the language you have
-been writing to them in. Something like:
+Hand over with one line in chat, found or not, in the language you have been writing to them in.
+For example:
 
 > The video records your screen as it was during the take. Check it before you share it, and
 > edit out anything that should not be in it.
 
-`redact()` in the step script is still the way to cover a secret the page is known to show. It
-is decided while writing the steps and costs no look at the video. See `redaction.md`.
+To cover a secret the page is known to show, use `redact()` in the step script, decided while
+writing the steps; see `redaction.md`.
 
 ## Configuration
 
