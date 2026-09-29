@@ -207,18 +207,21 @@ the video. That backend needs a screen, Screen Recording permission and the oper
 and it cannot run headless or in CI, so it is worth reaching for only when one of these is the
 thing being proved.
 
-In that backend `upload()` opens the real picker: it clicks the field, sends the picker straight to
-the file (Go to Folder with the file's own path), holds a second on it selected
-(`pace.pickerSelectedMs`) and opens it. The picker starts on whatever folder it last used, and that
-stretch — under a second — is cut from the video and listed in the runbook as removed, so what the
-viewer sees is the click and then the picker already in the file's folder. Pass the path the file
-really has: the picker is sent to it, so a file somewhere private shows that folder's listing.
+In that backend `upload()` opens the real picker and uses it the way a person would. It copies the
+file into a folder of its own, so the picker shows that one file and nothing else from where the
+step script keeps it. Then it clicks the field, goes to that folder with Go to Folder, holds on it
+for a second (`pace.pickerHoldMs`), selects the file, holds again and opens it. The picker starts
+on whatever folder it last used, possibly at a size larger than the window, so it is fitted into
+the window and that stretch — about a second — is cut from the video and listed in the runbook as
+removed. A picker that cannot be made small enough for the window stops the take and says how
+big a viewport it needs.
 
-Typing into the picker needs Accessibility permission for the application the agent runs in
-(System Settings → Privacy & Security → Accessibility). Without it the runner says so with a
-`WARNING:` line before the take and `upload()` sets the file directly, as it does headless. Before
-every key it checks that the browser is still the application in front; if something else came
-forward, nothing is typed and the take stops.
+Driving the picker needs Accessibility permission for the application the agent runs in (System
+Settings → Privacy & Security → Accessibility). Without it the runner says so with a `WARNING:`
+line before the take and `upload()` sets the file directly, as it does headless. The path is set
+in the Go to Folder field rather than typed, so an input method cannot rewrite it. Before every
+key the runner checks that the browser is still the application in front; if something else came
+forward, nothing is sent and the take stops.
 
 If the flow creates real data in the dev database (submitting a form that creates a record), say so
 in the report so that whoever sees that data later knows where it came from.

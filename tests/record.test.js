@@ -802,6 +802,7 @@ test('with the real picker, nothing intercepts it and the stretch before it land
   const calls = [];
   const picker = {
     browserPid: async () => 4242,
+    stage: (file) => `/staged/upload-1/${path.basename(file)}`,
     async chooseFile(args) {
       calls.push(args);
       await args.open();
@@ -816,7 +817,8 @@ test('with the real picker, nothing intercepts it and the stretch before it land
   assert.equal(sent.filter((e) => e.kind === 'wait').length, 0, 'the chooser was intercepted');
   assert.equal(sent.filter((e) => e.kind === 'down').length, 1, 'the field was never clicked');
   assert.equal(calls[0].pid, 4242);
-  assert.equal(calls[0].file, path.resolve('relative/sample.csv'));
+  // Sent to the folder holding the staged copy, not to wherever the step script keeps the file
+  assert.equal(calls[0].folder, '/staged/upload-1');
   assert.deepEqual(notes, [], 'a caption stood in for a picker that is in the frame');
 
   const [cut] = redactions.all();
@@ -827,6 +829,7 @@ test('with the real picker, nothing intercepts it and the stretch before it land
 test('a picker that fails part-way still has its stretch closed, so the failed take keeps the cut', async () => {
   const picker = {
     browserPid: async () => 4242,
+    stage: (file) => file,
     async chooseFile(args) {
       await args.open();
       args.onOpened();

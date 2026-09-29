@@ -2,6 +2,7 @@
 // Evidence recording runner for an MR: operation video + screenshots + timeline.
 // Usage: OUT_DIR=<directory> node record.js <steps-file>   (see --help)
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const {
@@ -16,7 +17,7 @@ const { loadCases, applyCases } = require('./cases');
 const {
   createRedactions, buildFilter, shiftTime, unionBox, padBox,
 } = require('./redaction');
-const { createCapture } = require('./capture');
+const { createCapture, browserPid } = require('./capture');
 const picker = require('./picker');
 const lock = require('./lock');
 
@@ -480,12 +481,13 @@ function buildContext({
     if (shown) await hideCaption();
   }
 
-  // The real picker: click the field, send the picker straight to the file, hold on it selected,
-  // confirm. It opens on whatever folder it last used, which may be the top of the disk; that
-  // stretch is cut from the video, so what the viewer sees is the click and then the picker
-  // already in the file's folder with the file selected. No caption: the picker is in the frame.
+  // The real picker: click the field, go to the folder, pick the file there, confirm. The file is
+  // copied into a folder of its own first, so what the viewer sees in the picker is that one file
+  // and nothing else from wherever it came from. The picker opens on whatever folder it last
+  // used, which may be the top of the disk; that stretch is cut from the video, so what the viewer
+  // sees is the click and then the picker in the folder. No caption: the picker is in the frame.
   async function uploadThroughPicker(locator, filePath) {
-    const file = path.resolve(filePath);
+    const file = picker.stage(filePath);
     await page.bringToFront();
     const pid = await picker.browserPid();
     const rect = await page.evaluate(() => ({
@@ -499,8 +501,8 @@ function buildContext({
     };
     try {
       await picker.chooseFile({
-        pid, rect, file, sleep,
-        holdMs: human.wait(pace.pickerSelectedMs),
+        pid, rect, folder: path.dirname(file), sleep,
+        holdMs: human.wait(pace.pickerHoldMs),
         open: () => click(locator, { pause: 0 }),
         onOpened: () => {
           cut = redactions.open({
@@ -1337,7 +1339,9 @@ async function main() {
     // A dialog the browser draws is in the video when the window is being recorded, and needs a
     // caption standing in for it when only page content is.
     capturesBrowserUi: capture.mode !== 'page',
-    picker: route === 'picker' ? pickerDriver(browser) : null,
+    picker: route === 'picker'
+      ? pickerDriver(browser, { onDispose: (fn) => caseDisposers.push(fn) })
+      : null,
   });
   ctx.baseUrl = baseUrl;
   let failure = null;
@@ -1445,20 +1449,33 @@ if (require.main === module) {
 
 // What upload() needs to drive the real picker. The browser's process id is what the keys are
 // checked against before any is sent: it is the application that has to be in front.
-function pickerDriver(browser) {
+//
+// A file goes into the picker from a folder holding it alone, copied rather than moved so the
+// step script's own file is left where it was. The copies are removed where the take ends, and
+// not before: the page reads the file when the form is sent, which may be after upload() returns.
+const STAGING_DEPTH = 8;
+function pickerDriver(browser, { onDispose }) {
   let pid = null;
+  let staging = null;
   return {
     chooseFile: picker.chooseFile,
-    async browserPid() {
-      if (pid) return pid;
-      const cdp = await browser.newBrowserCDPSession();
-      try {
-        const { processInfo } = await cdp.send('SystemInfo.getProcessInfo');
-        pid = processInfo.find((p) => p.type === 'browser')?.id || null;
-      } finally {
-        await cdp.detach().catch(() => { /* the answer is already in hand */ });
+    stage(filePath) {
+      if (!staging) {
+        const root = fs.mkdtempSync(path.join(os.tmpdir(), 'webapp-evidence-upload-'));
+        onDispose(() => fs.rmSync(root, { recursive: true, force: true }));
+        // A picker showing columns shows the folders above this one too, as many as its width
+        // holds. Each level here holds only the next, so whatever columns it shows list nothing
+        // but these — never the temporary directory beside them.
+        staging = path.join(root, ...Array(STAGING_DEPTH).fill('upload'));
+        fs.mkdirSync(staging, { recursive: true });
       }
-      if (!pid) throw new Error('upload() could not find the browser\'s process, so it cannot tell whether the file picker is in front.');
+      const folder = fs.mkdtempSync(path.join(staging, 'upload-'));
+      const file = path.join(folder, path.basename(filePath));
+      fs.copyFileSync(filePath, file);
+      return file;
+    },
+    async browserPid() {
+      if (!pid) pid = await browserPid(browser);
       return pid;
     },
   };

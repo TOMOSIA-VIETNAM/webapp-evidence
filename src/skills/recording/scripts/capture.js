@@ -13,6 +13,7 @@ const os = require('os');
 const path = require('path');
 const { spawn, execFileSync } = require('child_process');
 const { readPointer, movePointer, parkTarget } = require('./pointer');
+const { hideOthers, showOthers } = require('./desktop');
 
 const PAGE = 'page';
 const WINDOW = 'window';
@@ -345,6 +346,20 @@ function frameRect(box, offset) {
   };
 }
 
+// The operating system's id for the browser process — the application whose windows are the
+// take, and the one every other is measured against.
+async function browserPid(browser) {
+  const cdp = await browser.newBrowserCDPSession();
+  try {
+    const { processInfo } = await cdp.send('SystemInfo.getProcessInfo');
+    const pid = processInfo.find((p) => p.type === 'browser')?.id;
+    if (!pid) throw new Error('The browser did not report its own process, so it cannot be told apart from the rest of the screen.');
+    return pid;
+  } finally {
+    await cdp.detach().catch(() => { /* the answer is already in hand */ });
+  }
+}
+
 function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
   if (!MODES.includes(mode)) {
     throw new Error(`recording.capture is invalid: ${JSON.stringify(mode)}\nUse one of ${MODES.join(' | ')}.`);
@@ -362,7 +377,14 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
   let display = null;
   let contentOffset = null;
   let pointerWasAt = null;
+  let hidden = [];
   let endedEarly = false;
+  // Whatever ends the take, what was hidden comes back, and only once
+  const showHidden = () => {
+    const pids = hidden;
+    hidden = [];
+    showOthers(pids);
+  };
   // What the capture writes is not what is handed over: the encode reads it, applies whatever
   // was redacted and the configured quality, and deletes it.
   const file = path.join(outDir, mode === PAGE ? `${name}.webm` : `${name}.raw.mp4`);
@@ -455,6 +477,9 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
         );
       }
 
+      // Nothing but the browser is drawn while the recording runs — see desktop.js
+      hidden = hideOthers(await browserPid(context.browser()));
+
       // The page has to be the frontmost window when the first frame is taken
       await page.bringToFront();
 
@@ -532,6 +557,7 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
       const stoppedBy = running ? await stopRecorder(running) : 'q';
       // Where they left it, once there is nothing left to record
       if (pointerWasAt) movePointer(pointerWasAt);
+      showHidden();
       await context.close();
 
       // Whether it stopped politely or had to be killed does not decide this — the fragmented
@@ -561,6 +587,7 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
 
       if (running) await stopRecorder(running);
       if (pointerWasAt) movePointer(pointerWasAt);
+      showHidden();
       try {
         await context.close();
       } catch {
@@ -592,12 +619,13 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
       if (running) {
         try { running.kill('SIGKILL'); } catch { /* already gone */ }
       }
+      showHidden();
     },
   };
 }
 
 module.exports = {
-  createCapture, assertConsent, assertPlatformCanCapture, assertReadable, assertWindowFits,
+  createCapture, browserPid, assertConsent, assertPlatformCanCapture, assertReadable, assertWindowFits,
   parseScreenDevices, cropFor, frameRect, contentOffsetFor,
   createProgressReader, stopRecorder,
   MODES, PAGE, WINDOW, SCREEN, CONSENT_ENV,

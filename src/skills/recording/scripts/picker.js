@@ -3,8 +3,13 @@
 // A page recording cannot contain the picker, so upload() sets the file on the field and the
 // sheet never opens. A window recording can contain it, and that is often why it was asked for:
 // the real picker is the evidence the operator wanted to see. Playwright cannot touch it — its
-// keyboard goes to the page, and the picker is not in the page — so the keys are posted to the
-// system instead, the way a keyboard would send them.
+// keyboard goes to the page, and the picker is not in the page — so it is driven through the
+// system instead: a few keys posted the way a keyboard would send them, and the rest through the
+// Accessibility API, which reads and sets the picker's own controls.
+//
+// The path itself is never typed. Posted key by key it goes through the operator's input method,
+// and one that composes characters rewrites it — measured with a Vietnamese one, where
+// "/private" arrived as "aaivate". Setting the Go to Folder field's value directly skips that.
 //
 // macOS lets a process post keystrokes to another application only with Accessibility
 // permission, granted per application to whatever runs the agent. The runner checks for it once,
@@ -54,6 +59,20 @@ CF.CFStringCreateWithCString.restype = c_void_p
 CF.CFNumberGetValue.argtypes = [c_void_p, c_int, c_void_p]
 CF.CFNumberGetValue.restype = c_bool
 CF.CFRelease.argtypes = [c_void_p]
+AS.AXUIElementCreateApplication.argtypes = [c_int32]
+AS.AXUIElementCreateApplication.restype = c_void_p
+AS.AXUIElementCopyAttributeValue.argtypes = [c_void_p, c_void_p, ctypes.POINTER(c_void_p)]
+AS.AXUIElementCopyAttributeValue.restype = c_int32
+AS.AXUIElementSetAttributeValue.argtypes = [c_void_p, c_void_p, c_void_p]
+AS.AXUIElementSetAttributeValue.restype = c_int32
+AS.AXValueCreate.argtypes = [c_int, c_void_p]
+AS.AXValueCreate.restype = c_void_p
+AS.AXValueGetValue.argtypes = [c_void_p, c_int, c_void_p]
+AS.AXValueGetValue.restype = c_bool
+CF.CFStringGetCString.argtypes = [c_void_p, c_char_p, c_long, c_uint32]
+CF.CFStringGetCString.restype = c_bool
+CF.CFBooleanGetValue.argtypes = [c_void_p]
+CF.CFBooleanGetValue.restype = c_bool
 
 UTF8 = 0x08000100
 SINT64 = 4
@@ -61,7 +80,11 @@ ONSCREEN_ONLY = 1
 EXCLUDE_DESKTOP = 16
 HID_TAP = 0
 FLAGS = {'cmd': 0x100000, 'shift': 0x20000}
-KEYS = {'return': 36, 'escape': 53, 'g': 5, 'a': 0}
+KEYS = {'return': 36, 'escape': 53, 'g': 5, 'right': 124, 'down': 125}
+AX_POINT = 1
+AX_SIZE = 2
+# Room left between the picker and the window's edges, so its shadow stays inside the frame too
+MARGIN = 16
 
 def cfstr(text):
     return CF.CFStringCreateWithCString(None, text.encode('utf-8'), UTF8)
@@ -119,39 +142,102 @@ def activate(pid):
     # NSApplicationActivateIgnoringOtherApps
     return bool(app) and with_options(app, lib.sel_registerName(b'activateWithOptions:'), 2)
 
-def post(code, flags=0, text=None):
+def post(code, flags=0):
     for down in (True, False):
         event = AS.CGEventCreateKeyboardEvent(None, code, down)
         # Set even when zero: an event created while a modifier is still held inherits it.
         AS.CGEventSetFlags(event, flags)
-        if text is not None:
-            units = text.encode('utf-16-le')
-            buffer = (c_uint16 * (len(units) // 2)).from_buffer_copy(units)
-            AS.CGEventKeyboardSetUnicodeString(event, len(buffer), buffer)
         AS.CGEventPost(HID_TAP, event)
         CF.CFRelease(event)
         time.sleep(0.008)
 
 def keys(pid, actions):
-    # Checked before every key, not once per batch: a batch holds a wait and a whole path, and
-    # whatever comes to the front during them would receive the rest of it, Return included.
-    def check():
+    # Checked before every key, not once per batch: whatever comes to the front between two of
+    # them would receive the rest, Return included.
+    for action in actions:
         if frontmost() != pid:
             sys.exit(3)
-    for action in actions:
-        check()
-        if 'wait' in action:
-            time.sleep(action['wait'] / 1000)
-        elif 'text' in action:
-            # One character per event: the field drops what arrives in a single long event.
-            for ch in action['text']:
-                check()
-                post(0, 0, ch)
-        else:
-            flags = 0
-            for modifier in action.get('with', []):
-                flags |= FLAGS[modifier]
-            post(KEYS[action['key']], flags)
+        flags = 0
+        for modifier in action.get('with', []):
+            flags |= FLAGS[modifier]
+        post(KEYS[action['key']], flags)
+
+def ax(element, name):
+    out = c_void_p()
+    return out.value if AS.AXUIElementCopyAttributeValue(element, cfstr(name), ctypes.byref(out)) == 0 else None
+
+def ax_text(ref):
+    if not ref:
+        return None
+    buffer = ctypes.create_string_buffer(4096)
+    return buffer.value.decode('utf-8') if CF.CFStringGetCString(ref, buffer, 4096, UTF8) else None
+
+def ax_children(element, name):
+    listing = ax(element, name)
+    return [CF.CFArrayGetValueAtIndex(listing, i) for i in range(CF.CFArrayGetCount(listing))] if listing else []
+
+def ax_rect(element):
+    at, size = Point(), Size()
+    for name, kind, out in (('AXPosition', AX_POINT, at), ('AXSize', AX_SIZE, size)):
+        ref = ax(element, name)
+        if ref:
+            AS.AXValueGetValue(ref, kind, ctypes.byref(out))
+    return {'x': at.x, 'y': at.y, 'width': size.width, 'height': size.height}
+
+def ax_set(element, name, kind, value):
+    return AS.AXUIElementSetAttributeValue(element, cfstr(name), AS.AXValueCreate(kind, ctypes.byref(value))) == 0
+
+# The picker opens at whatever size it was last left at, which can be most of the display. A
+# sheet wider than its window pushes the window aside to make room, and the recording, cropped
+# to where the window was, then holds the desktop instead. So the window goes back to where it
+# was and the picker is made to fit inside it. macOS holds the picker to a minimum size, so the
+# caller checks what it got rather than what it asked for.
+def fit(pid, x, y, width, height):
+    for window in ax_children(AS.AXUIElementCreateApplication(pid), 'AXWindows'):
+        sheets = [c for c in ax_children(window, 'AXChildren') if ax_text(ax(c, 'AXRole')) == 'AXSheet']
+        if not sheets:
+            continue
+        ax_set(window, 'AXPosition', AX_POINT, Point(x, y))
+        top = ax_rect(sheets[0])['y']
+        ax_set(sheets[0], 'AXSize', AX_SIZE, Size(width - 2 * MARGIN, y + height - top - MARGIN))
+        return {'window': ax_rect(window), 'sheet': ax_rect(sheets[0])}
+    return None
+
+def sheet(pid):
+    for window in ax_children(AS.AXUIElementCreateApplication(pid), 'AXWindows'):
+        for child in ax_children(window, 'AXChildren'):
+            if ax_text(ax(child, 'AXRole')) == 'AXSheet':
+                return child
+    return None
+
+# The folder the picker is showing, as its Where pop-up names it. Read to know the picker has
+# actually arrived: after Go to Folder it goes on showing the folder it was on for a moment.
+def where(pid):
+    panel = sheet(pid)
+    for child in ax_children(panel, 'AXChildren') if panel else []:
+        if ax_text(ax(child, 'AXRole')) == 'AXPopUpButton':
+            return ax_text(ax(child, 'AXValue'))
+    return None
+
+# Whether the picker's confirm button can be pressed, which it can only once a file is selected:
+# with a folder selected, or nothing, it stays greyed out. Found by position rather than by its
+# title, which is in the operator's language — the last button of the picker, after Cancel.
+def can_confirm(pid):
+    panel = sheet(pid)
+    buttons = [c for c in ax_children(panel, 'AXChildren') if ax_text(ax(c, 'AXRole')) == 'AXButton'] if panel else []
+    enabled = ax(buttons[-1], 'AXEnabled') if buttons else None
+    return bool(enabled) and CF.CFBooleanGetValue(enabled)
+
+def focused_role(pid):
+    element = ax(AS.AXUIElementCreateApplication(pid), 'AXFocusedUIElement')
+    return ax_text(ax(element, 'AXRole')) if element else None
+
+# The field Go to Folder puts up has the keyboard once it is open; its value is set, not typed.
+def set_focused_text(pid, text):
+    element = ax(AS.AXUIElementCreateApplication(pid), 'AXFocusedUIElement')
+    if not element or ax_text(ax(element, 'AXRole')) != 'AXTextField':
+        return False
+    return AS.AXUIElementSetAttributeValue(element, cfstr('AXValue'), cfstr(text)) == 0
 
 command = sys.argv[1]
 if command == 'trusted':
@@ -164,6 +250,16 @@ elif command == 'activate':
     sys.stdout.write('1' if activate(int(sys.argv[2])) else '0')
 elif command == 'keys':
     keys(int(sys.argv[2]), json.loads(sys.argv[3]))
+elif command == 'fit':
+    sys.stdout.write(json.dumps(fit(int(sys.argv[2]), *map(float, sys.argv[3:7]))))
+elif command == 'where':
+    sys.stdout.write(where(int(sys.argv[2])) or '')
+elif command == 'canconfirm':
+    sys.stdout.write('1' if can_confirm(int(sys.argv[2])) else '0')
+elif command == 'focused':
+    sys.stdout.write(focused_role(int(sys.argv[2])) or '')
+elif command == 'settext':
+    sys.stdout.write('1' if set_focused_text(int(sys.argv[2]), sys.argv[3]) else '0')
 `;
 
 const TIMEOUT_MS = 10000;
@@ -192,6 +288,11 @@ const system = {
   windows: () => JSON.parse(run(['windows'])),
   frontmostPid: () => Number(run(['frontmost']).trim()) || null,
   activate: (pid) => run(['activate', String(pid)]).trim() === '1',
+  fit: (pid, rect) => JSON.parse(run(['fit', String(pid), ...[rect.x, rect.y, rect.width, rect.height].map(String)])),
+  focusedRole: (pid) => run(['focused', String(pid)]).trim() || null,
+  where: (pid) => run(['where', String(pid)]).trim() || null,
+  canConfirm: (pid) => run(['canconfirm', String(pid)]).trim() === '1',
+  setText: (pid, text) => run(['settext', String(pid), text]).trim() === '1',
   // False when the program found another application in front and typed nothing
   keys(pid, actions) {
     try {
@@ -216,31 +317,34 @@ function newWindowOver(before, after, rect) {
   return after.find((w) => !seen.has(w.id) && w.layer === 0 && overlaps(w, rect)) || null;
 }
 
-// Go to Folder with the file's own path lands in its folder with the file selected — one jump,
-// whatever folder the picker opened on. Select-all first because the field keeps whatever was
-// typed into it last time.
-function goToFileKeys(file, { sheetMs = 500 } = {}) {
-  return [
-    { key: 'g', with: ['cmd', 'shift'] },
-    { wait: sheetMs },
-    { key: 'a', with: ['cmd'] },
-    { text: path.resolve(file) },
-    { key: 'return' },
-  ];
-}
+// Whether `inner` lies within `outer`, give or take the rounding of a point
+const inside = (inner, outer) => inner.x >= outer.x - 1 && inner.y >= outer.y - 1
+  && inner.x + inner.width <= outer.x + outer.width + 1
+  && inner.y + inner.height <= outer.y + outer.height + 1;
 
-// Opens the picker with `open`, sends it to `file`, holds, and confirms.
+// Opens the picker with `open`, takes it to the folder holding `file`, selects the file there,
+// and confirms — the way a person would: go to the folder, see what is in it, pick one.
 //
-// `onOpened` is called once the click has happened and before anything is typed, and `onLanded`
-// once the jump has settled: what lies between the two is the picker on whatever folder it
-// happened to open on, which the caller removes from the video. `io` is the operating system,
-// replaceable so the order of what is typed and when it is refused can be checked without one.
+// `folder` should hold one file and nothing else. It is selected with the arrow keys, which no
+// input method rewrites: Right moves into the folder's own column when the picker shows columns,
+// and Down lands on the first entry when it shows a list or icons. With one file each lands on
+// it, whichever view the operator left the picker in. Each key is followed by a look at whether
+// the picker can now confirm, rather than a fixed wait: a column still filling in takes the key
+// and does nothing with it, measured. The field check afterwards is what catches a folder with
+// more in it.
+//
+// `onOpened` is called once the click has happened, and `onLanded` once the picker is in
+// `folder`: what lies between the two is the picker on whatever folder it happened to open on,
+// and a Go to Folder field still holding the last path someone went to, which the caller removes
+// from the video. `io` is the operating system, replaceable so the order of what is sent and
+// when it is refused can be checked without one.
 async function chooseFile({
-  pid, rect, file, open, onOpened = () => {}, onLanded = () => {}, holdMs, sleep,
-  io = system, openTimeoutMs = 5000, settleMs = 400, closeTimeoutMs = 3000, pollMs = 100,
+  pid, rect, folder, open, onOpened = () => {}, onLanded = () => {}, holdMs, sleep,
+  io = system, openTimeoutMs = 5000, fieldTimeoutMs = 2000, suggestMs = 600, landTimeoutMs = 3000,
+  settleMs = 400, selectTimeoutMs = 1000, closeTimeoutMs = 3000, pollMs = 100,
 }) {
   // Whoever is in front receives the keys, so it has to be the browser that opened the picker.
-  // Typed anywhere else, the next thing sent is a file path followed by Return.
+  // Sent anywhere else, the next key is a Return.
   const send = (actions, what) => {
     if (io.frontmostPid() !== pid || !io.keys(pid, actions)) {
       throw new Error(
@@ -249,6 +353,15 @@ async function chooseFile({
         'Nothing was typed into it. Leave the machine alone for the length of the take and record it again.'
       );
     }
+  };
+  // Against the clock rather than a sum of sleeps: every look at the system starts a process.
+  const waitFor = async (timeoutMs, look) => {
+    for (const until = Date.now() + timeoutMs; Date.now() <= until;) {
+      const found = look();
+      if (found) return found;
+      await sleep(pollMs);
+    }
+    return null;
   };
 
   // bringToFront() picks the tab; it does not always make the browser the active application.
@@ -262,12 +375,7 @@ async function chooseFile({
   await open();
   onOpened();
 
-  let panel = null;
-  // Against the clock rather than a sum of sleeps: every look at the window list starts a process.
-  for (const until = Date.now() + openTimeoutMs; !panel && Date.now() <= until;) {
-    panel = newWindowOver(before, io.windows(), rect);
-    if (!panel) await sleep(pollMs);
-  }
+  const panel = await waitFor(openTimeoutMs, () => newWindowOver(before, io.windows(), rect));
   if (!panel) {
     throw new Error(
       `upload() clicked the field and no file picker opened over the browser within ${openTimeoutMs}ms.\n` +
@@ -276,9 +384,43 @@ async function chooseFile({
   }
 
   try {
-    send(goToFileKeys(file), 'going to the file');
+    const fitted = io.fit(pid, rect);
+    if (!fitted || !inside(fitted.sheet, rect)) {
+      const size = fitted ? `${Math.round(fitted.sheet.width)}x${Math.round(fitted.sheet.height)}` : 'unknown';
+      throw new Error(
+        `upload() opened the file picker and it does not fit inside the browser window: the picker ` +
+        `is ${size} at its smallest, the window ${rect.width}x${rect.height}.\n` +
+        'Part of it would be outside the recording. Raise recording.viewport and record again.'
+      );
+    }
+
+    send([{ key: 'g', with: ['cmd', 'shift'] }], 'opening Go to Folder');
+    if (!await waitFor(fieldTimeoutMs, () => io.focusedRole(pid) === 'AXTextField')) {
+      throw new Error('upload() asked the file picker for Go to Folder, and no field for the path came up.');
+    }
+    if (!io.setText(pid, `${folder}/`)) {
+      throw new Error('upload() could not put the folder\'s path into the Go to Folder field.');
+    }
+    // The field looks the path up before Return means anything
+    await sleep(suggestMs);
+    send([{ key: 'return' }], 'going to the folder');
+    if (!await waitFor(landTimeoutMs, () => io.where(pid) === path.basename(folder))) {
+      throw new Error(`upload() sent the file picker to ${folder} and it did not get there.`);
+    }
+    // Arrived is not drawn: the listing fills in a moment after the Where pop-up changes
     await sleep(settleMs);
     onLanded();
+
+    await sleep(holdMs);
+    let selected = false;
+    for (const key of ['right', 'down']) {
+      send([{ key }], 'selecting the file');
+      selected = Boolean(await waitFor(selectTimeoutMs, () => io.canConfirm(pid)));
+      if (selected) break;
+    }
+    if (!selected) {
+      throw new Error(`upload() took the file picker to ${folder} and could not select the file in it.`);
+    }
     await sleep(holdMs);
     send([{ key: 'return' }], 'confirming the file');
   } catch (error) {
@@ -292,13 +434,9 @@ async function chooseFile({
     throw error;
   }
 
-  for (const until = Date.now() + closeTimeoutMs; Date.now() <= until;) {
-    if (!io.windows().some((w) => w.id === panel.id)) return;
-    await sleep(pollMs);
-  }
+  if (await waitFor(closeTimeoutMs, () => !io.windows().some((w) => w.id === panel.id))) return;
   throw new Error(
-    'upload() confirmed the file and the picker is still open. The path was probably not found: ' +
-    `${path.resolve(file)}\nCheck the file exists at that path.`
+    `upload() confirmed the file and the picker is still open. The folder was probably not found: ${folder}`
   );
 }
 
@@ -309,5 +447,5 @@ function uploadRoute({ mode, pickerAvailable }) {
 }
 
 module.exports = {
-  accessibilityTrusted, chooseFile, goToFileKeys, newWindowOver, uploadRoute, supported, system,
+  accessibilityTrusted, chooseFile, newWindowOver, uploadRoute, supported, system,
 };

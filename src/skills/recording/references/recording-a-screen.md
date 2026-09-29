@@ -67,10 +67,18 @@ off stops every window capture.
 
 On a headless take `upload()` sets the file on the field and no picker opens. On a take that
 records the window or the screen, it opens the real picker, because seeing the picker is usually
-why the take records the screen at all. The picker opens on the file's own folder with the file
-already selected, waits about a second so a viewer can read it, then presses Open. The moment
-the picker spends on its default folder before it jumps is cut out of the video, and the runbook
-says so.
+why the take records the screen at all, and uses it the way a person would:
+
+1. The file is copied into a folder of its own, so the picker shows that one file and nothing
+   else from wherever the step script keeps it.
+2. The picker is sent to that folder with Go to Folder, and held there for about a second.
+3. The file is selected, held again, and opened.
+
+The picker opens on whatever folder it last used, at whatever size it was last left, and a
+picker wider than the browser pushes the window aside. So the window is put back, the picker is
+fitted inside it, and that whole stretch — the operator's own folder, the path they last went
+to — is cut out of the video. The runbook says so. A viewport too small for the picker at its
+smallest stops the take and says how big it has to be.
 
 Choosing a file in the operating system's picker means sending it key presses, and Playwright
 cannot: it types into the page, and the picker is not part of the page. So the runner sends
@@ -81,6 +89,17 @@ Accessibility. Ask for both at the same time, when asking to record the screen.
 Without it the take still runs: the runner says so once before the first frame, and `upload()`
 sets the file without showing the picker, the same as a headless take. Keys go only to the
 browser. If anything else has come to the front, the runner stops the take and types nothing.
+The path itself is set in the field, not typed: an input method that composes characters — a
+Vietnamese one was measured — rewrites a typed path on the way in.
+
+### Everything else, hidden
+
+For the length of a window or screen take the runner hides every other application, the way
+Hide Others does, and shows them again when the recording stops, however it stops. Only what it
+hid comes back; an application the operator had already hidden stays hidden. That keeps the
+desktop out of anything the browser uncovers, and most of the display out of a `screen` take. It
+does not stop a notification or an application that brings itself forward, which is still what
+Do Not Disturb and leaving the machine alone are for.
 
 ### The operator's own pointer
 

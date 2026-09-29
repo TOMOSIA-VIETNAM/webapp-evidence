@@ -1,12 +1,10 @@
 // The real file picker is driven by keys posted to the operating system, and the one outcome
-// that must never happen is those keys — a file path followed by Return — reaching whatever else
-// is in front. That, and which way upload() goes, are decisions that need no screen to check.
+// that must never happen is those keys — a Return above all — reaching whatever else is in front. That, and which way upload() goes, are decisions that need no screen to check.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const path = require('node:path');
 
 const {
-  chooseFile, goToFileKeys, newWindowOver, uploadRoute,
+  chooseFile, newWindowOver, uploadRoute,
 } = require('../src/skills/recording/scripts/picker');
 
 const BROWSER = 4242;
@@ -14,19 +12,29 @@ const RECT = { x: 0, y: 0, width: 800, height: 600 };
 const PANEL = { id: 9, pid: BROWSER, layer: 0, x: 100, y: 40, width: 600, height: 400 };
 
 // The operating system, reduced to what chooseFile asks of it. `front` is who has the keyboard;
-// `opens` is whether clicking the field puts a picker up; `closes` is whether Return takes it down.
-function fakeSystem({ front = BROWSER, opens = true, closes = true } = {}) {
-  const state = { open: false, typed: [], activated: [] };
+// `opens` is whether clicking the field puts a picker up; `closes` is whether Return takes it
+// down; `fits` is whether the picker can be made small enough for the window.
+function fakeSystem({ front = BROWSER, opens = true, closes = true, fits = true, selectsOn = 'right' } = {}) {
+  const state = { open: false, typed: [], activated: [], field: false, text: null, selected: false };
   return {
     state,
     io: {
       windows: () => (state.open ? [PANEL] : []),
       frontmostPid: () => (typeof front === 'function' ? front(state) : front),
       activate: (pid) => state.activated.push(pid),
+      fit: () => ({ window: RECT, sheet: fits ? PANEL : { ...PANEL, height: 900 } }),
+      focusedRole: () => (state.field ? 'AXTextField' : 'AXList'),
+      setText: (pid, text) => { state.text = text; return state.field; },
+      where: () => (state.text && !state.field ? 'in' : 'home'),
+      canConfirm: () => state.selected,
       keys(pid, actions) {
         state.typed.push(actions);
-        if (actions.some((a) => a.key === 'return' && !a.with) && actions.length === 1 && closes) state.open = false;
-        if (actions.some((a) => a.key === 'escape')) state.open = false;
+        const [{ key, with: modifiers }] = actions;
+        if (key === 'g' && modifiers) state.field = true;
+        else if (key === 'return' && state.field) state.field = false;
+        else if (key === 'return' && closes) state.open = false;
+        if (key === selectsOn) state.selected = true;
+        if (key === 'escape') state.open = false;
         return true;
       },
     },
@@ -34,9 +42,13 @@ function fakeSystem({ front = BROWSER, opens = true, closes = true } = {}) {
   };
 }
 
+const keysOf = (state) => state.typed.map(([{ key }]) => key);
+
 const run = (sys, extra = {}) => chooseFile({
-  pid: BROWSER, rect: RECT, file: '/tmp/in/sample.csv', holdMs: 0, sleep: async () => {},
-  io: sys.io, open: sys.open, openTimeoutMs: 200, closeTimeoutMs: 200, settleMs: 0, pollMs: 50,
+  pid: BROWSER, rect: RECT, folder: '/tmp/in', holdMs: 0, sleep: async () => {},
+  io: sys.io, open: sys.open, openTimeoutMs: 200, fieldTimeoutMs: 200, landTimeoutMs: 200,
+  selectTimeoutMs: 100, closeTimeoutMs: 200,
+  suggestMs: 0, settleMs: 0, pollMs: 50,
   ...extra,
 });
 
@@ -51,14 +63,6 @@ test('a window or screen recording opens it only when keys can be sent to it', (
   assert.equal(uploadRoute({ mode: 'screen', pickerAvailable: true }), 'picker');
 });
 
-test('the picker is sent to the file itself, in one jump, over whatever the field held before', () => {
-  const keys = goToFileKeys('relative/sample.csv');
-  assert.deepEqual(keys[0], { key: 'g', with: ['cmd', 'shift'] });
-  assert.deepEqual(keys[2], { key: 'a', with: ['cmd'] });
-  assert.equal(keys[3].text, path.resolve('relative/sample.csv'));
-  assert.deepEqual(keys[keys.length - 1], { key: 'return' });
-});
-
 test('only a new window over the browser counts as the picker', () => {
   const old = { ...PANEL, id: 1 };
   const elsewhere = { ...PANEL, id: 2, x: 2000 };
@@ -67,14 +71,46 @@ test('only a new window over the browser counts as the picker', () => {
   assert.equal(newWindowOver([old], [old, PANEL], RECT), PANEL);
 });
 
-test('a picker that opens is sent to the file, held, and confirmed — in that order', async () => {
+test('the picker goes to the folder, then the file is selected in it, then confirmed', async () => {
   const sys = fakeSystem();
   const order = [];
-  await run(sys, { onOpened: () => order.push('opened'), onLanded: () => order.push('landed') });
-  assert.deepEqual(order, ['opened', 'landed']);
-  assert.equal(sys.state.typed.length, 2);
-  assert.deepEqual(sys.state.typed[1], [{ key: 'return' }]);
+  await run(sys, {
+    onOpened: () => order.push('opened'),
+    onLanded: () => order.push(`landed:${keysOf(sys.state).join(',')}`),
+  });
+  // The cut ends once the picker is in the folder: selecting the file is part of the video
+  assert.deepEqual(order, ['opened', 'landed:g,return']);
+  // Right selects it in a picker showing columns, so Down is never sent
+  assert.deepEqual(keysOf(sys.state), ['g', 'return', 'right', 'return']);
+  // Set, not typed: the path never goes through the keyboard
+  assert.equal(sys.state.text, '/tmp/in/');
   assert.equal(sys.state.open, false);
+});
+
+test('a picker showing a list selects with Down once Right changed nothing', async () => {
+  const sys = fakeSystem({ selectsOn: 'down' });
+  await run(sys);
+  assert.deepEqual(keysOf(sys.state), ['g', 'return', 'right', 'down', 'return']);
+});
+
+test('a file that cannot be selected is never confirmed', async () => {
+  const sys = fakeSystem({ selectsOn: null });
+  await assert.rejects(run(sys), /could not select/);
+  assert.equal(keysOf(sys.state).filter((key) => key === 'return').length, 1);
+});
+
+test('a picker that never reaches the folder is not taken as having arrived', async () => {
+  const sys = fakeSystem();
+  sys.io.where = () => 'home';
+  const landed = [];
+  await assert.rejects(run(sys, { onLanded: () => landed.push(true) }), /did not get there/);
+  assert.deepEqual(landed, []);
+});
+
+test('a picker too big for the window stops the take before anything is sent', async () => {
+  const sys = fakeSystem({ fits: false });
+  await assert.rejects(run(sys), /does not fit/);
+  assert.deepEqual(keysOf(sys.state), ['escape']);
 });
 
 test('nothing is typed while another application has the keyboard', async () => {
@@ -84,10 +120,10 @@ test('nothing is typed while another application has the keyboard', async () => 
 });
 
 test('an application that comes to the front mid-way gets no Return and no Escape', async () => {
-  // In front for the jump, gone before the confirmation
+  // In front for Go to Folder, gone before the Return that would follow it
   const sys = fakeSystem({ front: (state) => (state.typed.length ? 777 : BROWSER) });
-  await assert.rejects(run(sys), /confirming/);
-  assert.equal(sys.state.typed.length, 1);
+  await assert.rejects(run(sys), /going to the folder/);
+  assert.deepEqual(keysOf(sys.state), ['g']);
 });
 
 test('a browser not yet in front is asked to come forward before anything else', async () => {

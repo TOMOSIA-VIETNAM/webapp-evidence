@@ -71,7 +71,7 @@ const DEFAULTS = {
       selectStepMs: 220,      // time per option change inside a select
       afterSelectMs: 900,
       afterUploadMs: 1200,    // hold so the file name has time to appear
-      pickerSelectedMs: 1000, // with the real file picker: the file shown selected before it is opened
+      pickerHoldMs: 1000,     // with the real file picker: held on the folder, then on the file selected in it
       afterCommandMs: 1600,   // hold after a command finishes, so its output can be read
       // The terminal panel is sized to the command it is showing and reveals long output by
       // moving a window down it, and both of those are paced for a viewer rather than measured
