@@ -17,6 +17,7 @@ const {
   createRedactions, buildFilter, shiftTime, unionBox, padBox,
 } = require('./redaction');
 const { createCapture } = require('./capture');
+const picker = require('./picker');
 const lock = require('./lock');
 
 const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
@@ -78,7 +79,7 @@ function readingTime(text, pace) {
 // The mouse interpolates its way over before clicking, so the viewer can see where the click lands
 function buildContext({
   page, outDir, marks, hotkeys, notes, dialogs, startedAt, pace, viewport, human, captions,
-  terminal, redactions, capture, capturesBrowserUi, helpers = {},
+  terminal, redactions, capture, capturesBrowserUi, helpers = {}, picker = null,
 }) {
   const mark = (label) => marks.push({ at: (Date.now() - startedAt) / 1000, label });
   const since = () => (Date.now() - startedAt) / 1000;
@@ -449,8 +450,9 @@ function buildContext({
 
     // The viewer sees the value in the field change but sees no menu open, because that menu is
     // drawn by the operating system — unless this take records the window, where it is in the
-    // frame and saying otherwise would contradict it. The file picker is a different case: it
-    // never opens at all, so upload()'s caption holds whatever is being recorded.
+    // frame and saying otherwise would contradict it. The file picker is a different case: where
+    // upload() sets the file directly the picker never opens at all, so its caption holds whatever
+    // is being recorded; where it opens the real one, there is no caption to give.
     const caption = await explain('selectOption', { value: label }, { aboutMissingUi: true });
     const shown = await showNote(caption);
     await sleep(Math.max(human.wait(pace.afterSelectMs), shown ? readingTime(caption, pace) : 0));
@@ -459,7 +461,11 @@ function buildContext({
 
   // The operating system's file picker cannot be recorded either. Set the file directly, then hold
   // long enough to see the file name appear in the field — that is the part that proves anything.
+  //
+  // A take that records the window can contain the picker, and when the runner is allowed to type
+  // into it (`picker` is only passed then) the real one is opened instead — see picker.js.
   async function upload(locator, filePath) {
+    if (picker) return uploadThroughPicker(locator, filePath);
     // Playwright only takes the operating system's file chooser out of the way while something
     // is waiting for one: registering the listener is what turns the interception on. Without
     // it, clicking a file input in a headed browser opens the real sheet, and setInputFiles
@@ -472,6 +478,53 @@ function buildContext({
     const shown = await showNote(caption);
     await sleep(Math.max(human.wait(pace.afterUploadMs), shown ? readingTime(caption, pace) : 0));
     if (shown) await hideCaption();
+  }
+
+  // The real picker: click the field, send the picker straight to the file, hold on it selected,
+  // confirm. It opens on whatever folder it last used, which may be the top of the disk; that
+  // stretch is cut from the video, so what the viewer sees is the click and then the picker
+  // already in the file's folder with the file selected. No caption: the picker is in the frame.
+  async function uploadThroughPicker(locator, filePath) {
+    const file = path.resolve(filePath);
+    await page.bringToFront();
+    const pid = await picker.browserPid();
+    const rect = await page.evaluate(() => ({
+      x: window.screenX, y: window.screenY, width: window.outerWidth, height: window.outerHeight,
+    }));
+
+    let cut = null;
+    let cutFrom = null;
+    const closeCut = () => {
+      if (cut && cut.to === null) redactions.close(cut, cutFrom, since());
+    };
+    try {
+      await picker.chooseFile({
+        pid, rect, file, sleep,
+        holdMs: human.wait(pace.pickerSelectedMs),
+        open: () => click(locator, { pause: 0 }),
+        onOpened: () => {
+          cut = redactions.open({
+            mode: 'cut', box: null,
+            reason: `the file picker on the folder it opened on, before it was sent to the folder holding "${path.basename(file)}"`,
+          });
+          cutFrom = since();
+        },
+        onLanded: closeCut,
+      });
+    } finally {
+      // Closed wherever the take stopped, so a failed take does not keep what the cut was for
+      closeCut();
+    }
+
+    // The picker closing only says a file was chosen. The field is what says it was this one.
+    const names = await locator.evaluate((el) => (el.files ? [...el.files].map((f) => f.name) : null));
+    if (names && !names.includes(path.basename(file))) {
+      throw new Error(
+        `upload() chose a file through the picker, and the field holds ${JSON.stringify(names)} ` +
+        `instead of "${path.basename(file)}".\nCheck the path passed to upload().`
+      );
+    }
+    await sleep(human.wait(pace.afterUploadMs));
   }
 
   // boundingBox returns {x, y, width, height}, while the caption drawing works out its placement from
@@ -819,10 +872,24 @@ function buildRedactionSection(redactions, trimAt, removed) {
 function buildRemovedSection(removed) {
   if (!removed.length) return '';
   const total = removed.reduce((sum, r) => sum + (r.to - r.from), 0);
+  const count = `${removed.length} ${removed.length === 1 ? 'stretch' : 'stretches'} `
+    + `totalling ${total.toFixed(1)}s were cut out of this take`;
+  if (!removed.some((r) => r.reasons)) {
+    return `## Removed from the video\n\n`
+      + `${count}, because what was on screen for `
+      + `them does not belong in evidence. Every timestamp above is on the shortened video.\n\n`;
+  }
+  // A stretch the runner removed itself is not a secret kept out of the video, and saying it was
+  // would send a reader looking for one. Each row says where the cut is on the shortened video.
+  let before = 0;
+  const rows = removed.map((r) => {
+    const why = r.reasons ? r.reasons.join('; ') : 'what was on screen does not belong in evidence';
+    const row = `- ${fmt(r.from - before)}  ${(r.to - r.from).toFixed(1)}s — ${why}`;
+    before += r.to - r.from;
+    return row;
+  });
   return `## Removed from the video\n\n`
-    + `${removed.length} ${removed.length === 1 ? 'stretch' : 'stretches'} `
-    + `totalling ${total.toFixed(1)}s were cut out of this take, because what was on screen for `
-    + `them does not belong in evidence. Every timestamp above is on the shortened video.\n\n`;
+    + `${count}. Every timestamp above is on the shortened video.\n\n${rows.join('\n')}\n\n`;
 }
 
 // A shortcut is the one action a viewer can miss even though the key hint overlay shows for over a
@@ -1157,6 +1224,23 @@ async function main() {
     viewport,
   });
 
+  // Asked once, before anyone hands their machine over: whether upload() can open the real file
+  // picker in this take. Without the permission the take still runs, and says so now rather than
+  // at the upload.
+  const route = picker.uploadRoute({
+    mode: capture.mode,
+    pickerAvailable: capture.mode !== 'page' && picker.accessibilityTrusted(),
+  });
+  if (capture.mode !== 'page' && route !== 'picker') {
+    console.log(
+      'WARNING: this take records the window, but the app running it has no Accessibility '
+      + 'permission, so upload() cannot type into the file picker. It sets the file on the field '
+      + 'instead, and the picker never opens.\n'
+      + 'To show the picker, grant it in System Settings > Privacy & Security > Accessibility for '
+      + 'the application this runs in (the terminal, or the agent\'s app), then record again.'
+    );
+  }
+
   // Measured before the context exists, because the scale it hands back decides how the page
   // inside it is drawn
   await capture.prepare(browser);
@@ -1252,6 +1336,7 @@ async function main() {
     // A dialog the browser draws is in the video when the window is being recorded, and needs a
     // caption standing in for it when only page content is.
     capturesBrowserUi: capture.mode !== 'page',
+    picker: route === 'picker' ? pickerDriver(browser) : null,
   });
   ctx.baseUrl = baseUrl;
   let failure = null;
@@ -1355,6 +1440,27 @@ if (require.main === module) {
     console.error(String((e && e.message) || e));
     process.exit(1);
   });
+}
+
+// What upload() needs to drive the real picker. The browser's process id is what the keys are
+// checked against before any is sent: it is the application that has to be in front.
+function pickerDriver(browser) {
+  let pid = null;
+  return {
+    chooseFile: picker.chooseFile,
+    async browserPid() {
+      if (pid) return pid;
+      const cdp = await browser.newBrowserCDPSession();
+      try {
+        const { processInfo } = await cdp.send('SystemInfo.getProcessInfo');
+        pid = processInfo.find((p) => p.type === 'browser')?.id || null;
+      } finally {
+        await cdp.detach().catch(() => { /* the answer is already in hand */ });
+      }
+      if (!pid) throw new Error('upload() could not find the browser\'s process, so it cannot tell whether the file picker is in front.');
+      return pid;
+    },
+  };
 }
 
 // What the cases left on disk, removed. Synchronous on purpose: the interrupt route calls this

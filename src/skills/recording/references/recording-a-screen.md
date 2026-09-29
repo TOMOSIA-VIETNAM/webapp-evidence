@@ -63,6 +63,25 @@ this skill. It can read as a version number rather than a name, and a version nu
 privacy setting is a thing people turn off. Say what it is when asking, and say that turning it
 off stops every window capture.
 
+### The file picker, and the second permission
+
+On a headless take `upload()` sets the file on the field and no picker opens. On a take that
+records the window or the screen, it opens the real picker, because seeing the picker is usually
+why the take records the screen at all. The picker opens on the file's own folder with the file
+already selected, waits about a second so a viewer can read it, then presses Open. The moment
+the picker spends on its default folder before it jumps is cut out of the video, and the runbook
+says so.
+
+Choosing a file in the operating system's picker means sending it key presses, and Playwright
+cannot: it types into the page, and the picker is not part of the page. So the runner sends
+them itself, and macOS wants **Accessibility** permission for that. Like Screen Recording, it is
+granted to the application running the agent, under System Settings › Privacy & Security ›
+Accessibility. Ask for both at the same time, when asking to record the screen.
+
+Without it the take still runs: the runner says so once before the first frame, and `upload()`
+sets the file without showing the picker, the same as a headless take. Keys go only to the
+browser. If anything else has come to the front, the runner stops the take and types nothing.
+
 ### The operator's own pointer
 
 A window capture records the real mouse pointer wherever it was left, and asking avfoundation not
@@ -145,10 +164,27 @@ them second, in that order:
 From the moment they answer, the machine is the agent's. Do not ask them anything else until the
 take is finished, and tell them plainly when it is.
 
-Afterwards, look at the recording once with the `vision` skill before handing it over, and
-report what you find with timestamps. It holds whatever was on that screen. This is a last look
-for the user to act on, not a filter: say what you saw and let them decide, rather than
-declaring the video clean.
+## Looking at the take afterwards
+
+Look at the recording **once** with the `vision` skill before handing it over. The look is for
+one question: did the take record the flow that was asked for — the right screens, in order,
+ending where the claim is proved? If it did not, say what went wrong and ask before recording
+again; the operator hands their machine over a second time, so it is their call.
+
+The same look will pass over whatever else was on that screen: a notification, a file name in
+the picker, another window. Report it with its timestamp and stop there. Do not blur, cut or
+re-record on your own to remove it, and do not look again to check that it is gone. Covering
+something after the fact in a screen recording is a job for the person who can see the whole
+screen and knows what matters on it. An agent trying to do it goes round in circles.
+
+Hand over with one line in chat, whether anything was found or not, in the language you have
+been writing to them in. Something like:
+
+> The video records your screen as it was during the take. Check it before you share it, and
+> edit out anything that should not be in it.
+
+`redact()` in the step script is still the way to cover a secret the page is known to show. It
+is decided while writing the steps and costs no look at the video. See `redaction.md`.
 
 ## Configuration
 

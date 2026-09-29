@@ -236,8 +236,9 @@ fine and the errors are expected, add nothing.
 When the user is outside the codebase — a URL and a description, a hand-off, a report — just hand
 over the files. A code fix they cannot apply is noise.
 
-**A take that recorded a screen gets one more look before it is handed over** — see
-`references/recording-a-screen.md`.
+**A take that recorded a screen gets one look before it is handed over**: did it record the flow
+that was asked for? Anything else it shows is reported to the user, who decides; it is never
+blurred, cut or re-recorded on your own. See `references/recording-a-screen.md`.
 
 ### Another format
 

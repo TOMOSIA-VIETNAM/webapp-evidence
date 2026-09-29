@@ -43,8 +43,11 @@ function createRedactions() {
     // script threw inside it — so what was being covered at that moment is covered in the video
     // kept from the failure, and nothing after it is blurred. An entry left with no end reaches
     // no encode.
-    open({ mode, box }) {
-      const entry = { mode, box, from: null, to: null };
+    //
+    // `reason` is for a stretch the runner removes on its own account rather than the step
+    // script's: the runbook says why that one is missing instead of the reason a redaction has.
+    open({ mode, box, reason }) {
+      const entry = { mode, box, from: null, to: null, ...(reason ? { reason } : {}) };
       entries.push(entry);
       return entry;
     },
@@ -128,7 +131,7 @@ function buildFilter(redactions, trimAt) {
 
   // Removing stretches comes last, so a region is still covered in whatever is kept around it
   const removed = mergeRanges(cuts.map((c) => ({
-    from: rebase(c.from, trimAt), to: rebase(c.to, trimAt),
+    from: rebase(c.from, trimAt), to: rebase(c.to, trimAt), ...(c.reason ? { reason: c.reason } : {}),
   })));
   if (removed.length) {
     const kept = keptSegments(removed);
@@ -151,14 +154,20 @@ function buildFilter(redactions, trimAt) {
 }
 
 // Overlapping or touching cuts have to become one range before anything counts their duration,
-// or the same second is subtracted from the timeline twice.
+// or the same second is subtracted from the timeline twice. A merged range keeps the reason of
+// every range in it; one with none keeps none, so the runbook falls back to the redaction's.
 function mergeRanges(ranges) {
   const sorted = [...ranges].sort((a, b) => a.from - b.from);
   const merged = [];
-  for (const range of sorted) {
+  for (const { reason, ...range } of sorted) {
     const last = merged[merged.length - 1];
-    if (last && range.from <= last.to) last.to = Math.max(last.to, range.to);
-    else merged.push({ ...range });
+    const reasons = reason ? [reason] : [];
+    if (last && range.from <= last.to) {
+      last.to = Math.max(last.to, range.to);
+      if (reasons.length) last.reasons = [...new Set([...(last.reasons || []), ...reasons])];
+    } else {
+      merged.push({ ...range, ...(reasons.length ? { reasons } : {}) });
+    }
   }
   return merged;
 }

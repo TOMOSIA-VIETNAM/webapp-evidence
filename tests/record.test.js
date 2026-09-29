@@ -740,3 +740,111 @@ test('a recording the take stopped is handed over without that explanation', () 
   assert.match(said, /take-failed\.mp4/);
   assert.doesNotMatch(said, /600s/);
 });
+
+
+// ---------- a file upload, with and without the real picker ----------
+
+const { createRedactions } = require('../src/skills/recording/scripts/redaction');
+
+// A page that answers what upload() asks of it, and records whether the file chooser was
+// intercepted. `picker` stands in for the real one; without it upload() goes the way it always has.
+function uploadScope({ picker = null } = {}) {
+  const sent = [];
+  const notes = [];
+  const redactions = createRedactions();
+  const page = {
+    evaluate: async (fn) => (fn === HEADER ? 0 : { x: 0, y: 0, width: 800, height: 600 }),
+    bringToFront: async () => sent.push({ kind: 'front' }),
+    waitForEvent: async (name) => {
+      sent.push({ kind: 'wait', name });
+      return { setFiles: async (file) => sent.push({ kind: 'set', file }) };
+    },
+    mouse: {
+      async move() {},
+      async down() { sent.push({ kind: 'down' }); },
+      async up() { sent.push({ kind: 'up' }); },
+    },
+  };
+  const field = { top: 100, left: 100, width: 200, height: 30 };
+  const locator = {
+    evaluate: async (fn) => {
+      if (fn === SNAPSHOT) return standingAt(field);
+      return String(fn).includes('files') ? ['sample.csv'] : true;
+    },
+    boundingBox: async () => null,
+    scrollIntoViewIfNeeded: async () => {},
+  };
+  const scope = buildContext({
+    page, outDir: PROJECT, marks: [], hotkeys: [], notes, dialogs: [], startedAt: Date.now(),
+    pace: FAST.pace, viewport: FAST.viewport,
+    captions: { enabled: true, text: (key, params) => `${key}:${params.file}` },
+    human: createHuman({ pace: FAST.pace, viewport: FAST.viewport, seed: 'upload' }),
+    terminal: { term: {}, isOpen: () => false }, redactions, capture: {}, helpers: {},
+    capturesBrowserUi: Boolean(picker), picker,
+  });
+  return { scope, locator, sent, notes, redactions };
+}
+
+test('a page recording sets the file through the intercepted chooser, and captions it', async () => {
+  const { scope, locator, sent, notes, redactions } = uploadScope();
+  await scope.upload(locator, '/tmp/in/sample.csv');
+
+  // The chooser is waited for before the click: that is what keeps the real sheet from opening
+  const kinds = sent.map((e) => e.kind);
+  assert.ok(kinds.indexOf('wait') < kinds.indexOf('down'), 'the click came before the interception');
+  assert.deepEqual(sent.find((e) => e.kind === 'wait'), { kind: 'wait', name: 'filechooser' });
+  assert.deepEqual(sent.find((e) => e.kind === 'set'), { kind: 'set', file: '/tmp/in/sample.csv' });
+  assert.deepEqual(notes.map((n) => n.text), ['uploadFile:sample.csv']);
+  assert.deepEqual(redactions.all(), []);
+});
+
+test('with the real picker, nothing intercepts it and the stretch before it lands is cut', async () => {
+  const calls = [];
+  const picker = {
+    browserPid: async () => 4242,
+    async chooseFile(args) {
+      calls.push(args);
+      await args.open();
+      args.onOpened();
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      args.onLanded();
+    },
+  };
+  const { scope, locator, sent, notes, redactions } = uploadScope({ picker });
+  await scope.upload(locator, 'relative/sample.csv');
+
+  assert.equal(sent.filter((e) => e.kind === 'wait').length, 0, 'the chooser was intercepted');
+  assert.equal(sent.filter((e) => e.kind === 'down').length, 1, 'the field was never clicked');
+  assert.equal(calls[0].pid, 4242);
+  assert.equal(calls[0].file, path.resolve('relative/sample.csv'));
+  assert.deepEqual(notes, [], 'a caption stood in for a picker that is in the frame');
+
+  const [cut] = redactions.all();
+  assert.equal(cut.mode, 'cut');
+  assert.match(cut.reason, /file picker/);
+});
+
+test('a picker that fails part-way still has its stretch closed, so the failed take keeps the cut', async () => {
+  const picker = {
+    browserPid: async () => 4242,
+    async chooseFile(args) {
+      await args.open();
+      args.onOpened();
+      throw new Error('another application came to the front');
+    },
+  };
+  const { scope, locator, redactions } = uploadScope({ picker });
+  await assert.rejects(scope.upload(locator, '/tmp/in/sample.csv'), /another application/);
+  assert.equal(redactions.all().length, 1);
+});
+
+test('a stretch the runner cut says why, instead of claiming a secret was kept out', () => {
+  const section = buildRemovedSection([
+    { from: 3, to: 4, reasons: ['the file picker on the folder it opened on'] },
+    { from: 10, to: 12 },
+  ]);
+  assert.match(section, /2 stretches/);
+  assert.match(section, /- 00:03 {2}1\.0s — the file picker on the folder it opened on/);
+  // The second one lands a second earlier on the shortened video
+  assert.match(section, /- 00:09 {2}2\.0s — what was on screen does not belong in evidence/);
+});

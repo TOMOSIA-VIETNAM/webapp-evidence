@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Records the three things a page recording can never contain — the dropdown a <select> opens,
-# the browser's own dialogs, and DevTools — with the window capture backend, and leaves the
-# result behind to be looked at.
+# Records the things a page recording can never contain — the dropdown a <select> opens, the
+# browser's own dialogs, the file picker, and DevTools — with the window capture backend, and
+# leaves the result behind to be looked at.
 #
 #   tests/e2e/run-native.sh              without DevTools
 #   tests/e2e/run-native.sh --devtools   with DevTools opened alongside the page
@@ -149,6 +149,14 @@ awk -v d="$DURING" -v b="$BEFORE" 'BEGIN { exit (d - b > 40) ? 0 : 1 }' \
   || fail "at ${DIALOG_T}s the top of the frame is no brighter than at ${BEFORE_T}s ($DURING vs $BEFORE),
   so the browser's dialog is not in the video."
 
+step "Checking the file picker"
+# upload() opens the real picker only when the app running this has Accessibility permission, and
+# sets the file on the field without it. The runbook lists the stretch it cut while the picker was
+# jumping to the file's folder, and that row exists only on the path that opened the picker.
+grep -qF 'the file picker on the folder it opened on' "$RUNBOOK" \
+  || fail "the runbook has no cut for the file picker, so it never opened. Grant Accessibility
+  permission to the app running this (System Settings > Privacy & Security > Accessibility)."
+
 rm -f "$OUT_DIR/.a.png" "$OUT_DIR/.b.png"
 
 printf '\nPASSED\n'
@@ -156,5 +164,6 @@ printf '  video     %s\n' "$VIDEO"
 printf '  frame     the whole window: %sx%s points at %sx\n' "$FW" "$FH" "$FSCALE"
 printf '  dropdown  the native menu opened over the page at %ss (difference %s)\n' "$MENU_AT" "$MENU_CHANGE"
 printf '  dialogs   three recorded, and the frame brightens for them (%s vs %s)\n' "$DURING" "$BEFORE"
+printf '  picker    opened, sent to the file and confirmed\n'
 [ "$DEVTOOLS" = 1 ] && printf '  devtools  opened alongside the page\n'
 printf '\nOutput kept in %s\n' "$OUT_DIR"
