@@ -1,5 +1,5 @@
-// The three things a recording of page content can never contain, in one take: the dropdown a
-// <select> opens, the dialogs the browser puts up, and DevTools.
+// The things a recording of page content can never contain, in one take: the dropdown a
+// <select> opens, the dialogs the browser puts up, the file picker, and DevTools.
 //
 // Recorded with the window backend, which is the only one that could contain any of them. What
 // this take is for is finding out which of the three actually do — a <select> menu on macOS is
@@ -9,7 +9,7 @@ module.exports = {
   start: '/',
   fullPageShot: false,
 
-  async run({ page, mark, click, select, shot, dialog, sleep, baseUrl }) {
+  async run({ page, mark, click, select, upload, shot, dialog, sleep, baseUrl }) {
     // Where the field is, for the check that follows. A native menu opens directly below it,
     // and it is a small part of the frame — measuring the whole page for a change washes it
     // out. Written from here because this is the only place that can measure the live page.
@@ -46,6 +46,12 @@ module.exports = {
       await click(page.getByRole('button', { name: 'Send notice' }), { pause: 'quick' });
     });
     await shot('alert-acknowledged');
+
+    mark('Choose a file through the real picker');
+    // upload() copies the file into a folder of its own and sends the picker there; the stretch
+    // on whatever folder the picker opened on is what the take cuts out.
+    await upload(page.locator('#import_file'), require('path').join(__dirname, 'fixtures', 'picker', 'import-users.csv'));
+    await shot('file-chosen');
 
     mark('Hold on a page in another language, where Chrome would offer to translate');
     await page.goto(`${baseUrl}/vi`, { waitUntil: 'load' });

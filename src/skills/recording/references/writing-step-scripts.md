@@ -12,7 +12,7 @@ The module returns `{ app, name, start, run(ctx) }`. Inside `run`, use the helpe
 | `scrollTo(locator, { pause })` | Travels to something there is nothing to click on — a section of a long page — and comes to rest on it. Same `pause` vocabulary as `click`, defaulting to the wait for something that has to be read |
 | `drag(locator, to, { pause })` | Drags a handle: a slider's thumb, a control point, a row being reordered. `to` is a locator to drop onto — already in the frame, since the cursor has to be seen travelling to it — or `{ x, y }` for a point on the page, or `{ dx, dy }` for an offset from where it started |
 | `select(locator, 'label')` | Opens a `<select>` inside the page and picks the option |
-| `upload(locator, path)` | Loads a file into a file input, then pauses so the filename becomes visible |
+| `upload(locator, path)` | `locator` is the file input or the element the page opens it from. Loads the file, then pauses so the filename becomes visible. With `capture` set to `'window'` or `'screen'` and Accessibility permission granted, it drives the real picker instead — see `recording-a-screen.md` |
 | `hotkey('ControlOrMeta+C', { label, target })` | Presses a shortcut and shows a key hint overlay in the video |
 | `note('a sentence')` | Shows one caption along the bottom of the video, the way a film shows a subtitle |
 | `shot('name')` | Takes a screenshot, numbered in capture order |
@@ -205,6 +205,9 @@ picker, the JavaScript dialogs and the print sheet are all drawn inside it — s
 the video. That backend needs a screen, Screen Recording permission and the operator's agreement,
 and it cannot run headless or in CI, so it is worth reaching for only when one of these is the
 thing being proved.
+
+With `'window'` or `'screen'`, `upload()` drives the real picker, which also needs Accessibility
+permission; `recording-a-screen.md` says what it does and what the runbook lists as cut.
 
 If the flow creates real data in the dev database (submitting a form that creates a record), say so
 in the report so that whoever sees that data later knows where it came from.

@@ -109,6 +109,11 @@ test('removals are merged whatever order they were declared in', () => {
   );
 });
 
+test('a runner cut merged with a redaction cut keeps a place for the redaction', () => {
+  const [merged] = mergeRanges([{ from: 1, to: 5, reason: 'picker' }, { from: 3, to: 8 }]);
+  assert.deepEqual(merged, { from: 1, to: 8, reasons: ['picker', null] });
+});
+
 test('a segment too short to see is not kept', () => {
   const kept = keptSegments([{ from: 0, to: 5 }, { from: 5.01, to: 9 }]);
   assert.deepEqual(kept, [{ start: 9, end: Infinity }]);

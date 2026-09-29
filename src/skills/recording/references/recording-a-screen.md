@@ -63,6 +63,26 @@ this skill. It can read as a version number rather than a name, and a version nu
 privacy setting is a thing people turn off. Say what it is when asking, and say that turning it
 off stops every window capture.
 
+### The file picker, and the second permission
+
+On a `window` or `screen` take `upload()` drives the real picker: it copies the file into a folder
+of its own, sends the picker there with Go to Folder, holds on it (`recording.pace.pickerHoldMs`),
+then selects and opens the file. The stretch before the picker reaches that folder is cut from
+the video and listed in the runbook. A viewport too small for the picker stops the take and says
+the size it needs.
+
+The runner sends the picker's keys itself, which needs **Accessibility** permission for the
+application running the agent (System Settings › Privacy & Security › Accessibility). Ask for it
+together with Screen Recording. Without it the runner prints a `WARNING:` before the take and
+`upload()` sets the file without the picker, as on a headless take. If another application comes
+to the front while the picker is open, the take stops and nothing is typed.
+
+### Everything else, hidden
+
+For a `window` or `screen` take the runner hides every other application and, when the recording
+stops, shows again only those it hid. A notification or an application that brings itself
+forward still gets in — that is what Do Not Disturb and leaving the machine alone are for.
+
 ### The operator's own pointer
 
 A window capture records the real mouse pointer wherever it was left, and asking avfoundation not
@@ -74,10 +94,6 @@ application.
 So the runner parks it in the far corner of the display before the first frame and puts it back
 where it was afterwards. With `capture: 'screen'` the frame is the whole display and there is
 nowhere outside it to park — the pointer stays in the corner of the take, and the runner says so.
-
-Neither backend can keep out something drawn *on top of* the browser: a notification that lands
-there, another application brought to the front. That is what the Do Not Disturb line in the
-notice is for, and why the machine has to be left alone.
 
 Recording one display while the operator keeps working on another is the best answer to all of
 this, and it is not implemented — `backlogs/screen-capture/other-platforms.md` says what it
@@ -118,7 +134,7 @@ them second, in that order:
    | Answer | What it means | Recommend it when |
    |---|---|---|
    | Record headless instead | they keep the machine; the operating system's widgets are captioned rather than shown | the widget is incidental to what the MR proves — which is most of the time |
-   | Record the browser window | they hand the machine over for about a minute and do not touch it | the widget itself is the evidence: a menu that renders wrong, a picker on the wrong folder, a dialog whose wording is the change |
+   | Record the browser window | they hand the machine over for about a minute and do not touch it | the widget itself is the evidence: a menu that renders wrong, a dialog whose wording is the change |
    | Not now | nothing is recorded | |
 
    The recommendation is not "the one that shows more". A window capture costs a person's
@@ -145,10 +161,24 @@ them second, in that order:
 From the moment they answer, the machine is the agent's. Do not ask them anything else until the
 take is finished, and tell them plainly when it is.
 
-Afterwards, look at the recording once with the `vision` skill before handing it over, and
-report what you find with timestamps. It holds whatever was on that screen. This is a last look
-for the user to act on, not a filter: say what you saw and let them decide, rather than
-declaring the video clean.
+## Looking at the take afterwards
+
+Look at the recording **once** with the `vision` skill, for one question: did it record the flow
+that was asked for — the right screens, in order, ending where the claim is proved? If not, say
+what went wrong and ask before recording again; it takes their machine a second time.
+
+Anything else on the screen — a notification, a file name, another window — report with its
+timestamp and stop there. Do not blur, cut or re-record it on your own, and do not look again to
+check it is gone: only the person who saw the whole screen can judge it.
+
+Hand over with one line in chat, found or not, in the language you have been writing to them in.
+For example:
+
+> The video records your screen as it was during the take. Check it before you share it, and
+> edit out anything that should not be in it.
+
+To cover a secret the page is known to show, use `redact()` in the step script, decided while
+writing the steps; see `redaction.md`.
 
 ## Configuration
 

@@ -123,8 +123,7 @@ the keyboard for the next minute. Everything else is a trade against that.
 **A `<select>` or a file upload in the flow is not on its own a reason to leave headless.** The
 runner captions what was chosen and why the widget is not in the frame, and a reviewer following
 the flow understands it from that. What justifies a window capture is when the widget *itself* is
-what the MR has to prove — a menu that renders wrong, a picker that opens on the wrong folder, a
-dialog whose wording is the change.
+what the MR has to prove — a menu that renders wrong, a dialog whose wording is the change.
 
 ### Asking before a take that needs the screen
 
@@ -236,7 +235,7 @@ fine and the errors are expected, add nothing.
 When the user is outside the codebase — a URL and a description, a hand-off, a report — just hand
 over the files. A code fix they cannot apply is noise.
 
-**A take that recorded a screen gets one more look before it is handed over** — see
+**A take that recorded a screen gets one look before it is handed over** — see
 `references/recording-a-screen.md`.
 
 ### Another format
