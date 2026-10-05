@@ -27,10 +27,8 @@ const PROMPT = '$ ';
 const LINE_HEIGHT = 1.45;
 const PANEL_CHROME_PX = 28 + 24;   // the title bar, plus the padding above and below the text
 
-// What the panel comes back to between commands. Not zero: a panel that slides fully out and back
-// for every command is motion that means nothing, and three rows keep the shell present in the
-// frame while giving the application back the room a command that printed a lot had borrowed.
-const IDLE_ROWS = 3;
+// The fewest rows a panel holds, whatever height it was given
+const MIN_ROWS = 3;
 
 // While a command is producing output there is nothing to await: the redraw is driven by a
 // timer instead. Slower than a frame, because each redraw is a round trip to the browser, and
@@ -51,16 +49,7 @@ const PAINT_MARGIN_ROWS = 4;
 const SCROLLBACK_ROWS = 2000;
 
 const visibleRows = (height, fontSize) =>
-  Math.max(IDLE_ROWS, Math.floor((height - PANEL_CHROME_PX) / (fontSize * LINE_HEIGHT)));
-
-const idleHeight = (fontSize) => PANEL_CHROME_PX + Math.ceil(IDLE_ROWS * fontSize * LINE_HEIGHT);
-
-// The height that shows `rows` rows of output, never smaller than the idle panel and never taller
-// than `recording.terminal.height`. That configured number used to be the panel's one fixed
-// height; it is now the tallest it may become, so a project that pinned it gets the same worst
-// case as before and a smaller panel for every command that does not need the room.
-const heightFor = (rows, fontSize, { base, ceiling }) =>
-  Math.max(base, Math.min(ceiling, PANEL_CHROME_PX + Math.ceil(rows * fontSize * LINE_HEIGHT)));
+  Math.max(MIN_ROWS, Math.floor((height - PANEL_CHROME_PX) / (fontSize * LINE_HEIGHT)));
 
 // How fast the window over the output may travel, given how many rows are still waiting below it.
 //
@@ -122,7 +111,6 @@ function createTerminal({ page, viewport, config, human, pace, since, secrets = 
   const screen = createScreen({ maxLines: SCROLLBACK_ROWS, columns });
   const commands = [];
 
-  const idle = idleHeight(fontSize);
   const label = title ?? path.basename(shellCommand[0]);
 
   let shell = null;
@@ -136,24 +124,15 @@ function createTerminal({ page, viewport, config, human, pace, since, secrets = 
   // from its first line, so that one number means the same thing to the sizing and to the scroll.
   let blockStart = 0;        // the prompt row of the command being shown
   let firstRow = 0;          // the row at the top of the panel; fractional while it is moving
-  let panelPx = idle;        // the height the panel is being animated towards
-  let paintedPx = idle;      // the height the page was last told, to tell a grow from a shrink
+  // One height for as long as the panel is open: a panel resizing between commands moves the
+  // frame's edge for nothing the viewer needs, and a short one reads as cramped.
+  const panelPx = ceiling;
   let paintedRow = 0;        // the window position the page was last told, to tell a move from a hold
   let movedAt = Date.now();  // when the window was last advanced, for the elapsed time
   let settleUntil = 0;       // new content is left still until here before the window moves on
   let scrolledMs = 0;        // how long this command's output has been scrolling
   let lostRows = 0;          // rows the screen has dropped, as of the last position update
   let lostAtBlockStart = 0;  // and as of the prompt of the command being shown
-  // Set when a command is typed, cleared by its first line of output, which in turn asks the next
-  // redraw to bring the panel down to what that command needs. Until then the panel keeps the
-  // height the previous command earned: emptying it out and refilling it within the same second
-  // is two moves where the eye only needs the one that lands.
-  //
-  // Two steps rather than one because the resize has to happen where the window is worked out as
-  // well. Shrinking the panel anywhere else moves its bottom edge and leaves the window where it
-  // was, and the output jumps back up by the difference at the moment the next command starts.
-  let awaitingFirstOutput = false;
-  let sizeDownToCommand = false;
 
   // The screen model refuses output it cannot draw honestly (a program that takes over the whole
   // display). That happens inside the shell's data handler, where there is nothing to throw to,
@@ -192,15 +171,6 @@ function createTerminal({ page, viewport, config, human, pace, since, secrets = 
       paintedRow = Math.max(0, paintedRow - slipped);
     }
 
-    const total = screen.rowCount();
-    const fitted = capacity();     // what the panel holds before this redraw resizes it
-    if (sizeDownToCommand) { sizeDownToCommand = false; panelPx = idle; }
-    // Only ever taller while a command runs: output that made room for itself must not lose it
-    // again because the line after it was shorter. sizeDownToCommand is the one way back down.
-    panelPx = Math.max(panelPx, heightFor(total - blockStart, fontSize, { base: idle, ceiling }));
-    // A resize moves the panel's edges, not the output inside it: whatever was on the bottom row
-    // stays there and the room opens upwards, so neither direction skips past anything.
-    firstRow += fitted - capacity();
     firstRow = Math.max(0, Math.min(firstRow, lastWindow()));
 
     const backlog = lastWindow() - firstRow;
@@ -225,14 +195,9 @@ function createTerminal({ page, viewport, config, human, pace, since, secrets = 
       // From just above the window — where the move this redraw asks for starts — to just below
       // what the panel can show once it has arrived.
       const linesFrom = Math.max(0, Math.floor(firstRow) - PAINT_MARGIN_ROWS);
-      const height = panelPx;
       await page.evaluate((payload) => window.__evTerm?.sync(payload), {
         open,
-        height,
-        // Which way it is moving decides how long it takes: fast enough not to delay the output
-        // it is making room for, slower coming back down, because a panel that snaps reads as a
-        // glitch. Both are scaled by the take's speed, like every other duration in a recording.
-        heightMs: height === paintedPx ? 0 : (height > paintedPx ? pace.panelGrowMs : pace.panelShrinkMs),
+        height: panelPx,
         fontSize,
         opacity,
         title: label,
@@ -246,7 +211,6 @@ function createTerminal({ page, viewport, config, human, pace, since, secrets = 
         scrollMs: firstRow === paintedRow ? 0 : REDRAW_MS,
         cursor: open,
       });
-      paintedPx = height;
       paintedRow = firstRow;
     } catch {
       // The page can be navigating or already closed at the moment a redraw lands. The panel is
@@ -301,10 +265,6 @@ function createTerminal({ page, viewport, config, human, pace, since, secrets = 
       onOutput: (text) => {
         try {
           screen.write(text);
-          if (awaitingFirstOutput) {
-            awaitingFirstOutput = false;
-            sizeDownToCommand = true;
-          }
           markDirty();
         } catch (error) {
           fatal = error;
@@ -332,7 +292,6 @@ function createTerminal({ page, viewport, config, human, pace, since, secrets = 
     // The prompt row is where this command's block begins, and the block is what the panel is
     // sized to. Everything above it belongs to the command before.
     blockStart = Math.max(0, screen.rowCount() - 1);
-    awaitingFirstOutput = true;
     scrolledMs = 0;
     lostAtBlockStart = screen.droppedRows();
     const characters = Array.from(text);
@@ -512,6 +471,6 @@ function createTerminal({ page, viewport, config, human, pace, since, secrets = 
 }
 
 module.exports = {
-  createTerminal, isBehindPanel, visibleRows, idleHeight, heightFor, revealPlan, columnsFor,
-  PROMPT, LINE_HEIGHT, PANEL_CHROME_PX, IDLE_ROWS,
+  createTerminal, isBehindPanel, visibleRows, revealPlan, columnsFor,
+  PROMPT, LINE_HEIGHT, PANEL_CHROME_PX, MIN_ROWS,
 };

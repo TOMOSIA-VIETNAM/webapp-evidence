@@ -54,10 +54,8 @@ quotes as the assertion.
 anything behind it: the click would work and the video would not show it. Finish with the page
 before opening the panel, or call `term.close()` before going back to it.
 
-**The panel is sized to the command it is showing.** It sits at three rows between commands, grows
-to fit the output as it arrives, and settles back when the next command needs less room.
-`recording.terminal.height` is the tallest it may become, not the strip it occupies for the whole
-take.
+**The panel keeps one height while it is open**: half the viewport, unless
+`recording.terminal.height` sets another, at most 60%.
 
 **Output longer than the panel is revealed, not clipped.** The window over it moves down at a
 bounded speed, so every line the panel still holds is in a frame somewhere and a reviewer can pause
@@ -89,8 +87,8 @@ Three things it is not:
 
 The commands run from the project root, in a shell that inherits the environment the runner was
 started with — the `PATH` from rbenv, nvm or asdf still applies. `recording.terminal` in
-`evidence.config.js` changes the directory, the environment, the panel's tallest size and how
-opaque it is; the `panel…` keys in `recording.pace` change how fast it grows and reveals.
+`evidence.config.js` changes the directory, the environment, the panel's height and how
+opaque it is; the `panel…` keys in `recording.pace` change how fast it reveals output.
 
 The password of the account used to sign in is blacked out of the panel, the runbook and the
 screenshots — in what a command prints and in the command line itself. Anything else your commands print that should not be in a video goes in

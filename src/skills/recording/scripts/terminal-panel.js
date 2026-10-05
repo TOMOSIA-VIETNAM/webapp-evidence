@@ -55,12 +55,7 @@
         box-shadow: 0 -10px 34px rgba(0, 0, 0, .38);
         pointer-events: none;
         transform: translateY(100%);
-        /* Two transitions doing two jobs: the slide is the panel arriving and leaving, the height
-           is it being resized while it is already there. Declared together because a transition
-           property replaces the whole list — setting one from script would otherwise cancel the
-           other, and the panel would jump into place instead of sliding in. */
-        transition: transform 260ms cubic-bezier(.22, .61, .36, 1),
-                    height var(--ev-term-height-ms, 0ms) cubic-bezier(.22, .61, .36, 1);
+        transition: transform 260ms cubic-bezier(.22, .61, .36, 1);
       }
       #__ev_term[data-open="1"] { transform: translateY(0); }
       #__ev_term .__ev_term_bar {
@@ -143,10 +138,8 @@
     );
   }
 
-  function applyState(panel, { heightMs = 0, fromRow = state.scrollRow, scrollMs = 0 } = {}) {
+  function applyState(panel, { fromRow = state.scrollRow, scrollMs = 0 } = {}) {
     panel.style.setProperty('--ev-term-alpha', String(state.opacity));
-    // Set before the height, so the transition already running is the one for this direction
-    panel.style.setProperty('--ev-term-height-ms', `${heightMs}ms`);
     panel.style.height = `${state.height}px`;
     panel.querySelector('.__ev_term_body').style.fontSize = `${state.fontSize}px`;
     panel.querySelector('.__ev_term_label').textContent = state.title;
@@ -168,8 +161,8 @@
     // Attached to documentElement rather than body: an SPA or Turbo swapping the body out
     // mid-take would otherwise take the panel with it, at the moment it holds what is being proven.
     document.documentElement.appendChild(panel);
-    // A panel that has just been created has nothing to animate from: its height and its window
-    // are put where they belong in one step, and the slide-in below is the only motion.
+    // A panel that has just been created has nothing to animate from: its window is put where it
+    // belongs in one step, and the slide-in below is the only motion.
     applyState(panel);
     return panel;
   };
@@ -179,7 +172,7 @@
   // draw after a navigation puts the panel back exactly as it was instead of showing an empty
   // one under a heading.
   window.__evTerm = {
-    sync({ open, height, heightMs, fontSize, opacity, title, lines, linesFrom, scrollRow, scrollMs, cursor }) {
+    sync({ open, height, fontSize, opacity, title, lines, linesFrom, scrollRow, scrollMs, cursor }) {
       const wasOpen = state.open;
       const fromRow = state.scrollRow;
       state.open = Boolean(open);
@@ -201,7 +194,7 @@
       ensureStyle();
       const fresh = !document.getElementById('__ev_term');
       const panel = ensurePanel();
-      applyState(panel, fresh ? {} : { heightMs, fromRow, scrollMs });
+      applyState(panel, fresh ? {} : { fromRow, scrollMs });
       // Setting the attribute in the frame the element is created in skips the transition, so
       // the panel would appear rather than slide in. After a navigation there is nothing to
       // animate — the panel was already open before the page changed under it.
@@ -211,8 +204,7 @@
 
     // The runner refuses to click an element the panel is covering: a click that works and
     // cannot be seen proves nothing. Measured rather than read back from the state above, because
-    // the panel spends a fifth of a second growing or shrinking towards that number and a click
-    // can land at any point along the way.
+    // the panel spends a quarter of a second sliding in and a click can land along the way.
     coveredFrom: () => {
       const panel = state.open ? document.getElementById('__ev_term') : null;
       if (!panel) return null;

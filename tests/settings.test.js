@@ -174,11 +174,12 @@ test('a regular expression survives being merged, rather than becoming a plain o
 // ---------- the panel height follows the frame ----------
 
 test('the terminal panel is a share of the frame, not a fixed number of pixels', () => {
-  // A fixed 300px default made a 480px frame refuse to record at all, even for a take that
-  // never opens a terminal.
-  const small = resolveSettings({ recording: { viewport: { width: 800, height: 480 } } });
-  assert.ok(small.recording.terminal.height < 300);
-  assert.ok(small.recording.terminal.height > 0);
+  const height = (h) => resolveSettings({ recording: { viewport: { width: 800, height: h } } })
+    .recording.terminal.height;
+  // A small frame still records, and a tall one gets the rows its height allows
+  assert.ok(height(480) > 0 && height(480) < 480 / 2 + 1);
+  assert.ok(height(1080) > 1080 * 0.3);
+  assert.ok(height(1080) <= 1080 * 0.6);
 });
 
 test('the panel is translucent by default, so the page under it is still readable', () => {
@@ -202,7 +203,7 @@ test('an opacity that would make the output unreadable is refused, and so is one
 test('the reveal slows down and speeds up with the rest of the take', () => {
   const { result: slow } = resolve({ recording: { speed: 'slowest' } });
   const { result: fast } = resolve({ recording: { speed: 'fast' } });
-  for (const key of ['panelGrowMs', 'panelShrinkMs', 'panelSettleMs', 'panelRevealMs',
+  for (const key of ['panelSettleMs', 'panelRevealMs',
                      'panelRowFastestMs', 'panelRowSlowestMs', 'panelRevealWarnMs']) {
     assert.ok(slow.recording.pace[key] > DEFAULTS.recording.pace[key], key);
     assert.ok(fast.recording.pace[key] < DEFAULTS.recording.pace[key], key);
@@ -212,7 +213,7 @@ test('the reveal slows down and speeds up with the rest of the take', () => {
 test('a project can slow the reveal down on its own, the way it can slow a click', () => {
   const { result } = resolve({ recording: { pace: { panelRevealMs: 12000 } } });
   assert.equal(result.recording.pace.panelRevealMs, 12000);
-  assert.equal(result.recording.pace.panelGrowMs, DEFAULTS.recording.pace.panelGrowMs);
+  assert.equal(result.recording.pace.panelSettleMs, DEFAULTS.recording.pace.panelSettleMs);
 });
 
 test('a height written down by the project is still checked against the frame', () => {

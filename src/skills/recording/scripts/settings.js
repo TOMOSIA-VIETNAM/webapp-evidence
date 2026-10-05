@@ -73,12 +73,10 @@ const DEFAULTS = {
       afterUploadMs: 1200,    // hold so the file name has time to appear
       pickerHoldMs: 1000,     // with the real file picker: held on the folder, then on the file selected in it
       afterCommandMs: 1600,   // hold after a command finishes, so its output can be read
-      // The terminal panel is sized to the command it is showing and reveals long output by
-      // moving a window down it, and both of those are paced for a viewer rather than measured
-      // out by a machine. These scale with `speed` like the waits above them, so a take recorded
-      // fast scrolls proportionally faster; the ceiling on waiting for the page does not.
-      panelGrowMs: 220,       // the panel opening up; fast enough not to delay the output it is making room for
-      panelShrinkMs: 320,     // and settling back, slower — a panel that snaps down reads as a glitch
+      // The terminal panel reveals long output by moving a window down it, paced for a viewer
+      // rather than measured out by a machine. These scale with `speed` like the waits above
+      // them, so a take recorded fast scrolls proportionally faster; the ceiling on waiting for
+      // the page does not.
       panelSettleMs: 500,     // new content is held still this long before the window moves on, so the eye reaches it
       panelRevealMs: 6000,    // how long the window aims to take over one command's overflow, whatever its size
       panelRowFastestMs: 50,  // and never less than this per row: below it only a paused frame is readable
@@ -133,11 +131,9 @@ const DEFAULTS = {
     // so a step script can prove what happened behind the browser — a job that was enqueued, a
     // file that was written — without recording the whole screen.
     terminal: {
-      // The tallest the panel may become. It grows to fit the command it is showing and settles
-      // back when the next one needs less room, so this is the worst case the application being
-      // recorded has to live with, not the strip the panel occupies for the whole take. null
-      // derives it from the viewport, so a small frame does not have to override a number it
-      // never asked for — and a take that never opens a terminal is never stopped by one.
+      // The panel's height while it is open. null derives it from the viewport, so a small frame
+      // does not have to override a number it never asked for — and a take that never opens a
+      // terminal is never stopped by one.
       height: null,
       fontSize: 13,
       // How opaque the panel's background is. It is drawn over the application being recorded,
@@ -298,6 +294,7 @@ function parseSwitch(value, name) {
 // tall and the app being recorded has nowhere left to show what is being proven.
 const MIN_PANEL_ROWS_HEIGHT = 120;
 const MAX_PANEL_SHARE = 0.6;
+const DEFAULT_PANEL_SHARE = 0.5;
 
 // Any more see-through than this and the output stops being readable over a light page, which
 // costs more than the glimpse of the application behind it is worth.
@@ -308,13 +305,9 @@ function resolveTerminal({ terminal, viewport }) {
     throw new Error(`recording.terminal.${key} ${message}`);
   };
 
-  // Derived rather than fixed: the panel should be a share of the frame, and the fixed default
-  // it used to have made a 480px frame refuse to record at all.
+  // Half the frame: a batch job or a log being checked needs the rows
   if (terminal.height === null || terminal.height === undefined) {
-    terminal.height = Math.max(
-      MIN_PANEL_ROWS_HEIGHT,
-      Math.min(300, Math.round(viewport.height * 0.4)),
-    );
+    terminal.height = Math.max(MIN_PANEL_ROWS_HEIGHT, Math.round(viewport.height * DEFAULT_PANEL_SHARE));
   }
 
   if (!Number.isFinite(terminal.height) || terminal.height < MIN_PANEL_ROWS_HEIGHT) {
