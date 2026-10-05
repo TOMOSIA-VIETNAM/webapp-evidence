@@ -49,15 +49,14 @@ module.exports = {
     await shot('detail');
     await click(page.getByRole('button', { name: 'Close' }), { pause: 1200 });
 
-    // Chrome raises its offer to translate over the page, and no launch switch stops it. The
-    // page says it itself, and this is where that can be checked without a screen — the
-    // headless take carries the same init script as a window one.
-    const noTranslate = await page.evaluate(() => ({
+    // A page take adds nothing to the page's own <html> or <head>: a server-rendered app hydrates
+    // against the HTML it sent, and anything added before that fails the hydration.
+    const added = await page.evaluate(() => ({
       meta: Boolean(document.querySelector('meta[name="google"][content~="notranslate"]')),
       attribute: document.documentElement.getAttribute('translate'),
     }));
-    if (!noTranslate.meta || noTranslate.attribute !== 'no') {
-      throw new Error(`The page was not marked notranslate: ${JSON.stringify(noTranslate)}`);
+    if (added.meta || added.attribute !== null) {
+      throw new Error(`A page take changed the page's own markup: ${JSON.stringify(added)}`);
     }
 
     mark('Reach the audit trail below the fold');

@@ -10,13 +10,13 @@
 // setting the context's locale to the page's own language.
 //
 // This is the documented way to say it from the page: a meta tag Chrome reads when it makes that
-// decision, plus the attribute form for good measure. Neither affects layout, appearance or
-// behaviour — nothing the evidence is about changes, and the browser keeps its offer to itself.
+// decision. It affects no layout, appearance or behaviour. Not the `translate` attribute on <html>:
+// React hydrates <html> against the server's HTML, and an attribute that was not sent fails it.
+// The runner loads this only for a window or screen take; a page take cannot show the offer.
 (() => {
   if (window.top !== window.self) return;
 
   const mark = () => {
-    document.documentElement.setAttribute('translate', 'no');
     if (document.querySelector('meta[name="google"][content~="notranslate"]')) return;
     const meta = document.createElement('meta');
     meta.setAttribute('name', 'google');

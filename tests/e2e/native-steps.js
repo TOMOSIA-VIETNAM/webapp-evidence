@@ -55,6 +55,15 @@ module.exports = {
 
     mark('Hold on a page in another language, where Chrome would offer to translate');
     await page.goto(`${baseUrl}/vi`, { waitUntil: 'load' });
+    // A window take marks the page so Chrome keeps its offer to itself; only the meta tag, never
+    // the attribute on <html> that a server-rendered app would fail to hydrate against.
+    const marked = await page.evaluate(() => ({
+      meta: Boolean(document.querySelector('meta[name="google"][content~="notranslate"]')),
+      attribute: document.documentElement.getAttribute('translate'),
+    }));
+    if (!marked.meta || marked.attribute !== null) {
+      throw new Error(`The page was not marked notranslate by the meta tag alone: ${JSON.stringify(marked)}`);
+    }
     await sleep(2000);
     await shot('another-language');
   },
