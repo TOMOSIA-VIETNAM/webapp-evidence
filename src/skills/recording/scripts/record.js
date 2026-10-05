@@ -1265,7 +1265,9 @@ async function main() {
   await context.addInitScript({ path: path.join(__dirname, 'cursor.js') });
   await context.addInitScript({ path: path.join(__dirname, 'caption.js') });
   await context.addInitScript({ path: path.join(__dirname, 'terminal-panel.js') });
-  await context.addInitScript({ path: path.join(__dirname, 'no-translate.js') });
+  // Chrome's offer to translate is browser chrome, which only a window or screen take records.
+  // Left out of a page take, so a server-rendered app hydrates against the HTML it sent.
+  if (capture.mode !== 'page') await context.addInitScript({ path: path.join(__dirname, 'no-translate.js') });
   const page = await context.newPage();
   capture.attach({ context, page });
   const problems = watchProblems(page);

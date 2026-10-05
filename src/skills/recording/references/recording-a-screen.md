@@ -51,9 +51,9 @@ tries them again: `--disable-features=Translate` does not stop it, with the swit
 Chrome's own command line and the bubble still on screen; nor does setting `recording.locale` to
 the page's own language.
 
-What the runner does now is say it from the page — the `notranslate` meta tag Chrome reads when
-it decides. Nothing about it is configured, and nothing about it changes the page's layout,
-appearance or behaviour.
+On a window or screen take the runner says it from the page — the `notranslate` meta tag Chrome
+reads when it decides. Nothing about it is configured, and nothing about it changes the page's
+layout, appearance or behaviour. A page take adds nothing: it cannot show the offer.
 
 ### Permission, and what the entry is called
 
