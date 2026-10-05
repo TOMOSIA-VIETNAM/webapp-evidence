@@ -56,8 +56,8 @@ before opening the panel, or call `term.close()` before going back to it.
 
 **The panel is sized to the command it is showing.** It sits at three rows between commands, grows
 to fit the output as it arrives, and settles back when the next command needs less room.
-`recording.terminal.height` is the tallest it may become, not the strip it occupies for the whole
-take.
+`recording.terminal.height` is the tallest it may become — half the viewport unless set, at most
+60% — not the strip it occupies for the whole take.
 
 **Output longer than the panel is revealed, not clipped.** The window over it moves down at a
 bounded speed, so every line the panel still holds is in a frame somewhere and a reviewer can pause

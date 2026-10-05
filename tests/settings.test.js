@@ -174,11 +174,12 @@ test('a regular expression survives being merged, rather than becoming a plain o
 // ---------- the panel height follows the frame ----------
 
 test('the terminal panel is a share of the frame, not a fixed number of pixels', () => {
-  // A fixed 300px default made a 480px frame refuse to record at all, even for a take that
-  // never opens a terminal.
-  const small = resolveSettings({ recording: { viewport: { width: 800, height: 480 } } });
-  assert.ok(small.recording.terminal.height < 300);
-  assert.ok(small.recording.terminal.height > 0);
+  const height = (h) => resolveSettings({ recording: { viewport: { width: 800, height: h } } })
+    .recording.terminal.height;
+  // A small frame still records, and a tall one gets the rows its height allows
+  assert.ok(height(480) > 0 && height(480) < 480 / 2 + 1);
+  assert.ok(height(1080) > 1080 * 0.3);
+  assert.ok(height(1080) <= 1080 * 0.6);
 });
 
 test('the panel is translucent by default, so the page under it is still readable', () => {

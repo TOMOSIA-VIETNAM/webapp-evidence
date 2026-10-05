@@ -298,6 +298,7 @@ function parseSwitch(value, name) {
 // tall and the app being recorded has nowhere left to show what is being proven.
 const MIN_PANEL_ROWS_HEIGHT = 120;
 const MAX_PANEL_SHARE = 0.6;
+const DEFAULT_PANEL_SHARE = 0.5;
 
 // Any more see-through than this and the output stops being readable over a light page, which
 // costs more than the glimpse of the application behind it is worth.
@@ -308,13 +309,10 @@ function resolveTerminal({ terminal, viewport }) {
     throw new Error(`recording.terminal.${key} ${message}`);
   };
 
-  // Derived rather than fixed: the panel should be a share of the frame, and the fixed default
-  // it used to have made a 480px frame refuse to record at all.
+  // Half the frame: a batch job or a log being checked needs the rows, and the panel only grows
+  // that far while a command's output fills it.
   if (terminal.height === null || terminal.height === undefined) {
-    terminal.height = Math.max(
-      MIN_PANEL_ROWS_HEIGHT,
-      Math.min(300, Math.round(viewport.height * 0.4)),
-    );
+    terminal.height = Math.max(MIN_PANEL_ROWS_HEIGHT, Math.round(viewport.height * DEFAULT_PANEL_SHARE));
   }
 
   if (!Number.isFinite(terminal.height) || terminal.height < MIN_PANEL_ROWS_HEIGHT) {
