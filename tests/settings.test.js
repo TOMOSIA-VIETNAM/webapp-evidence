@@ -203,7 +203,7 @@ test('an opacity that would make the output unreadable is refused, and so is one
 test('the reveal slows down and speeds up with the rest of the take', () => {
   const { result: slow } = resolve({ recording: { speed: 'slowest' } });
   const { result: fast } = resolve({ recording: { speed: 'fast' } });
-  for (const key of ['panelGrowMs', 'panelShrinkMs', 'panelSettleMs', 'panelRevealMs',
+  for (const key of ['panelSettleMs', 'panelRevealMs',
                      'panelRowFastestMs', 'panelRowSlowestMs', 'panelRevealWarnMs']) {
     assert.ok(slow.recording.pace[key] > DEFAULTS.recording.pace[key], key);
     assert.ok(fast.recording.pace[key] < DEFAULTS.recording.pace[key], key);
@@ -213,7 +213,7 @@ test('the reveal slows down and speeds up with the rest of the take', () => {
 test('a project can slow the reveal down on its own, the way it can slow a click', () => {
   const { result } = resolve({ recording: { pace: { panelRevealMs: 12000 } } });
   assert.equal(result.recording.pace.panelRevealMs, 12000);
-  assert.equal(result.recording.pace.panelGrowMs, DEFAULTS.recording.pace.panelGrowMs);
+  assert.equal(result.recording.pace.panelSettleMs, DEFAULTS.recording.pace.panelSettleMs);
 });
 
 test('a height written down by the project is still checked against the frame', () => {

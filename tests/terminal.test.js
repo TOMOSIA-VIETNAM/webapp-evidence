@@ -17,8 +17,8 @@ process.env.PROJECT_ROOT = PROJECT;
 test.after(() => fs.rmSync(PROJECT, { recursive: true, force: true }));
 
 const {
-  createTerminal, visibleRows, idleHeight, heightFor, revealPlan, columnsFor, isBehindPanel,
-  LINE_HEIGHT, PANEL_CHROME_PX, IDLE_ROWS,
+  createTerminal, visibleRows, revealPlan, columnsFor, isBehindPanel,
+  LINE_HEIGHT, PANEL_CHROME_PX, MIN_ROWS,
 } = require('../src/skills/recording/scripts/terminal');
 const { createHuman } = require('../src/skills/recording/scripts/human');
 const { resolveSettings } = require('../src/skills/recording/scripts/settings');
@@ -75,31 +75,11 @@ test('a taller panel covers more of the frame', () => {
   assert.equal(isBehindPanel(box(420, 40), 800, 420), true);
 });
 
-// ---------- the height that holds a given amount of output ----------
+// ---------- the rows a height holds ----------
 
-const FONT = 13;
-const CEILING = 300;
-const bounds = { base: idleHeight(FONT), ceiling: CEILING };
-
-test('a panel with nothing to show is still a panel', () => {
-  // Sliding fully out and back between commands is motion that means nothing, so the floor is
-  // the title bar and a few rows rather than zero.
-  assert.equal(heightFor(0, FONT, bounds), idleHeight(FONT));
-  assert.equal(heightFor(1, FONT, bounds), idleHeight(FONT));
-  assert.ok(visibleRows(idleHeight(FONT), FONT) >= IDLE_ROWS);
-});
-
-test('more output than the frame has room for stops at the configured ceiling', () => {
-  assert.equal(heightFor(500, FONT, bounds), CEILING);
-  assert.ok(heightFor(8, FONT, bounds) < CEILING);
-});
-
-test('a height and a row count say the same thing about each other', () => {
-  // The runner decides in rows and the page draws in pixels. A height that shows one row fewer
-  // than it was asked for puts the newest line below the bottom edge, where nothing draws it.
-  for (const rows of [3, 5, 9, 13]) {
-    assert.equal(visibleRows(heightFor(rows, FONT, bounds), FONT), rows, `${rows} rows`);
-  }
+test('a panel holds at least a few rows, whatever height it was given', () => {
+  assert.equal(visibleRows(0, 13), MIN_ROWS);
+  assert.ok(visibleRows(400, 13) > MIN_ROWS);
 });
 
 // ---------- how fast the window may travel ----------
@@ -202,8 +182,6 @@ test('the window only ever moves down, and never past what it has shown', async 
   try {
     await term.open();
     await term.run('seq 40', { pause: 'quick' });
-    // The second command resizes the panel, which is where a window measured from the top edge
-    // goes wrong: the bottom edge comes up ten rows and the newest output is left above it.
     await term.run('echo done', { pause: 'quick' });
   } finally {
     await dispose();
@@ -217,35 +195,14 @@ test('the window only ever moves down, and never past what it has shown', async 
       // Overlapping windows are what "no line was skipped" means frame by frame: a step wider
       // than the panel would carry rows across it between two updates and into no frame at all.
       assert.ok(here.top <= previous.bottom, 'the window skipped past rows it never showed');
-      // A resize moves the panel's edges, not the output inside it. The row on the bottom row
-      // stays there, so a panel that has just shrunk is not suddenly behind again.
-      assert.ok(here.bottom >= previous.bottom, 'resizing the panel took back rows it had reached');
+      assert.ok(here.bottom >= previous.bottom, 'the window took back rows it had reached');
     }
     previous = here;
   }
   assert.ok(previous.top > 0, 'the output never scrolled, so this proved nothing');
 });
 
-test('the panel grows for an output that needs the room and settles back for one that does not', async () => {
-  const { term, page, dispose, settings } = terminalUnderTest();
-  const floor = idleHeight(settings.terminal.fontSize);
-  let grown = 0;
-  try {
-    await term.open();
-    assert.equal(page.sent[page.sent.length - 1].height, floor);
-    await term.run('seq 40', { pause: 'quick' });
-    grown = page.sent[page.sent.length - 1].height;
-    await term.run('echo done', { pause: 'quick' });
-  } finally {
-    await dispose();
-  }
-
-  assert.ok(grown > floor, 'the panel never grew for forty lines of output');
-  assert.ok(grown <= settings.terminal.height, 'the panel grew past the configured ceiling');
-  assert.equal(page.sent[page.sent.length - 1].height, floor);
-});
-
-test('a resize takes as long as its direction says, and only when the height changes', async () => {
+test('the panel keeps one height from the moment it opens, whatever the output', async () => {
   const { term, page, dispose, settings } = terminalUnderTest();
   try {
     await term.open();
@@ -254,16 +211,8 @@ test('a resize takes as long as its direction says, and only when the height cha
   } finally {
     await dispose();
   }
-
-  const moves = [];
-  let height = null;
-  for (const payload of page.sent) {
-    if (height !== null && payload.height !== height) moves.push(payload.heightMs);
-    else if (height !== null) assert.equal(payload.heightMs, 0);
-    height = payload.height;
-  }
-  assert.ok(moves.includes(settings.pace.panelGrowMs), 'nothing was ever sent as a grow');
-  assert.ok(moves.includes(settings.pace.panelShrinkMs), 'nothing was ever sent as a shrink');
+  const heights = new Set(page.sent.filter((p) => p.open).map((p) => p.height));
+  assert.deepEqual([...heights], [settings.terminal.height]);
 });
 
 test('an output that takes too long to scroll past is named on stdout, not cut short', async () => {
