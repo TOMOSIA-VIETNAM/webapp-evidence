@@ -119,8 +119,8 @@ export const vi: Dictionary = {
   'features.runbook.title': 'Runbook, không chỉ là một file',
   'features.runbook.body':
     'Dòng thời gian, phụ đề, các lệnh đã chạy, lỗi trang gặp phải, và lệnh để quay lại y hệt.',
-  'features.secrets.title': 'Bí mật không lọt ra',
-  'features.secrets.body': 'Làm mờ, bôi đen hoặc cắt bỏ một đoạn, trong video lẫn ảnh chụp.',
+  'features.edit.title': 'Xem xong rồi sửa',
+  'features.edit.body': 'Nhanh hơn, cắt bỏ đoạn chờ, đánh dấu một bước, che một giá trị — ngay trên bản quay đã xong, bản gốc giữ nguyên.',
   'features.local.title': 'Không gì rời khỏi máy bạn',
   'features.local.body':
     'Không có dịch vụ, không có tài khoản bot. Nó chạy trong agent CLI bạn đang có, trên đúng site bạn chỉ định và không gì khác.',

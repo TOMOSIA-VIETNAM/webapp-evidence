@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # End-to-end check: serve the demo app, record it with the real runner in a real browser, and assert
 # on what lands on disk. The unit tests cover the decisions; this covers the one thing they cannot —
-# that a recording actually happens and produces a video, screenshots and a runbook.
+# that a recording actually happens and produces a video, screenshots and a runbook — and that
+# edit.js renders edits of that take without touching it.
 #
 #   tests/e2e/run.sh            record, check the output, print where it is, then delete it
 #   tests/e2e/run.sh --keep     leave the output in place so you can watch the video
@@ -119,40 +120,6 @@ grep -q -- '-b /' "$RUNBOOK" || fail "the request did not send the session as a 
 [ -n "$(find "$OUT_DIR" -maxdepth 1 -name '*-api-response.png' | awk 'NR==1')" ] \
   || fail "no screenshot was taken while the response was on screen"
 
-# Redaction has to hold in both places a frame ends up: the video and the screenshot taken while
-# the value was on screen. The runbook says where it was covered, so the check reads the rectangle
-# from there rather than guessing it or opening a second browser to measure it.
-step "Checking the redaction"
-grep -q '## Kept out of the video' "$RUNBOOK" || fail "the runbook does not record what was covered"
-RECT="$(sed -n 's/.*covered with a solid block (\([0-9]*\)x\([0-9]*\) at \([0-9]*\),\([0-9]*\)).*/\1 \2 \3 \4/p' "$RUNBOOK" | awk 'NR==1')"
-[ -n "$RECT" ] || fail "the runbook does not say where the API key was covered"
-set -- $RECT
-KW=$1 KH=$2 KX=$3 KY=$4
-
-KEY_SHOT="$(find "$OUT_DIR" -maxdepth 1 -name '*-key-masked.png' | awk 'NR==1')"
-[ -n "$KEY_SHOT" ] || fail "no screenshot was taken while the key was on screen"
-
-# Playwright paints its own mask over the element: magenta, which is strongly positive on both
-# chroma axes and matches nothing else in this black-on-white demo app.
-SHOT_CHROMA="$(ffprobe -v error -f lavfi \
-  -i "movie=${KEY_SHOT},crop=${KW}:${KH}:${KX}:${KY},signalstats" \
-  -show_entries frame_tags=lavfi.signalstats.UAVG,lavfi.signalstats.VAVG -of csv=p=0)"
-awk -F, -v h="$SHOT_CHROMA" 'BEGIN { split(h, c, ","); exit (c[1] > 150 && c[2] > 150) ? 0 : 1 }' \
-  || fail "the API key is not masked in $KEY_SHOT (chroma $SHOT_CHROMA)"
-
-# And in the video the same rectangle is filled black for the stretch it was on screen. The
-# timestamp comes from the runbook too, taken a second in so the check does not land on the edge.
-COVER_AT="$(sed -n 's/^- \([0-9]*\):\([0-9]*\) - .*covered with a solid block.*/\1 \2/p' "$RUNBOOK" | awk 'NR==1')"
-set -- $COVER_AT
-COVER_T=$(( 10#$1 * 60 + 10#$2 + 1 ))
-# The frame is selected inside the graph rather than by seeking: ffprobe cannot seek a `movie=`
-# input, and asking it to fails the whole check on something unrelated to the redaction.
-COVER_LUMA="$(ffprobe -v error -f lavfi \
-  -i "movie=${VIDEO},select='gte(t\,${COVER_T})',crop=${KW}:${KH}:${KX}:${KY},signalstats" \
-  -show_entries frame_tags=lavfi.signalstats.YAVG -of csv=p=0 | awk 'NR==1')"
-awk -v y="$COVER_LUMA" 'BEGIN { exit (y < 40) ? 0 : 1 }' \
-  || fail "at ${COVER_T}s the API key region has brightness $COVER_LUMA, so it was not covered"
-
 # The runbook can carry the command section while the panel never actually drew: the value of the
 # terminal is that a reviewer SEES the log. The panel is dark and the demo app behind it is not, so
 # the average brightness along the bottom of the frame says whether it rendered.
@@ -172,6 +139,137 @@ awk -v y="$PANEL_LUMA" 'BEGIN { exit (y < 70) ? 0 : 1 }' \
 # A console log is written only when the page misbehaved. The demo app is meant to be quiet.
 [ -f "$OUT_DIR/$NAME-console.log" ] \
   && fail "the demo app reported page errors: $(cat "$OUT_DIR/$NAME-console.log")"
+
+# Edits after the take: one of each kind, on the video and on a screenshot. Every one of them is
+# rendered from the recording, so the recording has to come out of it exactly as it went in.
+step "Editing the take"
+EDIT="$SKILL/scripts/edit.js"
+TIMELINE="$OUT_DIR/$NAME-timeline.json"
+EDITED="$OUT_DIR/$NAME-edited.mp4"
+EDITED_RUNBOOK="$OUT_DIR/$NAME-edited-runbook.md"
+EDITED_TIMELINE="$OUT_DIR/$NAME-edited-timeline.json"
+EDIT_LOG="$OUT_DIR/.edits"
+KEY_SHOT="$(find "$OUT_DIR" -maxdepth 1 -name '*-key-revealed.png' | awk 'NR==1')"
+[ -n "$KEY_SHOT" ] || fail "no screenshot was taken while the key was on screen"
+ORIGINALS="$OUT_DIR/.originals"
+# shellcheck disable=SC2046  # file names this runner writes hold no spaces
+shasum -a 256 "$VIDEO" "$RUNBOOK" "$TIMELINE" \
+  $(find "$OUT_DIR" -maxdepth 1 -name '[0-9][0-9]-*.png' ! -name '*-edited.png') >"$ORIGINALS"
+
+edit() {
+  node "$EDIT" "$@" >>"$EDIT_LOG" 2>&1 || fail "edit.js $* failed: $(tail -5 "$EDIT_LOG")"
+}
+edit "$VIDEO" highlight --step 'Run the search'
+edit "$VIDEO" arrow --step 'Trigger the sync, whose work happens on the server'
+edit "$VIDEO" cover --step 'Reveal the API key'
+edit "$VIDEO" cut --step 'Travel to a section that holds nothing to click'
+edit "$VIDEO" speed 2 --step 'Read the worker log to prove the job ran'
+edit "$VIDEO" trim --start 0.5
+edit "$VIDEO" still 3
+edit "$KEY_SHOT" highlight --step
+
+for file in "$EDITED" "$EDITED_RUNBOOK" "$EDITED_TIMELINE" "${KEY_SHOT%.png}-edited.png"; do
+  [ -f "$file" ] || fail "edit.js left no $file"
+done
+[ -n "$(find "$OUT_DIR" -maxdepth 1 -name '[0-9][0-9]-still-*.png' | awk 'NR==1')" ] \
+  || fail "still wrote no screenshot of the edited video"
+shasum -a 256 -c --quiet "$ORIGINALS" >/dev/null 2>&1 \
+  || fail "editing changed a file of the recording: $(shasum -a 256 -c "$ORIGINALS" 2>&1 | grep -v ': OK$')"
+
+# What the edit model predicts, and where on the edited files to look. The model is the one the
+# render is built from, so a render that drifts from it is caught here rather than by a viewer.
+PREDICTED="$(node -e '
+  const [skill, timeline, recorded, shot] = process.argv.slice(1);
+  const fs = require("fs");
+  const read = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
+  const { editedVideo, load, editsFile } = require(`${skill}/scripts/edits`);
+  const { scaled, TRANSITION } = require(`${skill}/scripts/style`);
+  const { pngSize } = require(`${skill}/scripts/overlay`);
+  const take = read(timeline);
+  const video = editedVideo(take, load(editsFile(recorded)));
+  const last = take.marks.at(-1);
+  // The top edge of the highlight, half way along: the accent stroke is centred on it.
+  const [mark] = load(editsFile(shot));
+  const s = scaled(pngSize(shot).width);
+  const ring = { x: Math.round(mark.box.x + mark.box.width / 2), y: Math.round(Math.max(s.haloWidth / 2, mark.box.y - s.padding)) };
+  const [fade] = video.fades;
+  console.log([
+    video.duration, Math.floor(video.toEdited(last.at)), ring.x, ring.y,
+    fade.from, fade.to, TRANSITION.fadeOut, JSON.stringify(video.fades), last.label,
+  ].join(" "));
+' "$SKILL" "$TIMELINE" "$VIDEO" "$KEY_SHOT")" || fail "the edit model could not read the take"
+# The label goes last, so `read` hands it over whole, spaces and all
+read -r PREDICTED_DURATION PREDICTED_LAST RING_X RING_Y FADE_FROM FADE_TO FADE_OUT PREDICTED_FADES LAST_LABEL <<<"$PREDICTED"
+
+# The edited video is as long as the model says, to within one frame
+EDITED_DURATION=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$EDITED")
+FPS=$(ffprobe -v error -select_streams v:0 -show_entries stream=r_frame_rate -of csv=p=0 "$EDITED")
+awk -v d="$EDITED_DURATION" -v p="$PREDICTED_DURATION" -v r="$FPS" \
+  'BEGIN { split(r, f, "/"); exit (d - p <= f[2] / f[1] && p - d <= f[2] / f[1]) ? 0 : 1 }' \
+  || fail "the edited video is ${EDITED_DURATION}s where the edits predict ${PREDICTED_DURATION}s"
+
+# The last step starts earlier once a stretch is cut and another sped up, and the edited runbook
+# says where it is now
+row_start() {
+  awk -v label="$2" 'index($0, "  " label) && /^[0-9][0-9]:[0-9][0-9] - / {
+    split($1, t, ":"); print t[1] * 60 + t[2]; exit }' "$1"
+}
+WAS_AT="$(row_start "$RUNBOOK" "$LAST_LABEL")"
+NOW_AT="$(row_start "$EDITED_RUNBOOK" "$LAST_LABEL")"
+[ -n "$WAS_AT" ] && [ -n "$NOW_AT" ] || fail "a runbook has no row for \"$LAST_LABEL\""
+[ "$NOW_AT" -lt "$WAS_AT" ] || fail "the edited runbook still puts \"$LAST_LABEL\" at ${NOW_AT}s, as the recording has it"
+[ "$NOW_AT" -eq "$PREDICTED_LAST" ] \
+  || fail "the edited runbook puts \"$LAST_LABEL\" at ${NOW_AT}s where the edits put it at ${PREDICTED_LAST}s"
+
+# The highlight on the edited screenshot is drawn in the accent, C66A42
+RING_RGB="$(ffmpeg -v error -i "${KEY_SHOT%.png}-edited.png" -vf "crop=1:1:${RING_X}:${RING_Y}" \
+  -f rawvideo -pix_fmt rgb24 - | od -An -tu1 | tr -s ' ' | sed 's/^ //')"
+awk -v c="$RING_RGB" 'BEGIN { split(c, v, " "); d = 0
+    d += (v[1] > 198 ? v[1] - 198 : 198 - v[1]); d += (v[2] > 106 ? v[2] - 106 : 106 - v[2]); d += (v[3] > 66 ? v[3] - 66 : 66 - v[3])
+    exit (d <= 24) ? 0 : 1 }' \
+  || fail "the highlight on the edited screenshot is ($RING_RGB) at ${RING_X},${RING_Y}, not the accent (198 106 66)"
+
+# The join the cut left dissolves through a darkened frame, between the held frame on each side
+luma_at() {
+  ffprobe -v error -f lavfi -i "movie=${EDITED},select='gte(t\,$1)',signalstats" \
+    -show_entries frame_tags=lavfi.signalstats.YAVG -of csv=p=0 | awk 'NR==1'
+}
+[ "$(node -e 'console.log(JSON.stringify(JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).fades))' "$EDITED_TIMELINE")" = "$PREDICTED_FADES" ] \
+  || fail "the edited timeline's fades are not where the edits put the join"
+JOIN_AT=$(awk -v f="$FADE_FROM" -v o="$FADE_OUT" 'BEGIN { print f + o }')
+BEFORE_LUMA="$(luma_at "$(awk -v f="$FADE_FROM" 'BEGIN { print f - 0.2 }')")"
+JOIN_LUMA="$(luma_at "$JOIN_AT")"
+AFTER_LUMA="$(luma_at "$(awk -v t="$FADE_TO" 'BEGIN { print t + 0.2 }')")"
+awk -v b="$BEFORE_LUMA" -v j="$JOIN_LUMA" -v a="$AFTER_LUMA" \
+  'BEGIN { exit (j < 0.8 * b && j < 0.8 * a) ? 0 : 1 }' \
+  || fail "the join at ${JOIN_AT}s has brightness $JOIN_LUMA, not darker than $BEFORE_LUMA before it and $AFTER_LUMA after"
+
+# A contact sheet of the edited video samples the held frame where the dissolve plays: one tile per
+# sheet and one sheet every twentieth of a second, through the sheet's own filter and fades
+SHEET_LUMA="$(node -e '
+  const [vision, video] = process.argv.slice(1);
+  const { execFileSync } = require("child_process");
+  const { buildFilter, fadesOf } = require(`${vision}/scripts/contact-sheet`);
+  const fades = fadesOf(video);
+  if (!fades.length) throw new Error("the contact sheet finds no fades beside the edited video");
+  const filter = buildFilter({ every: 0.05, columns: 1, rows: 1, tile: 320 }, null, fades);
+  const tiles = [];
+  for (const line of execFileSync("ffmpeg", ["-v", "error", "-i", video, "-vf",
+    `${filter},signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=-`, "-f", "null", "-"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).split("\n")) {
+    const at = line.match(/pts_time:([\d.]+)/);
+    if (at) tiles.push({ at: Number(at[1]) });
+    const y = line.match(/YAVG=([\d.]+)/);
+    if (y) tiles.at(-1).y = Number(y[1]);
+  }
+  const [{ from, to }] = fades;
+  const before = tiles.filter((t) => t.at < from).at(-1);
+  const inside = tiles.filter((t) => t.at >= from && t.at <= to);
+  console.log(before.y, Math.min(...inside.map((t) => t.y)), inside.length);
+' "$REPO/src/skills/vision" "$EDITED")" || fail "the contact sheet of the edited video could not be sampled"
+read -r SHEET_BEFORE SHEET_INSIDE SHEET_TILES <<<"$SHEET_LUMA"
+[ "${SHEET_TILES:-0}" -gt 0 ] || fail "no tile of the contact sheet lands on the dissolve"
+awk -v b="$SHEET_BEFORE" -v i="$SHEET_INSIDE" 'BEGIN { exit (i > b - 3) ? 0 : 1 }' \
+  || fail "a contact sheet tile on the dissolve has brightness $SHEET_INSIDE, darker than the held frame's $SHEET_BEFORE"
 
 # What a step script gets back when it asks what is on a screen. The selector has to match on the
 # text in the markup: the export button is uppercased by CSS, and a name read off the screen
@@ -220,6 +318,7 @@ printf '  video     %s (%s bytes, %.1fs)\n' "$VIDEO" "$SIZE" "$DURATION"
 printf '  runbook   %s\n' "$RUNBOOK"
 printf '  screenshots %s\n' "$SHOTS"
 printf '  panel     drawn (brightness %s over the bottom %spx)\n' "$PANEL_LUMA" "$PANEL_BAND"
-printf '  redaction video %s, screenshot chroma %s\n' "$COVER_LUMA" "$SHOT_CHROMA"
 printf '  endpoint  answered 200, session kept out of the runbook\n'
+printf '  edited    %ss (predicted %ss), join brightness %s between %s and %s\n' \
+  "$EDITED_DURATION" "$PREDICTED_DURATION" "$JOIN_LUMA" "$BEFORE_LUMA" "$AFTER_LUMA"
 [ "$KEEP" = yes ] || printf '\nRe-run with --keep to watch the video.\n'

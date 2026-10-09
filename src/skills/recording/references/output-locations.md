@@ -57,10 +57,22 @@ Inside `OUT_DIR`:
 |---|---|
 | `<name>.mp4` | The operation video |
 | `<name>-runbook.md` | Everything needed to read it back and run it again: app, URL, config and step-script paths, the re-run command, **the timeline of steps**, the shortcuts pressed and captions shown with their timestamps (only when there were any), the screenshot list, the environment fixes, and the page errors seen |
+| `<name>-timeline.json` | The data the runbook is rendered from, for a program to read: frame size, duration, trim point, removed stretches, the held frames inserted where two kept stretches join, and every step, shortcut, caption, command, dialog and screenshot with its time in seconds of the take as recorded. Each step carries the box, in video-frame pixels, of the element it acted on |
 | `NN-*.png` | Screenshots, numbered in capture order |
 | `<name>-console.log` | **Only written when the page had errors** — console errors/warnings and requests returning 400 or above |
 | `steps.js` | The step script, so the next run does not start by probing the screen again |
 | `<name>-failed.mp4` | **Only written when a step script threw** — what was recorded before it stopped. There is no runbook for it: the take did not finish |
+
+`edit.js` writes beside them, and never changes any of the files above:
+
+| File | Contents |
+|---|---|
+| `<name>-edits.json` | The edits given to the video, in order. Every run renders the whole list again from `<name>.mp4` |
+| `<name>-edited.mp4` | The video with those edits applied |
+| `<name>-edited-runbook.md` | The runbook with every timestamp moved onto the edited video, and a section listing the edits applied |
+| `<name>-edited-timeline.json` | The edited video's frame size, duration and the transitions at its cuts, which the `vision` contact sheet skips |
+| `NN-*-edits.json`, `NN-*-edited.png` | A screenshot's own list of edits, and the screenshot with them applied |
+| `NN-still-*.png` | A moment of the edited video saved as the next numbered screenshot |
 
 The runbook is the thing that makes a later re-recording cheap: open it, run the command inside. To
 change what gets recorded, edit `steps.js`, not the runbook — the runbook is regenerated on every

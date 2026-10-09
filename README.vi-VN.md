@@ -42,7 +42,8 @@ dùng; nó lái Chrome rồi trả về video, screenshot các bước chính, v
   vừa tới. Không có gì nhảy cóc.
 - **Runbook, không chỉ là file** — timeline, caption, các lệnh đã chạy, lỗi trang gặp phải, và lệnh
   tạo lại đúng bản quay đó.
-- **Secret nằm ngoài** — làm mờ, bôi đen hoặc cắt hẳn một đoạn, trong cả video lẫn screenshot.
+- **Xem xong rồi sửa** — nhanh hơn, cắt bỏ đoạn chờ, đánh dấu một bước, che một giá trị, ngay trên
+  bản quay đã xong. Bản quay gốc giữ nguyên.
 - **Không có gì rời khỏi máy bạn** — không service, không bot account; chạy ngay trong agent CLI bạn
   đã có, chỉ vào đúng site bạn chỉ định.
 
@@ -150,7 +151,7 @@ nào agent trả lời bằng ngôn ngữ đó.
 | Evidence cho một MR hoặc PR | `/webapp-evidence:recording https://gitlab.example.com/group/admin/-/merge_requests/1783` |
 | Quay lại đúng bản đó sau khi dữ liệu đổi | `/webapp-evidence:recording record that again` — bản cũ giữ lại thành `v1`, `v2`, … |
 | Quay chậm lại, hoặc caption ngôn ngữ khác | `record it slower`, `captions in Japanese` — nhớ theo từng project |
-| Giữ một secret ra khỏi bản quay | `blur the API key when it appears` |
+| Sửa một bản quay sau khi xem | `cover the API key in step 3`, `twice as fast` — bản quay gốc giữ nguyên |
 | Chính cái dropdown hay dialog có trong video | `--screen` — quay cửa sổ trình duyệt, nên thứ hệ điều hành vẽ cũng vào khung |
 | Không đụng tới màn hình, dù luồng là gì | `--headless` — mặc định, và là cách chốt thẳng câu hỏi đó |
 | Gif cho README, webm cho trang bạn tự quản | `-f gif`, `-f webm` — còn lại là mp4, vì nó phát inline ở mọi nơi |

@@ -177,8 +177,9 @@ For example:
 > The video records your screen as it was during the take. Check it before you share it, and
 > edit out anything that should not be in it.
 
-To cover a secret the page is known to show, use `redact()` in the step script, decided while
-writing the steps; see `redaction.md`.
+For a secret the page is known to show, fake data in the step script keeps it off the screen to
+begin with. Covering something in the finished take is an edit the user asks for after watching —
+`node scripts/edit.js --help`.
 
 ## Configuration
 

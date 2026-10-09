@@ -158,12 +158,12 @@ flag.
 `--headless` on a flow that would have raised the question settles it the other way, also without
 asking. Nothing else in the argument is a flag — it is what they want evidence of.
 
-### Keeping something out of the video
+### Something on screen that should not be
 
-If the flow puts a secret on screen — an API key, a token, a real customer's details — the step
-script wraps that stretch in `redact()`, and it is covered in the video and masked in the
-screenshot. See `references/redaction.md`. Decide it while writing the steps: it costs nothing
-there, and nothing afterwards can be relied on to find what was missed.
+The take records what was on screen, as it was. Whether an API key, a token or a customer's
+details may appear is the user's call, made after watching, not yours made before: do not hide
+anything on your own. When they raise it, the clean fix is fake data in the step script and a new
+take; covering it in the finished take is the other way, below.
 
 ### Settling the captions
 
@@ -212,8 +212,8 @@ The runner brings the environment up (via `prepare` in the config), logs in (via
 trims the page-load wait from the front, and writes the mp4 plus the runbook. Everything it fixed is
 printed as a `FIXED: …` line — pass those lines into the report.
 
-Every script here — `record.js`, `inspect.js`, `convert.js`, `announce.js` — answers `--help` with
-its arguments and environment variables. Call that instead of reading the source. They are written to be used as black
+Every script here — `record.js`, `inspect.js`, `edit.js`, `convert.js`, `announce.js` — answers
+`--help` with its arguments and environment variables. Call that instead of reading the source. They are written to be used as black
 boxes: the source is long, it is loaded into context in full when you open it, and it tells you
 nothing `--help` does not.
 
@@ -254,6 +254,17 @@ If they did not, close the report by offering it in one line rather than convert
 of the same take is several times larger and looks worse. See `references/other-formats.md` for what
 each format costs and where each one plays.
 
+### Editing a finished take
+
+A finished take can be edited without recording it again — run `node scripts/edit.js --help` for
+what it can do. The take as recorded is what you hand over, and it stays clean: apply an edit only
+once the user has agreed to that edit. Guessing what matters to them is how a mark nobody asked for
+ends up in the one video meant to show the page working.
+
+On a yes, run it and report the `*-edited.*` paths it prints, and that the recording itself is
+unchanged. The edited runbook lists every mark that was added, so a reviewer reads them as notes,
+not as part of the application.
+
 ### Re-recording something that already exists
 
 Every take leaves a `<name>-runbook.md` precisely so this costs nothing:
@@ -289,6 +300,12 @@ skill directory, so this surfaces immediately instead of accumulating quietly.
 
 ## Closing the report
 
+After the paths, run `node scripts/edit.js --help` and offer at most two edits, each tied to what
+the take is meant to prove — the step that shows the change, a long wait worth speeding up — and
+each one sentence the user can answer yes to. Then one line: other edits are possible without
+recording again, and changing what is on screen — other data, other steps — means re-running the
+step script, whose command the runbook holds.
+
 Once you have handed over the files, add one line — only when something in the run was worth
 mentioning: a caption that read awkwardly, a step that needed a workaround, a limit that got in the
 way. Say it can be reported with `/webapp-evidence:feedback`, and leave it there. Do not run it, do
@@ -304,7 +321,6 @@ Read these when the step calls for them, not upfront:
 | `references/project-setup.md` | The project has no `evidence.config.js` yet, or the recording needs different pacing, captions or archiving behaviour |
 | `references/writing-step-scripts.md` | Writing or editing `steps.js`: the helpers, how long to pause after each click, captions, keyboard shortcuts, the browser's own dialogs, and what a recording physically cannot capture |
 | `references/terminal-in-the-page.md` | The step script has to show something that happened on the machine rather than in the page — a job that ran, a file that was written |
-| `references/redaction.md` | Something on screen must not survive into the evidence |
 | `references/output-locations.md` | Choosing `OUT_DIR`, dealing with the git-ignore check, and reading the runner's output to build the final report |
 | `references/recording-a-screen.md` | The evidence is something a page recording cannot hold: a `<select>` menu, a file picker, a browser dialog, DevTools, anything outside the browser. Covers asking the user first, what each backend does and does not pick up, and which machines can do it at all |
 | `references/other-formats.md` | The take has to be a gif or a webm, and you need to know what that costs |

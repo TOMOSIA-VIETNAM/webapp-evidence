@@ -1,5 +1,5 @@
 ---
-import { Hand, ScrollText, EyeOff, HardDrive, AppWindow, Languages } from '@lucide/astro'
+import { Hand, ScrollText, Scissors, HardDrive, AppWindow, Languages } from '@lucide/astro'
 import Section from '../ui/Section.astro'
 import GlassCard from '../ui/GlassCard.astro'
 import { localeFromUrl, useTranslations } from '../../i18n'
@@ -9,7 +9,7 @@ const t = useTranslations(localeFromUrl(Astro.url))
 const features = [
   { icon: Hand, title: t('features.human.title'), body: t('features.human.body') },
   { icon: ScrollText, title: t('features.runbook.title'), body: t('features.runbook.body') },
-  { icon: EyeOff, title: t('features.secrets.title'), body: t('features.secrets.body') },
+  { icon: Scissors, title: t('features.edit.title'), body: t('features.edit.body') },
   { icon: HardDrive, title: t('features.local.title'), body: t('features.local.body') },
   { icon: AppWindow, title: t('features.native.title'), body: t('features.native.body') },
   { icon: Languages, title: t('features.language.title'), body: t('features.language.body') },

@@ -16,10 +16,11 @@ process.env.PROJECT_ROOT = PROJECT;
 
 const {
   fmt, keyCaps, resolvePause, readingTime, buildTimeline, buildHotkeySection, buildNoteSection,
-  buildCommandSection, buildRedactionSection, buildRemovedSection, placeAt, runCaseDisposers,
-  ignoreHints, runArtifacts, archivePreviousRun, failedTakeError,
+  buildCommandSection, buildRemovedSection, placeAt, runCaseDisposers,
+  ignoreHints, runArtifacts, archivePreviousRun, failedTakeError, takeRemap, renderRunbook,
 } = require('../src/skills/recording/scripts/record');
 const { DEFAULTS } = require('../src/skills/recording/scripts/settings');
+const { buildFilter } = require('../src/skills/recording/scripts/cuts');
 
 const PACE = DEFAULTS.recording.pace;
 
@@ -112,7 +113,7 @@ test('timeline rows are rebased on the trim point and run to the next mark', () 
     { at: 3, label: 'Open the list' },
     { at: 13, label: 'Filter' },
   ];
-  const rows = buildTimeline(marks, 3, 20).split('\n');
+  const rows = buildTimeline(marks, takeRemap(3), 20).split('\n');
   assert.equal(rows.length, 2);
   assert.match(rows[0], /^00:00 - 00:10 {2}Open the list$/);
   assert.match(rows[1], /^00:10 - 00:20 {2}Filter$/);
@@ -123,30 +124,38 @@ test('a mark that barely lasts is left out: the reader cannot seek to it anyway'
     { at: 0, label: 'Blink' },
     { at: 0.2, label: 'Real step' },
   ];
-  assert.equal(buildTimeline(marks, 0, 10), '00:00 - 00:10  Real step');
+  assert.equal(buildTimeline(marks, takeRemap(0), 10), '00:00 - 00:10  Real step');
 });
 
 test('a recording with no marks yields an empty timeline instead of a stray row', () => {
-  assert.equal(buildTimeline([], 0, 10), '');
+  assert.equal(buildTimeline([], takeRemap(0), 10), '');
 });
 
-test('the hotkey and caption sections only appear when there is something to list', () => {
-  assert.equal(buildHotkeySection([], 0), '');
-  assert.equal(buildNoteSection([], 0), '');
+test('a step that starts where a cut does is cut with it, not left a row the length of the hold', () => {
+  const marks = [{ at: 0, label: 'Before' }, { at: 10, label: 'Cut whole' }, { at: 20, label: 'After' }];
+  const remap = takeRemap(0, [{ from: 10, to: 20 }], [{ at: 20, duration: 1.4 }]);
+  const rows = buildTimeline(marks, remap, 30).split('\n');
+  assert.deepEqual(rows.map((row) => row.split('  ')[1]), ['Before', 'After']);
+});
 
-  const hotkeys = buildHotkeySection([{ at: 7, keys: 'ControlOrMeta+C', label: 'Copy' }], 2);
+
+test('the hotkey and caption sections only appear when there is something to list', () => {
+  assert.equal(buildHotkeySection([], takeRemap(0)), '');
+  assert.equal(buildNoteSection([], takeRemap(0)), '');
+
+  const hotkeys = buildHotkeySection([{ at: 7, keys: 'ControlOrMeta+C', label: 'Copy' }], takeRemap(2));
   assert.match(hotkeys, /00:05/);
   assert.match(hotkeys, /ControlOrMeta\+C/);
   assert.match(hotkeys, /Copy/);
 
-  const notes = buildNoteSection([{ at: 9, text: 'Seeded row, not created by this flow' }], 2);
+  const notes = buildNoteSection([{ at: 9, text: 'Seeded row, not created by this flow' }], takeRemap(2));
   assert.match(notes, /00:07/);
   assert.match(notes, /Seeded row/);
 });
 
 test('timestamps never go negative when something happened before the trim point', () => {
-  assert.match(buildHotkeySection([{ at: 1, keys: 'Escape' }], 5), /00:00/);
-  assert.match(buildNoteSection([{ at: 1, text: 'Early note' }], 5), /00:00/);
+  assert.match(buildHotkeySection([{ at: 1, keys: 'Escape' }], takeRemap(5)), /00:00/);
+  assert.match(buildNoteSection([{ at: 1, text: 'Early note' }], takeRemap(5)), /00:00/);
 });
 
 test('the .gitignore hint covers the exact directory, plus a pattern for later issues', () => {
@@ -162,12 +171,12 @@ test('a path with no evidence directory to generalise gets the exact line only',
 test('previous run artifacts are recognised, project files are not', () => {
   const dir = outDir([
     '01-list.png', '99-full-page.png', 'user-search.mp4', 'user-search-runbook.md',
-    'user-search-console.log', 'steps.js', 'sample.csv', 'evidence.config.js', 'notes.md',
+    'user-search-timeline.json', 'user-search-console.log', 'steps.js', 'sample.csv', 'evidence.config.js', 'notes.md',
   ]);
   const found = runArtifacts(dir, 'user-search').sort();
   assert.deepEqual(found, [
     '01-list.png', '99-full-page.png', 'user-search-console.log',
-    'user-search-runbook.md', 'user-search.mp4',
+    'user-search-runbook.md', 'user-search-timeline.json', 'user-search.mp4',
   ]);
 });
 
@@ -218,7 +227,7 @@ test.after(() => fs.rmSync(PROJECT, { recursive: true, force: true }));
 // ---------- the commands section of the runbook ----------
 
 test('a take that never opened the terminal adds no section to the runbook', () => {
-  assert.equal(buildCommandSection([], 0), '');
+  assert.equal(buildCommandSection([], takeRemap(0)), '');
 });
 
 test('each kind of terminal step says what became of it', () => {
@@ -228,7 +237,7 @@ test('each kind of terminal step says what became of it', () => {
     { at: 14, kind: 'wait', text: '/SyncJob .* finished/', matched: 'SyncJob 12 finished' },
     { at: 18, kind: 'interrupt', text: 'tail -f log/worker.log' },
     { at: 22, kind: 'run', text: 'ls tmp/exports', exitCode: 2 },
-  ], 2);
+  ], takeRemap(2));
 
   assert.match(section, /exit 0/);
   assert.match(section, /started, left running/);
@@ -241,7 +250,7 @@ test('each kind of terminal step says what became of it', () => {
 test('a command run to prove something carries what it asserted, not only that it ran', () => {
   const section = buildCommandSection([
     { at: 5, kind: 'run', text: 'curl -sS "https://app/api/orders"', exitCode: 0, asserted: 'asserted HTTP 201' },
-  ], 0);
+  ], takeRemap(0));
 
   // The runbook is read without the video beside it, so a row saying a request was made and
   // nothing about what it had to answer leaves the reader with the command alone.
@@ -249,7 +258,7 @@ test('a command run to prove something carries what it asserted, not only that i
 });
 
 test('command timestamps are relative to the trimmed start, like every other section', () => {
-  const section = buildCommandSection([{ at: 65, kind: 'run', text: 'true', exitCode: 0 }], 5);
+  const section = buildCommandSection([{ at: 65, kind: 'run', text: 'true', exitCode: 0 }], takeRemap(5));
   assert.match(section, /01:00/);
 });
 
@@ -272,55 +281,35 @@ test('the timeline drops a mark that was cut and renumbers the rest', () => {
     { at: 12, label: 'Cut out' },
     { at: 25, label: 'After' },
   ];
-  const rows = buildTimeline(marks, 0, 30, CUT).split('\n');
+  const rows = buildTimeline(marks, takeRemap(0, CUT), 30).split('\n');
   assert.equal(rows.length, 2);
   assert.match(rows[0], /^00:02 - 00:15 {2}Before$/);
   assert.match(rows[1], /^00:15 - 00:30 {2}After$/);
 });
 
 test('hotkeys, captions and commands are renumbered the same way', () => {
-  assert.match(buildHotkeySection([{ at: 25, keys: 'Escape' }], 0, CUT), /00:15/);
-  assert.match(buildNoteSection([{ at: 25, text: 'Later' }], 0, CUT), /00:15/);
+  assert.match(buildHotkeySection([{ at: 25, keys: 'Escape' }], takeRemap(0, CUT)), /00:15/);
+  assert.match(buildNoteSection([{ at: 25, text: 'Later' }], takeRemap(0, CUT)), /00:15/);
   assert.match(
-    buildCommandSection([{ at: 25, kind: 'run', text: 'true', exitCode: 0 }], 0, CUT),
+    buildCommandSection([{ at: 25, kind: 'run', text: 'true', exitCode: 0 }], takeRemap(0, CUT)),
     /00:15/,
   );
 });
 
 test('a row that fell inside a cut is dropped rather than pointing at the wrong second', () => {
-  assert.equal(buildHotkeySection([{ at: 12, keys: 'Escape' }], 0, CUT), '');
-  assert.equal(buildNoteSection([{ at: 12, text: 'Gone' }], 0, CUT), '');
-  assert.equal(buildCommandSection([{ at: 12, kind: 'run', text: 'true', exitCode: 0 }], 0, CUT), '');
+  assert.equal(buildHotkeySection([{ at: 12, keys: 'Escape' }], takeRemap(0, CUT)), '');
+  assert.equal(buildNoteSection([{ at: 12, text: 'Gone' }], takeRemap(0, CUT)), '');
+  assert.equal(buildCommandSection([{ at: 12, kind: 'run', text: 'true', exitCode: 0 }], takeRemap(0, CUT)), '');
 });
 
-// ---------- what the runbook says about the redactions ----------
+// ---------- what the runbook says about the stretches cut out ----------
 
-test('a take with nothing covered gains no sections', () => {
-  assert.equal(buildRedactionSection([], 0, []), '');
-  assert.equal(buildRemovedSection([]), '');
-});
-
-test('a covered region is listed with when and where, so it does not read as a rendering fault', () => {
-  const section = buildRedactionSection(
-    [{ mode: 'box', box: { x: 40, y: 318, width: 200, height: 24 }, from: 12, to: 17 }], 2, [],
-  );
-  assert.match(section, /00:10 - 00:15/);
-  assert.match(section, /solid block/);
-  assert.match(section, /200x24 at 40,318/);
-});
-
-test('a blurred whole frame says so instead of printing a rectangle', () => {
-  const section = buildRedactionSection([{ mode: 'blur', box: null, from: 1, to: 2 }], 0, []);
-  assert.match(section, /blurred/);
-  assert.match(section, /whole frame/);
-});
-
-test('a removed stretch is not listed as covered — it is not in the video to point at', () => {
-  assert.equal(buildRedactionSection([{ mode: 'cut', box: null, from: 1, to: 4 }], 0, []), '');
+test('a take with nothing cut gains no section', () => {
+  assert.equal(buildRemovedSection([], takeRemap(0)), '');
 });
 
 test('the reader is told the video is shorter than what was recorded', () => {
-  const section = buildRemovedSection([{ from: 3, to: 6 }, { from: 10, to: 12 }]);
+  const section = buildRemovedSection([{ from: 3, to: 6 }, { from: 10, to: 12 }], takeRemap(0));
   assert.match(section, /2 stretches/);
   assert.match(section, /5\.0s/);
 });
@@ -338,7 +327,12 @@ const { resolveSettings } = require('../src/skills/recording/scripts/settings');
 const scopeFrom = (helpers) => buildContext({
   page: {}, outDir: PROJECT, marks: [], hotkeys: [], notes: [], dialogs: [], startedAt: Date.now(),
   pace: PACE, viewport: DEFAULTS.recording.viewport, human: {}, captions: { enabled: false },
-  terminal: { term: {}, isOpen: () => false }, redactions: [], capture: {}, helpers,
+  terminal: { term: {}, isOpen: () => false }, cuts: [], capture: {}, helpers,
+});
+
+test('a step script still calling redact() fails, and is pointed at the edit that replaced it', () => {
+  const { redact } = scopeFrom({});
+  assert.throws(() => redact('frame', async () => {}), /edit\.js.*cover/);
 });
 
 test('a helper a case adds is in the scope beside the ones every step script has', () => {
@@ -380,7 +374,7 @@ test('a secret a case registers is scrubbed out of the panel and out of the runb
   assert.ok(drawn.includes('echo'), 'the command never reached the panel at all');
   assert.ok(!drawn.includes(secret), 'the session is on screen in the panel');
 
-  const section = buildCommandSection(terminal.commands, 0);
+  const section = buildCommandSection(terminal.commands, takeRemap(0));
   assert.ok(section.includes('echo'), 'the command never reached the runbook');
   assert.ok(!section.includes(secret), 'the session is written out in the runbook');
 });
@@ -410,7 +404,7 @@ test('the failure names the step it happened in, and when', () => {
   const marks = [{ at: 0, label: 'Open the search screen' }, { at: 12, label: 'Reach the audit trail' }];
   const error = failedTakeError(
     { error: new Error('locator.click: Timeout 30000ms exceeded'), raw: null },
-    { outDir: PROJECT, name: 'take', marks, trimAt: 0, videoOpts: {}, redactions: { all: () => [] }, at: 41 },
+    { outDir: PROJECT, name: 'take', marks, trimAt: 0, videoOpts: {}, cuts: { all: () => [] }, at: 41 },
   );
 
   assert.match(error.message, /step 2/);
@@ -422,7 +416,7 @@ test('the failure names the step it happened in, and when', () => {
 test('a take that failed before its first mark says so rather than naming a step', () => {
   const error = failedTakeError(
     { error: new Error('page.goto: net::ERR_CONNECTION_REFUSED'), raw: null },
-    { outDir: PROJECT, name: 'take', marks: [], trimAt: 0, videoOpts: {}, redactions: { all: () => [] }, at: 3 },
+    { outDir: PROJECT, name: 'take', marks: [], trimAt: 0, videoOpts: {}, cuts: { all: () => [] }, at: 3 },
   );
   assert.match(error.message, /before the first mark/);
   assert.match(error.message, /ERR_CONNECTION_REFUSED/);
@@ -431,14 +425,14 @@ test('a take that failed before its first mark says so rather than naming a step
 test('the original failure is kept, so nothing about it is lost in the retelling', () => {
   const cause = new Error('locator.click: Timeout 30000ms exceeded');
   const error = failedTakeError({ error: cause, raw: null }, {
-    outDir: PROJECT, name: 'take', marks: [], trimAt: 0, videoOpts: {}, redactions: { all: () => [] }, at: 1,
+    outDir: PROJECT, name: 'take', marks: [], trimAt: 0, videoOpts: {}, cuts: { all: () => [] }, at: 1,
   });
   assert.equal(error.cause, cause);
 });
 
 test('with nothing recorded, the operator is told that rather than pointed at a file', () => {
   const error = failedTakeError({ error: new Error('nope'), raw: null }, {
-    outDir: PROJECT, name: 'take', marks: [], trimAt: 0, videoOpts: {}, redactions: { all: () => [] }, at: 1,
+    outDir: PROJECT, name: 'take', marks: [], trimAt: 0, videoOpts: {}, cuts: { all: () => [] }, at: 1,
   });
   assert.match(error.message, /Nothing had been recorded/);
 });
@@ -458,7 +452,7 @@ test('moveTo refuses a bounding box where it expects a number of pixels', async 
 // here — what is being pinned down is which coordinates the helpers compute, and from what.
 const FAST = resolveSettings({ recording: { speed: 'fast' } }).recording;
 
-function pointerScope(snapshots = [], { header = 0, boxes = [], stops = true } = {}) {
+function pointerScope(snapshots = [], { header = 0, boxes = [], stops = true, capture = {}, marks = [], gone = [] } = {}) {
   const sent = [];
   // A sequence per locator: each measurement takes the next one, and the last stands for every
   // measurement after it. That is what makes a page still moving when it was measured expressible
@@ -480,14 +474,28 @@ function pointerScope(snapshots = [], { header = 0, boxes = [], stops = true } =
     evaluate: async (fn) => (fn === SNAPSHOT ? (queue.length > 1 ? queue.shift() : queue[0]) : stops),
     boundingBox: async () => boxes[index] ?? null,
     scrollIntoViewIfNeeded: async () => { sent.push({ kind: 'jump' }); },
+    // The element itself, as the page holds it: measured like the locator. `gone` true is removed
+    // from the page; 'renamed' is still there under a label the locator no longer matches.
+    async elementHandle() {
+      const locator = this;
+      return {
+        evaluate: async (fn) => (fn === SNAPSHOT ? locator.evaluate(fn) : gone[index] !== true),
+        boundingBox: locator.boundingBox,
+        dispose: async () => {},
+      };
+    },
+    count: async () => (gone[index] ? 0 : 1),
   }));
+  const takeEnd = [];
   const scope = buildContext({
-    page, outDir: PROJECT, marks: [], hotkeys: [], notes: [], dialogs: [], startedAt: Date.now(),
+    page, outDir: PROJECT, marks, hotkeys: [], notes: [], dialogs: [], startedAt: Date.now(),
     pace: FAST.pace, viewport: FAST.viewport, captions: { enabled: false },
     human: createHuman({ pace: FAST.pace, viewport: FAST.viewport, seed: 'pointer' }),
-    terminal: { term: {}, isOpen: () => false }, redactions: [], capture: {}, helpers: {},
+    terminal: { term: {}, isOpen: () => false }, cuts: [], capture, helpers: {},
+    onTakeEnd: (fn) => takeEnd.push(fn),
   });
-  return { scope, locators, sent };
+  const endTake = async () => { for (const fn of takeEnd) await fn(); };
+  return { scope, locators, sent, endTake };
 }
 
 // Where an element stands, as SNAPSHOT reports it: nothing scrollable around it, so a helper that
@@ -724,7 +732,7 @@ const failureSaid = (endedEarly) => {
 
   return failedTakeError({ error: new Error('locator.click: Timeout 30000ms exceeded'), raw, endedEarly }, {
     outDir, name: 'take', marks: [], trimAt: 0, videoOpts: { preset: 'ultrafast', crf: 28 },
-    redactions: { all: () => [] }, at: 30, maxSeconds: 600,
+    cuts: { all: () => [] }, at: 30, maxSeconds: 600,
   }).message;
 };
 
@@ -744,14 +752,14 @@ test('a recording the take stopped is handed over without that explanation', () 
 
 // ---------- a file upload, with and without the real picker ----------
 
-const { createRedactions } = require('../src/skills/recording/scripts/redaction');
+const { createCuts } = require('../src/skills/recording/scripts/cuts');
 
 // A page that answers what upload() asks of it, and records whether the file chooser was
 // intercepted. `picker` stands in for the real one; without it upload() goes the way it always has.
-function uploadScope({ picker = null } = {}) {
+function uploadScope({ picker = null, startedAt = Date.now() } = {}) {
   const sent = [];
   const notes = [];
-  const redactions = createRedactions();
+  const cuts = createCuts();
   const page = {
     evaluate: async (fn) => (fn === HEADER ? 0 : { x: 0, y: 0, width: 800, height: 600 }),
     bringToFront: async () => sent.push({ kind: 'front' }),
@@ -775,18 +783,18 @@ function uploadScope({ picker = null } = {}) {
     scrollIntoViewIfNeeded: async () => {},
   };
   const scope = buildContext({
-    page, outDir: PROJECT, marks: [], hotkeys: [], notes, dialogs: [], startedAt: Date.now(),
+    page, outDir: PROJECT, marks: [], hotkeys: [], notes, dialogs: [], startedAt,
     pace: FAST.pace, viewport: FAST.viewport,
     captions: { enabled: true, text: (key, params) => `${key}:${params.file}` },
     human: createHuman({ pace: FAST.pace, viewport: FAST.viewport, seed: 'upload' }),
-    terminal: { term: {}, isOpen: () => false }, redactions, capture: {}, helpers: {},
+    terminal: { term: {}, isOpen: () => false }, cuts, capture: {}, helpers: {},
     capturesBrowserUi: Boolean(picker), picker,
   });
-  return { scope, locator, sent, notes, redactions };
+  return { scope, locator, sent, notes, cuts };
 }
 
 test('a page recording sets the file through the intercepted chooser, and captions it', async () => {
-  const { scope, locator, sent, notes, redactions } = uploadScope();
+  const { scope, locator, sent, notes, cuts } = uploadScope();
   await scope.upload(locator, '/tmp/in/sample.csv');
 
   // The chooser is waited for before the click: that is what keeps the real sheet from opening
@@ -795,7 +803,7 @@ test('a page recording sets the file through the intercepted chooser, and captio
   assert.deepEqual(sent.find((e) => e.kind === 'wait'), { kind: 'wait', name: 'filechooser' });
   assert.deepEqual(sent.find((e) => e.kind === 'set'), { kind: 'set', file: '/tmp/in/sample.csv' });
   assert.deepEqual(notes.map((n) => n.text), ['uploadFile:sample.csv']);
-  assert.deepEqual(redactions.all(), []);
+  assert.deepEqual(cuts.all(), []);
 });
 
 test('with the real picker, nothing intercepts it and the stretch before it lands is cut', async () => {
@@ -811,7 +819,8 @@ test('with the real picker, nothing intercepts it and the stretch before it land
       args.onLanded();
     },
   };
-  const { scope, locator, sent, notes, redactions } = uploadScope({ picker });
+  // Five seconds into the take, so there is footage before the cut for the join to come from
+  const { scope, locator, sent, notes, cuts } = uploadScope({ picker, startedAt: Date.now() - 5000 });
   await scope.upload(locator, 'relative/sample.csv');
 
   assert.equal(sent.filter((e) => e.kind === 'wait').length, 0, 'the chooser was intercepted');
@@ -821,9 +830,15 @@ test('with the real picker, nothing intercepts it and the stretch before it land
   assert.equal(calls[0].folder, '/staged/upload-1');
   assert.deepEqual(notes, [], 'a caption stood in for a picker that is in the frame');
 
-  const [cut] = redactions.all();
-  assert.equal(cut.mode, 'cut');
+  const [cut] = cuts.all();
   assert.match(cut.reason, /file picker/);
+
+  // What the encode makes of it: the stretch removed, and the two sides joined on held frames
+  const filter = buildFilter(cuts.all(), 0);
+  assert.equal(filter.removed.length, 1);
+  assert.equal(filter.inserted.length, 1);
+  assert.match(filter.graph, /stop_mode=clone/);
+  assert.match(filter.graph, /start_mode=clone/);
 });
 
 test('a picker that fails part-way still has its stretch closed, so the failed take keeps the cut', async () => {
@@ -836,26 +851,238 @@ test('a picker that fails part-way still has its stretch closed, so the failed t
       throw new Error('another application came to the front');
     },
   };
-  const { scope, locator, redactions } = uploadScope({ picker });
+  const { scope, locator, cuts } = uploadScope({ picker });
   await assert.rejects(scope.upload(locator, '/tmp/in/sample.csv'), /another application/);
-  assert.equal(redactions.all().length, 1);
+  assert.equal(cuts.all().length, 1);
 });
 
-test('a runner cut merged with a redaction cut gives a reason for both', () => {
-  const section = buildRemovedSection([{ from: 3, to: 6, reasons: ['the file picker', null] }]);
-  const row = section.split('\n').find((line) => line.startsWith('- '));
-  const reasons = row.split(' — ')[1].split('; ');
-  assert.equal(reasons.length, 2);
-  assert.ok(reasons.every((reason) => reason.trim().length > 0));
-});
-
-test('a stretch the runner cut says why, instead of claiming a secret was kept out', () => {
-  const section = buildRemovedSection([
+test('a stretch the runner cut says why, and one with no reason is still listed', () => {
+  const removed = [
     { from: 3, to: 4, reasons: ['the file picker on the folder it opened on'] },
     { from: 10, to: 12 },
-  ]);
+  ];
+  const section = buildRemovedSection(removed, takeRemap(0, removed));
   assert.match(section, /2 stretches/);
   assert.match(section, /- 00:03 {2}1\.0s — the file picker on the folder it opened on/);
   // The second one lands a second earlier on the shortened video
-  assert.match(section, /- 00:09 {2}2\.0s — /);
+  assert.match(section, /^- 00:09 {2}2\.0s$/m);
+});
+
+// ---------- the held frames at a join ----------
+
+// The picker cut from the runner, 2.5s into the take after a 1s trim, with the held frames the
+// graph puts where the two kept stretches meet. Same data the runner writes.
+const JOIN = {
+  trimAt: 1,
+  removed: [{ from: 6, to: 9, reasons: ['the file picker on the folder it opened on'] }],
+  inserted: [{ at: 9, duration: 1.4 }],
+};
+const joinRemap = takeRemap(JOIN.trimAt, JOIN.removed, JOIN.inserted);
+
+test('a moment before a join keeps its place on the video', () => {
+  assert.equal(joinRemap(4), 3);
+});
+
+test('a moment after a join moves past the cut and the held frames both', () => {
+  // 3s cut out, 1.4s of held frames put in: 12s of the take is 12 - 1 - 3 + 1.4 on the video
+  assert.equal(joinRemap(12), 9.4);
+  // The first frame after the cut plays once its held copy has been shown
+  assert.equal(joinRemap(9), 6.4);
+});
+
+test('every section of the runbook moves its rows through the same join', () => {
+  const take = {
+    ...TAKE, ...JOIN, duration: 16.4,
+    marks: [{ at: 2, label: 'Before', box: null }, { at: 12.2, label: 'After', box: null }],
+    hotkeys: [{ at: 12.2, keys: 'Escape' }], notes: [{ at: 12.2, text: 'Later' }],
+    commands: [{ at: 12.2, kind: 'run', text: 'true', exitCode: 0 }],
+    dialogs: [{ at: 12.2, kind: 'alert', message: 'Hi', accepted: true }],
+  };
+  const runbook = renderRunbook(take);
+  assert.match(runbook, /^00:01 - 00:09 {2}Before$/m);
+  assert.match(runbook, /^00:09 - 00:16 {2}After$/m);
+  for (const row of ['`Escape`', 'Later', '`true`', 'alert: "Hi"']) {
+    assert.ok(runbook.includes(`- 00:09  ${row}`) || runbook.includes(`- 00:09 - 00:10  ${row}`), row);
+  }
+  // The cut itself is listed where the join starts: the last frame before it, held
+  assert.match(runbook, /^- 00:05 {2}3\.0s — the file picker/m);
+});
+
+
+// ---------- the take's data, and the runbook rendered from it ----------
+
+const { frameRect } = require('../src/skills/recording/scripts/capture');
+
+// A take as <name>-timeline.json holds it: every time in seconds of the take as recorded, so the
+// trim point and the stretch cut out of it are the renderer's to apply.
+const TAKE = {
+  name: 'take', app: 'demo', baseUrl: 'http://localhost:3000', start: '/', configFile: null,
+  stepsFile: path.join(PROJECT, 'steps.js'), video: path.join(PROJECT, 'out', 'take.mp4'),
+  outDir: path.join(PROJECT, 'out'), runner: path.join(PROJECT, 'record.js'),
+  recordedAt: '2026-10-08T00:00:00.000Z', captions: 'en', capture: 'window',
+  captureFrame: { x: 0, y: 25, width: 1280, height: 800, scale: 2 },
+  frame: { width: 2560, height: 1650 },
+  duration: 44, trimAt: 2.5,
+  removed: [{ from: 22.5, to: 26, reasons: ['the file picker on the folder it opened on'] }],
+  marks: [
+    { at: 2.6, label: 'Open the list', box: null },
+    { at: 9.25, label: 'Search', box: { x: 400, y: 960, width: 400, height: 40 } },
+    { at: 9.4, label: 'Blink', box: null },
+    { at: 24, label: 'Inside the cut', box: null },
+    { at: 27.1, label: 'Upload a file', box: null },
+    { at: 41.7, label: 'Check the result', box: null },
+  ],
+  hotkeys: [{ at: 12.3, keys: '⌘ + K', label: 'Open search' }],
+  notes: [{ at: 13, text: 'Seeded row' }, { at: 25, text: 'Gone' }],
+  commands: [{ at: 30, kind: 'run', text: 'true', exitCode: 0, asserted: 'asserted HTTP 200' }],
+  dialogs: [{ at: 35.2, kind: 'confirm', message: 'Delete?', accepted: true }],
+  screenshots: [
+    { at: 15, file: '01-list.png', box: null },
+    { at: null, file: '99-full-page.png', box: null },
+  ],
+  fixes: ['seeded the database'], problems: ['GET /x 404'],
+};
+
+test('the runbook rendered from the take\'s data is the one the runner wrote before it had any', () => {
+  // Written by the runner from these same inputs, before the runbook was rendered from data
+  assert.equal(renderRunbook(TAKE), `---
+name: take
+app: demo
+base_url: http://localhost:3000
+start_path: /
+captions: en
+capture: window
+capture_frame: 1280x800 at 0,25, 2x
+config: (none — recorded with BASE_URL=http://localhost:3000)
+steps: ${PROJECT}/steps.js
+video: ${PROJECT}/out/take.mp4
+duration_seconds: 44.0
+recorded_at: 2026-10-08T00:00:00.000Z
+---
+
+# Runbook — take
+
+## Re-run
+
+\`\`\`bash
+OUT_DIR=${PROJECT}/out node ${PROJECT}/record.js ${PROJECT}/steps.js
+\`\`\`
+
+The step script, the configuration and the account are all fixed, so the command above reproduces exactly this take.
+To change what gets recorded, edit \`${PROJECT}/steps.js\`, not the runbook file.
+
+## Steps in the video
+
+00:00 - 00:06  Open the list
+00:06 - 00:21  Blink
+00:21 - 00:35  Upload a file
+00:35 - 00:44  Check the result
+
+## Keyboard shortcuts in the video
+
+- 00:09  \`⌘ + K\` — Open search
+
+## Captions shown in the video
+
+- 00:10  Seeded row
+
+## Commands run in the terminal
+
+- 00:24  \`true\` — asserted HTTP 200, exit 0
+
+## Dialogs the browser put up
+
+- 00:29  confirm: "Delete?" — accepted
+
+## Removed from the video
+
+1 stretch totalling 3.5s were cut out of this take. Every timestamp above is on the shortened video.
+
+- 00:20  3.5s — the file picker on the folder it opened on
+
+## Screenshots
+
+- 01-list.png
+- 99-full-page.png
+
+## Environment
+
+- fixed automatically: seeded the database
+
+## Page errors recorded during the take
+
+- GET /x 404
+`);
+});
+
+test('the timeline in the runbook is the one built from the same marks on their own', () => {
+  const timeline = buildTimeline(TAKE.marks, takeRemap(TAKE.trimAt, TAKE.removed), TAKE.duration);
+  assert.ok(renderRunbook(TAKE).includes(`## Steps in the video\n\n${timeline}\n\n`));
+});
+
+test('a video made from the take is described by its own remap, in the same layout', () => {
+  // Twice as fast, nothing trimmed: every row lands at half the moment it was recorded at
+  const runbook = renderRunbook(TAKE, { remap: (at) => at / 2, duration: 25 });
+  assert.match(runbook, /^00:13 - 00:20 {2}Upload a file$/m);
+  assert.match(runbook, /^- 00:06 {2}`⌘ \+ K`/m);
+  assert.match(runbook, /^duration_seconds: 25\.0$/m);
+});
+
+test('a step keeps the box of the first element it acted on, in frame pixels, and its take time', async () => {
+  const handle = { top: 400, left: 200, width: 200, height: 20 };
+  const onto = { top: 380, left: 700, width: 120, height: 60 };
+  // A window take on a 2x display, offset by the browser's own chrome: the conversion the
+  // recorder itself uses, so a box here lands where the video shows the element
+  const offset = { x: 0, y: 80, scale: 2 };
+  const marks = [];
+  const { scope, locators } = pointerScope([standingAt(handle), standingAt(onto)], {
+    marks, capture: { pageToFrame: (box) => frameRect(box, offset) },
+  });
+
+  scope.mark('Nothing touched');
+  scope.mark('Drag the handle');
+  await scope.drag(locators[0], locators[1], { pause: 0 });
+  await scope.click(locators[1], { pause: 0 });
+
+  assert.equal(marks[0].box, null);
+  assert.deepEqual(marks[1].box, frameRect({ x: 200, y: 400, width: 200, height: 20 }, offset));
+  // Seconds since the take started, with no trim applied: pointerScope starts its clock as the
+  // scope is built, so the marks sit at the very start of the take
+  assert.ok(marks.every((m) => m.at >= 0 && m.at < 1), JSON.stringify(marks));
+});
+
+test('a step keeps a box that fits its element as the step ends, not only as it was clicked', async () => {
+  // "Run sync" clicked, then relabelled "Sync queued": the same button, wider and a little taller,
+  // and measured through the element, since a locator by its old name would no longer find it
+  const clicked = { top: 300, left: 200, width: 90, height: 30 };
+  const queued = { top: 298, left: 200, width: 130, height: 34 };
+  // Clicked, then scrolled out from under where it was: no longer the element the viewer saw acted on
+  const moved = { top: 600, left: 500, width: 100, height: 30 };
+  const last = { top: 100, left: 40, width: 60, height: 20 };
+  const offset = { x: 0, y: 80, scale: 2 };
+  const marks = [];
+  const standing = [clicked, moved, last, last].map((rect) => standingAt(rect));
+  const { scope, locators, endTake } = pointerScope(standing, {
+    marks, gone: ['renamed', false, false, true], capture: { pageToFrame: (box) => frameRect(box, offset) },
+  });
+  const frameBox = ({ top, left, width, height }) => frameRect({ x: left, y: top, width, height }, offset);
+
+  scope.mark('Run the sync');
+  await scope.click(locators[0], { pause: 0 });
+  standing[0].target = queued;
+  scope.mark('Scroll the list');
+  await scope.click(locators[1], { pause: 0 });
+  standing[1].target = { ...moved, top: 100 };
+  scope.mark('Close the dialog');
+  await scope.click(locators[2], { pause: 0 });
+  scope.mark('The dialog is gone');
+  await scope.click(locators[3], { pause: 0 });
+  await endTake();
+
+  // The union of both measurements, in frame pixels
+  assert.deepEqual(marks[0].box, frameBox({ top: 298, left: 200, width: 130, height: 34 }));
+  assert.deepEqual(marks[1].box, frameBox(moved));
+  assert.deepEqual(marks[2].box, frameBox(last));
+  // Measured at the end of the take, and gone by then: the box it was acted on at
+  assert.deepEqual(marks[3].box, frameBox(last));
 });
