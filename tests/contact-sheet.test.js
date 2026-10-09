@@ -1,11 +1,14 @@
 // The sheets are only useful if a tile can be turned back into a time — a finding of "somewhere in
 // the second picture" is not actionable. So what is pinned here is the arithmetic that maps tiles to
 // seconds, and the filter chain that stamps them.
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
-  DEFAULTS, parseArgs, resolveOptions, buildFilter, sheetRanges, mmss,
+  DEFAULTS, parseArgs, resolveOptions, buildFilter, fadesOf, sheetRanges, mmss,
 } = require('../src/skills/vision/scripts/contact-sheet');
 
 const FONT = '/fake/font.ttf';
@@ -71,4 +74,19 @@ test('times are printed the way the runbook prints them', () => {
   assert.equal(mmss(9.6), '00:10');
   assert.equal(mmss(61), '01:01');
   assert.equal(mmss(-5), '00:00');
+});
+
+test('the dissolve at a join is dropped before sampling, and nothing else is', () => {
+  const filter = buildFilter(DEFAULTS, FONT, [{ from: 6.4, to: 7 }, { from: 20.4, to: 21 }]);
+  assert.ok(filter.indexOf('select=') < filter.indexOf('fps='), filter);
+  assert.match(filter, /between\(t\\,6\.4\\,7\)\+between\(t\\,20\.4\\,21\)/);
+  assert.ok(!buildFilter(DEFAULTS, FONT).includes('select='), 'a take with no join lost frames');
+});
+
+test('the dissolves are read from the timeline beside the video, and a bare mp4 has none', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sheet-'));
+  const video = path.join(dir, 'take.mp4');
+  assert.deepEqual(fadesOf(video), []);
+  fs.writeFileSync(path.join(dir, 'take-timeline.json'), JSON.stringify({ fades: [{ from: 1, to: 1.6 }] }));
+  assert.deepEqual(fadesOf(video), [{ from: 1, to: 1.6 }]);
 });

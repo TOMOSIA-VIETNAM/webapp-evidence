@@ -9,14 +9,15 @@ const {
   HELP_ENV, sleep, watchProblems, assertOutsideSkill, resolveSettings,
   loadProjectConfig, resolveApp, launchBrowser, prepareApp, signIn, makeAccountStore, ROOT, openPage,
 } = require('./session');
+const { mp4Encode } = require('./settings');
 const { createHuman, resolvePause } = require('./human');
 const { createCaptions } = require('./captions');
 const { createTerminal, isBehindPanel } = require('./terminal');
 const scroll = require('./scroll');
 const { loadCases, applyCases } = require('./cases');
 const {
-  createRedactions, buildFilter, shiftTime, unionBox, padBox,
-} = require('./redaction');
+  createCuts, buildFilter, fadeWindows, unionBox, placeAt, takeRemap,
+} = require('./cuts');
 const { createCapture, browserPid } = require('./capture');
 const picker = require('./picker');
 const lock = require('./lock');
@@ -56,7 +57,8 @@ function help() {
 
 ${HELP_ENV}
 
-Output: <name>.mp4, <name>-runbook.md and the screenshots numbered in capture order.
+Output: <name>.mp4, <name>-runbook.md, <name>-timeline.json (the runbook's data) and the
+screenshots numbered in capture order.
 The page-load wait at the start is trimmed off the video; the sign-in step is not recorded.`);
 }
 
@@ -80,14 +82,79 @@ function readingTime(text, pace) {
 // The mouse interpolates its way over before clicking, so the viewer can see where the click lands
 function buildContext({
   page, outDir, marks, hotkeys, notes, dialogs, startedAt, pace, viewport, human, captions,
-  terminal, redactions, capture, capturesBrowserUi, helpers = {}, picker = null,
+  terminal, cuts, capture, capturesBrowserUi, helpers = {}, picker = null, screenshots = [],
+  onTakeEnd = () => {},
 }) {
-  const mark = (label) => marks.push({ at: (Date.now() - startedAt) / 1000, label });
   const since = () => (Date.now() - startedAt) / 1000;
 
-  // The redaction window a step is inside, if any: shot() has to know, and it is set here rather
-  // than passed down because every helper between the two would otherwise have to carry it.
-  let active = null;
+  // Which element a step acted on, kept with its mark so something that reads the take back can
+  // point at it without anyone measuring the video. The first element a step aims at is the one it
+  // is about: a drag's handle rather than where it was dropped, the field a hotkey went to rather
+  // than nothing. Stored in the frame's coordinates, which for a window or screen take are not the
+  // page's.
+  //
+  // The box has to fit the element for the whole step, not only the moment it was acted on: a
+  // button that says "Sync queued" once clicked is wider than the "Run sync" that was clicked, and a
+  // highlight drawn round the old size cuts through the new label. So the element is measured
+  // again as the step ends — when the next mark opens, or the take does — and the mark keeps both.
+  //
+  // Measured through the element itself rather than the locator that found it: the locator often
+  // names the element by the very label the step changes — getByRole('button', { name: 'Run sync' })
+  // finds nothing once it reads "Sync queued". The locator is only the fallback, for a page that
+  // replaced the node with a new one of the same name.
+  let boxed = null;
+  const settling = [];
+  function markBox(box, locator) {
+    const open = marks[marks.length - 1];
+    if (!open || open.box || !box) return;
+    open.box = capture.pageToFrame(box);
+    // Taken now, while the element is surely there; bounded, so one detached in the meantime
+    // cannot hold the end of the take for the default half a minute.
+    const handle = locator.elementHandle({ timeout: 1000 }).catch(() => null);
+    boxed = { mark: open, locator, handle, box };
+  }
+
+  // The element as it stands now, or null once it has gone from the page
+  async function stillThere(locator, handle) {
+    if (handle && (await handle.evaluate((el) => el.isConnected))) return handle;
+    return (await locator.count()) === 1 ? locator : null;
+  }
+
+  // Only an element that grew or shrank where it stood: one that no longer overlaps where it was
+  // has been scrolled or pushed somewhere else, and a box over both places would point at neither.
+  // Gone from the page, it keeps the box it was acted on at. Never throws: this runs while the
+  // step script has already moved on, and a step that ends cannot fail the next one.
+  async function remeasure({ mark: owner, locator, handle: pending, box }) {
+    const handle = await pending;
+    try {
+      const element = await stillThere(locator, handle);
+      if (!element) return;
+      const found = await measure(element);
+      const now = found.inFrame ? await element.boundingBox() : reachable(found, scroll.visibleBox(found));
+      const overlaps = now && now.x < box.x + box.width && box.x < now.x + now.width
+        && now.y < box.y + box.height && box.y < now.y + now.height;
+      if (overlaps) owner.box = unionBox(owner.box, capture.pageToFrame(now));
+    } catch {
+      // Detached while it was being measured: as good as gone.
+    } finally {
+      await handle?.dispose().catch(() => {});
+    }
+  }
+  function endStep() {
+    if (boxed) settling.push(remeasure(boxed));
+    boxed = null;
+  }
+
+  // Synchronous for the step script, which calls it without await: the measurement of the step it
+  // closes runs alongside the next one and is waited for at the end of the take.
+  const mark = (label) => {
+    endStep();
+    marks.push({ at: since(), label, box: null });
+  };
+  onTakeEnd(async () => {
+    endStep();
+    await Promise.all(settling);
+  });
 
   // Every move/keypress command makes a round trip to the browser. Sleeping the full `delay` AFTER
   // each round trip makes the action run 30–40% longer than intended, and that is exactly the
@@ -282,13 +349,15 @@ function buildContext({
   // covering: the page then overshoots and slides back, and the video shows the bounce.
   async function scrollTo(locator, { pause } = {}) {
     const found = await bringIntoView(locator, { restAt: true });
-    if (!found.inFrame && !reachable(found, scroll.visibleBox(found))) {
+    const box = found.inFrame ? await locator.boundingBox() : reachable(found, scroll.visibleBox(found));
+    if (!found.inFrame && !box) {
       throw new Error(
         'The element to scroll to did not come to rest anywhere a viewer can read it: no part of ' +
         'it is in the frame below whatever the page keeps pinned over the top.\n' +
         'Check the locator, or reach it through something inside the same pane.'
       );
     }
+    markBox(box, locator);
     // Arriving at a section is an action whose result is the section itself, so the default is the
     // wait for something that has to be read rather than the beat after an ordinary click.
     await sleep(human.wait(resolvePause(pause, pace, pace.afterClickObserveMs)));
@@ -349,6 +418,7 @@ function buildContext({
         'in the recording.\nCall term.close() before operating on the bottom of the page.'
       );
     }
+    markBox(box, locator);
     return box;
   }
 
@@ -497,7 +567,7 @@ function buildContext({
     let cut = null;
     let cutFrom = null;
     const closeCut = () => {
-      if (cut && cut.to === null) redactions.close(cut, cutFrom, since());
+      if (cut && cut.to === null) cuts.close(cut, cutFrom, since());
     };
     try {
       await picker.chooseFile({
@@ -505,8 +575,7 @@ function buildContext({
         holdMs: human.wait(pace.pickerHoldMs),
         open: () => click(locator, { pause: 0 }),
         onOpened: () => {
-          cut = redactions.open({
-            mode: 'cut', box: null,
+          cut = cuts.open({
             reason: `the file picker on the folder it opened on, before it was sent to the folder holding "${path.basename(file)}"`,
           });
           cutFrom = since();
@@ -685,92 +754,23 @@ function buildContext({
 
   let shotIndex = 0;
   async function shot(name) {
-    // A screenshot taken while something is being kept out of the video has to be kept out of the
-    // screenshot too, or the redaction is theatre: the still sits in the same directory.
-    if (active) {
-      if (active.mode === 'cut') {
-        throw new Error(
-          `shot(${JSON.stringify(name)}) is inside a redact(..., { mode: 'cut' }) window.\n` +
-          'That stretch is being removed from the video, so a screenshot of it defeats the point.'
-        );
-      }
-      if (!active.locator) {
-        throw new Error(
-          `shot(${JSON.stringify(name)}) is inside a redact('frame', ...) window.\n` +
-          'The whole frame is covered, so the screenshot would be blank. Pass a locator to ' +
-          'redact() instead, and the screenshot is masked over that element only.'
-        );
-      }
-    }
     shotIndex += 1;
     const file = path.join(outDir, `${String(shotIndex).padStart(2, '0')}-${name}.png`);
-    await page.screenshot({ path: file, mask: active ? [active.locator] : [] });
+    // A screenshot is of the whole page, so there is no element it was taken around.
+    screenshots.push({ at: since(), file: path.basename(file), box: null });
+    await page.screenshot({ path: file });
     return file;
   }
 
-  // Keeping something out of the finished video. What is on screen during `body` is covered, and
-  // the step script is the only place that knows when that is — whoever wrote the step knows the
-  // key is about to be revealed, so nothing has to be detected afterwards.
-  //
-  // `area` is the element holding it, or the string 'frame' when the position is not known.
-  const REDACT_PADDING = 8;
-  const REDACT_MODES = ['blur', 'box', 'cut'];
-
-  async function redact(area, body, { mode = 'blur' } = {}) {
-    if (!REDACT_MODES.includes(mode)) {
-      throw new Error(
-        `Invalid redact mode: ${JSON.stringify(mode)}\nUse one of ${REDACT_MODES.join(' | ')}.`
-      );
-    }
-    if (typeof body !== 'function') {
-      throw new Error('redact() takes the area first and the steps to cover second: redact(area, async () => { … })');
-    }
-
-    // A removed stretch takes everything in it, so there is no rectangle to measure
-    const locator = area === 'frame' || mode === 'cut' ? null : area;
-    const measure = async () => {
-      if (!locator) return null;
-      try {
-        return await locator.boundingBox();
-      } catch {
-        return null;   // not attached yet, or gone already; the other measurement may still land
-      }
-    };
-
-    const entry = redactions.open({ mode, box: null });
-    // Measuring costs a round trip to the browser, so the clock is read after it: the stretch
-    // starts where the first covered action does, not where the measurement did.
-    let box = await measure();
-    const start = since();
-    const previous = active;
-    active = { locator, mode };
-
-    let failed = false;
-    try {
-      await body();
-    } catch (error) {
-      failed = true;
-      throw error;
-    } finally {
-      active = previous;
-      box = unionBox(box, await measure());
-      // Padded in page coordinates, then moved into the frame the video actually holds: for a
-      // window recording that is the whole window, in physical pixels.
-      if (box) entry.box = capture.pageToFrame(padBox(box, REDACT_PADDING, viewport));
-      // The stretch is closed either way, and where the step script threw is where it ends — so
-      // nothing after the failure is blurred, and nothing the step script was covering when it
-      // failed is left uncovered in the video kept from the attempt. A stretch whose element could
-      // not be measured keeps its whole-frame box, which is the safe direction on a take nobody
-      // watched before it was written.
-      redactions.close(entry, start, since());
-      if (!failed && locator && !box) {
-        throw new Error(
-          'redact() could not measure the element at either end of the stretch, so there is ' +
-          'nothing to cover.\nKeep it on screen for the duration, or pass \'frame\' to cover the ' +
-          'whole frame instead.'
-        );
-      }
-    }
+  // No longer part of the step-script API: deciding before the take what is sensitive is made
+  // blind, so it is decided after watching instead. A step script written against it fails here
+  // with the replacement, rather than with "redact is not a function".
+  function redact() {
+    throw new Error(
+      'redact() has been removed from step scripts: record the take as it is, then cover what must not '
+      + `show with node ${displayPath(path.join(__dirname, 'edit.js'))} <video> cover --step "<step>".\n`
+      + 'Run it with --help for the other targets.'
+    );
   }
 
   const scope = {
@@ -796,8 +796,8 @@ function buildContext({
 // The commands are the half of the evidence the video is worst at: a viewer scrubbing for the
 // moment a job was picked up has to watch the panel until they spot it. The waitFor rows matter
 // most of all — that is the assertion the take rests on, stated once, with the text that matched.
-function buildCommandSection(commands, trimAt, removed = []) {
-  const shown = placed(commands, trimAt, removed);
+function buildCommandSection(commands, remap) {
+  const shown = placed(commands, remap);
   if (!shown.length) return '';
   const rows = shown.map((entry) => {
     const at = fmt(entry.at);
@@ -813,24 +813,22 @@ function buildCommandSection(commands, trimAt, removed = []) {
   return `## Commands run in the terminal\n\n${rows.join('\n')}\n\n`;
 }
 
-// Where a moment of the take lands in the finished video. The encode seeks past the page-load
-// wait, and a redaction in `cut` mode removes stretches after that, so every section of the
-// runbook has to ask the same question the same way — a timestamp that is stale by the length of
-// one removed stretch still looks like a timestamp.
-//
-// Returns null for a moment that was removed: the row is dropped rather than left pointing at a
-// second where the viewer will find something else.
-const placeAt = (at, trimAt, removed) => shiftTime(Math.max(0, at - trimAt), removed);
-
-function placed(entries, trimAt, removed) {
+function placed(entries, remap) {
   return entries
-    .map((entry) => ({ ...entry, at: placeAt(entry.at, trimAt, removed) }))
+    .map((entry) => ({ ...entry, at: remap(entry.at) }))
     .filter((entry) => entry.at !== null);
 }
 
-// The timeline is not written out as its own file: it lives in the runbook so there is only one place to edit.
-function buildTimeline(marks, trimAt, duration, removed = []) {
-  const shifted = placed(marks, trimAt, removed);
+// A step whose start was cut has no row, as any moment inside a cut has none. A step that starts
+// exactly where a cut does needs saying so: the remap places that one instant on the held frame
+// before the join, and without this a step cut out whole would keep a row the length of the hold.
+const STEP_PROBE = 0.05;
+const shownAt = (mark, remap) => (remap(mark.at + STEP_PROBE) === null ? null : remap(mark.at));
+
+function buildTimeline(marks, remap, duration) {
+  const shifted = marks
+    .map((m) => ({ ...m, at: shownAt(m, remap) }))
+    .filter((m) => m.at !== null);
   const rows = shifted
     .map((m, i) => ({ from: m.at, to: shifted[i + 1]?.at ?? duration, label: m.label }))
     .filter((r) => r.to - r.from > 0.4);
@@ -840,8 +838,8 @@ function buildTimeline(marks, trimAt, duration, removed = []) {
 // What the browser asked and what was answered. Worth its own section whichever backend
 // recorded the take: in a page recording the dialog is not in the video at all, and in a window
 // recording it is on screen for a couple of seconds among everything else.
-function buildDialogSection(dialogs, trimAt, removed) {
-  const shown = placed(dialogs, trimAt, removed);
+function buildDialogSection(dialogs, remap) {
+  const shown = placed(dialogs, remap);
   if (!shown.length) return '';
   const rows = shown.map((entry) => (
     `- ${fmt(entry.at)}  ${entry.kind}: "${entry.message}" — ${entry.accepted ? 'accepted' : 'dismissed'}`
@@ -849,47 +847,19 @@ function buildDialogSection(dialogs, trimAt, removed) {
   return `## Dialogs the browser put up\n\n${rows.join('\n')}\n\n`;
 }
 
-// A blurred rectangle in the middle of a video looks like a rendering fault unless the reader is
-// told it was deliberate. Listing where and when also lets whoever checks the evidence confirm the
-// right thing was covered — the position of a secret is not the secret.
-function buildRedactionSection(redactions, trimAt, removed) {
-  const covers = placed(
-    redactions.filter((r) => r.mode !== 'cut').map((r) => ({ ...r, at: r.from })),
-    trimAt, removed,
-  );
-  if (!covers.length) return '';
-  const rows = covers.map((entry) => {
-    const until = placeAt(entry.to, trimAt, removed) ?? entry.at;
-    const how = entry.mode === 'box' ? 'covered with a solid block' : 'blurred';
-    const where = entry.box
-      ? `${entry.box.width}x${entry.box.height} at ${entry.box.x},${entry.box.y}`
-      : 'the whole frame';
-    return `- ${fmt(entry.at)} - ${fmt(until)}  ${how} (${where})`;
-  });
-  return `## Kept out of the video\n\n${rows.join('\n')}\n\n`;
-}
-
 // A reader comparing the runbook against the video has to know the video is shorter than what was
-// recorded, or a gap in the action reads as a bug in the app.
-function buildRemovedSection(removed) {
+// recorded, or a gap in the action reads as a bug in the app. `removed` is in take time; each row
+// is placed through the same remap as every other section, at the first instant of the stretch,
+// which is where the join sits on the video.
+function buildRemovedSection(removed, remap) {
   if (!removed.length) return '';
   const total = removed.reduce((sum, r) => sum + (r.to - r.from), 0);
   const count = `${removed.length} ${removed.length === 1 ? 'stretch' : 'stretches'} `
     + `totalling ${total.toFixed(1)}s were cut out of this take`;
-  if (!removed.some((r) => r.reasons)) {
-    return `## Removed from the video\n\n`
-      + `${count}, because what was on screen for `
-      + `them does not belong in evidence. Every timestamp above is on the shortened video.\n\n`;
-  }
-  // A stretch the runner removed itself is not a secret kept out of the video, and saying it was
-  // would send a reader looking for one. Each row says where the cut is on the shortened video.
-  let before = 0;
+  // Each row says where the cut is on the shortened video, and what it was cut for.
   const rows = removed.map((r) => {
-    const secret = 'what was on screen does not belong in evidence';
-    const why = r.reasons ? r.reasons.map((reason) => reason || secret).join('; ') : secret;
-    const row = `- ${fmt(r.from - before)}  ${(r.to - r.from).toFixed(1)}s — ${why}`;
-    before += r.to - r.from;
-    return row;
+    const why = (r.reasons ?? []).filter(Boolean).join('; ');
+    return `- ${fmt(remap(r.from))}  ${(r.to - r.from).toFixed(1)}s${why ? ` — ${why}` : ''}`;
   });
   return `## Removed from the video\n\n`
     + `${count}. Every timestamp above is on the shortened video.\n\n${rows.join('\n')}\n\n`;
@@ -897,8 +867,8 @@ function buildRemovedSection(removed) {
 
 // A shortcut is the one action a viewer can miss even though the key hint overlay shows for over a
 // second, so list them with timestamps to scrub back to the right spot. No shortcuts, no section.
-function buildHotkeySection(hotkeys, trimAt, removed = []) {
-  const shown = placed(hotkeys, trimAt, removed);
+function buildHotkeySection(hotkeys, remap) {
+  const shown = placed(hotkeys, remap);
   if (!shown.length) return '';
   const rows = shown.map((h) => {
     const at = fmt(h.at);
@@ -909,8 +879,8 @@ function buildHotkeySection(hotkeys, trimAt, removed = []) {
 
 // Captions are recorded here as well because most of them talk about things the recording does NOT
 // contain (the <select> dropdown, the file picker). A runbook reader needs that list without replaying the video.
-function buildNoteSection(notes, trimAt, removed = []) {
-  const shown = placed(notes, trimAt, removed);
+function buildNoteSection(notes, remap) {
+  const shown = placed(notes, remap);
   if (!shown.length) return '';
   const rows = shown.map((n) => `- ${fmt(n.at)}  ${n.text}`);
   return `## Captions shown in the video\n\n${rows.join('\n')}\n\n`;
@@ -923,11 +893,11 @@ function buildNoteSection(notes, trimAt, removed = []) {
 // a page recording — and nothing about it says which run wrote it or why it stopped, so a directory
 // collects one per attempt and none of them can be told from another. Encoded, it is a video of the
 // flow up to the failure, which is the one thing worth having from a take that did not finish.
-function failedTakeError({ error, raw, endedEarly }, { outDir, name, marks, trimAt, videoOpts, redactions, at, maxSeconds }) {
+function failedTakeError({ error, raw, endedEarly }, { outDir, name, marks, trimAt, videoOpts, cuts, at, maxSeconds }) {
   let partial = null;
   if (raw) {
     try {
-      const filter = buildFilter(redactions.all(), trimAt);
+      const filter = buildFilter(cuts.all(), trimAt);
       partial = encodeMp4(outDir, `${name}-failed`, raw, trimAt, videoOpts, filter);
     } catch {
       // Too short to hold a frame, or cut off mid-fragment. Either way it is not evidence, and
@@ -960,11 +930,9 @@ function encodeMp4(outDir, name, webm, trimAt, video, filter) {
   const mp4 = path.join(outDir, `${name}.mp4`);
   execFileSync('ffmpeg', [
     '-y', '-v', 'error', '-ss', String(trimAt), '-i', webm,
-    // The redaction graph runs before the encoder, so what is covered never reaches the h264
-    // stream at all — there is no earlier version of the frame left inside the file.
+    // The cut graph runs before the encoder, so a stretch taken out never reaches the h264 stream
     ...(filter ? ['-filter_complex', filter.graph, '-map', `[${filter.label}]`] : []),
-    '-c:v', 'libx264', '-preset', video.preset, '-crf', String(video.crf),
-    '-pix_fmt', 'yuv420p', '-movflags', '+faststart', mp4,
+    ...mp4Encode(video), mp4,
   ]);
   fs.unlinkSync(webm);
   return mp4;
@@ -1047,7 +1015,7 @@ function runArtifacts(outDir, name) {
     // They are only ever left behind by a run that died partway, and they are large.
     || [
       `${name}.mp4`, `${name}.webm`, `${name}.raw.mp4`,
-      `${name}-runbook.md`, `${name}-console.log`,
+      `${name}-runbook.md`, `${name}-timeline.json`, `${name}-console.log`,
     ].includes(f)
   ));
 }
@@ -1116,54 +1084,84 @@ function reportResult(outDir, name, mp4, runbook, shots, durationSeconds) {
   console.log(`  Once there is nothing left to compare against, delete them: rm -rf ${olds.map((v) => rel(path.join(outDir, v))).join(' ')}`);
 }
 
-// A description for re-running later without having to work the screen out from scratch again.
-function writeRunbook(outDir, name, meta) {
-  const file = path.join(outDir, `${name}-runbook.md`);
+// A description for re-running later without having to work the screen out from scratch again,
+// rendered from the take's data and nothing else. `remap` says where a moment of the take lands in
+// the video being described and returns null for one that is not in it; `duration` is that video's
+// length. Both default to the video this take produced, so a video derived from it is described by
+// passing its own two and nothing about the layout can come out different. `added` is markdown
+// placed right after the steps, for what such a video adds to the take.
+function renderRunbook(data, {
+  remap = takeRemap(data.trimAt, data.removed, data.inserted), duration = data.duration, added = '',
+} = {}) {
   const rel = displayPath;
-  const body = `---
-name: ${name}
-app: ${meta.app}
-base_url: ${meta.baseUrl}
-start_path: ${meta.start}
-captions: ${meta.captions}
-capture: ${meta.capture}${meta.captureFrame ? `
-capture_frame: ${meta.captureFrame.width}x${meta.captureFrame.height} at ${meta.captureFrame.x},${meta.captureFrame.y}, ${meta.captureFrame.scale}x` : ''}
-config: ${meta.configFile ? rel(meta.configFile) : `(none — recorded with BASE_URL=${meta.baseUrl})`}
-steps: ${rel(meta.stepsFile)}
-video: ${rel(meta.video)}
-duration_seconds: ${meta.duration.toFixed(1)}
-recorded_at: ${meta.recordedAt}
+  const shots = data.screenshots.map((s) => s.file);
+  return `---
+name: ${data.name}
+app: ${data.app}
+base_url: ${data.baseUrl}
+start_path: ${data.start}
+captions: ${data.captions}
+capture: ${data.capture}${data.captureFrame ? `
+capture_frame: ${data.captureFrame.width}x${data.captureFrame.height} at ${data.captureFrame.x},${data.captureFrame.y}, ${data.captureFrame.scale}x` : ''}
+config: ${data.configFile ? rel(data.configFile) : `(none — recorded with BASE_URL=${data.baseUrl})`}
+steps: ${rel(data.stepsFile)}
+video: ${rel(data.video)}
+duration_seconds: ${duration.toFixed(1)}
+recorded_at: ${data.recordedAt}
 ---
 
-# Runbook — ${name}
+# Runbook — ${data.name}
 
 ## Re-run
 
 \`\`\`bash
-OUT_DIR=${rel(outDir)} node ${rel(meta.runner)} ${rel(meta.stepsFile)}
+OUT_DIR=${rel(data.outDir)} node ${rel(data.runner)} ${rel(data.stepsFile)}
 \`\`\`
 
 The step script, the configuration and the account are all fixed, so the command above reproduces exactly this take.
-To change what gets recorded, edit \`${rel(meta.stepsFile)}\`, not the runbook file.
+To change what gets recorded, edit \`${rel(data.stepsFile)}\`, not the runbook file.
 
 ## Steps in the video
 
-${meta.timeline}
+${buildTimeline(data.marks, remap, duration)}
 
-${meta.hotkeySection}${meta.noteSection}${meta.commandSection}${meta.dialogSection}${meta.redactionSection}${meta.removedSection}## Screenshots
+${added}${buildHotkeySection(data.hotkeys, remap)}${buildNoteSection(data.notes, remap)}${buildCommandSection(data.commands, remap)}${buildDialogSection(data.dialogs, remap)}${buildRemovedSection(data.removed, remap)}## Screenshots
 
-${meta.shots.length ? meta.shots.map((f) => `- ${f}`).join('\n') : '- (none)'}
+${shots.length ? shots.map((f) => `- ${f}`).join('\n') : '- (none)'}
 
 ## Environment
 
-${meta.fixes.length ? meta.fixes.map((f) => `- fixed automatically: ${f}`).join('\n') : '- nothing needed fixing'}
+${data.fixes.length ? data.fixes.map((f) => `- fixed automatically: ${f}`).join('\n') : '- nothing needed fixing'}
 
 ## Page errors recorded during the take
 
-${meta.problems.length ? meta.problems.slice(0, 20).map((p) => `- ${p}`).join('\n') : '- none'}
+${data.problems.length ? data.problems.slice(0, 20).map((p) => `- ${p}`).join('\n') : '- none'}
 `;
-  fs.writeFileSync(file, body);
+}
+
+// The take's data is written out beside the runbook: the json is the machine-readable source, the
+// runbook the human view of the same data. Every time in it is in seconds of the take as recorded,
+// before the trim and the removed stretches, so whatever reads it back maps them onto its own video
+// through one function instead of undoing this one's.
+function writeTake(outDir, data) {
+  fs.writeFileSync(path.join(outDir, `${data.name}-timeline.json`), `${JSON.stringify(data, null, 2)}\n`);
+  const file = path.join(outDir, `${data.name}-runbook.md`);
+  fs.writeFileSync(file, renderRunbook(data));
   return file;
+}
+
+// The size of the frame the encoded video holds, which is what every box in the take's data is
+// measured against, and how long it plays. Both read off the file rather than worked out from the
+// capture: a window take is cropped to even numbers on the way in, and the file is what a box is
+// drawn onto; the wall clock of the take runs a frame or two past the last frame encoded, and an
+// edit that places a mark near the end must agree with the file about where that end is.
+function probeVideo(mp4) {
+  const [stream, format] = execFileSync('ffprobe', [
+    '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height:format=duration',
+    '-of', 'csv=p=0', mp4,
+  ], { encoding: 'utf8' }).trim().split('\n');
+  const [width, height] = stream.split(',').map(Number);
+  return { frame: { width, height }, duration: Number(format) };
 }
 
 // The account is stored so a recording does not have to ask for it again, which means the runner
@@ -1276,7 +1274,8 @@ async function main() {
   const hotkeys = [];
   const notes = [];
   const dialogs = [];
-  const redactions = createRedactions();
+  const screenshots = [];
+  const cuts = createCuts();
   const captions = createCaptions(settings.recording.captions);
 
   // The seed comes from the step script's name: the pacing jitter of a given step script is the same
@@ -1335,9 +1334,12 @@ async function main() {
   };
   process.once('SIGINT', onInterrupt);
 
+  // What has to happen once the last step is done and before the recorder stops: the page is still
+  // the one the take ends on.
+  const takeEnd = [];
   const ctx = buildContext({
     page, outDir, marks, hotkeys, notes, dialogs, startedAt, pace, viewport, human, captions,
-    terminal, redactions, capture, helpers,
+    terminal, cuts, capture, helpers, screenshots, onTakeEnd: (fn) => takeEnd.push(fn),
     // A dialog the browser draws is in the video when the window is being recorded, and needs a
     // caption standing in for it when only page content is.
     capturesBrowserUi: capture.mode !== 'page',
@@ -1349,6 +1351,7 @@ async function main() {
   let failure = null;
   try {
     await steps.run(ctx);
+    for (const fn of takeEnd) await fn();
   } catch (error) {
     // Nothing else is tidied up first. Recording the screen, every second between the failure and
     // the stop is a second of whatever else is on the operator's display; the recorder is stopped
@@ -1371,13 +1374,12 @@ async function main() {
   if (failure) {
     await browser.close().catch(() => { /* the abort above may already have taken it */ });
     throw failedTakeError(failure, {
-      outDir, name, marks, trimAt, videoOpts, redactions, at: (Date.now() - startedAt) / 1000,
+      outDir, name, marks, trimAt, videoOpts, cuts, at: (Date.now() - startedAt) / 1000,
       maxSeconds: settings.recording.screenCapture.maxSeconds,
     });
   }
 
   await sleep(pace.tailMs);
-  const total = (Date.now() - startedAt) / 1000;
   const { file: recorded } = await capture.stop();
 
   // The fullPage screenshot has to be taken outside the recording context, because the scrolling would land in the video
@@ -1390,13 +1392,11 @@ async function main() {
   }
   await browser.close();
 
-  const filter = buildFilter(redactions.all(), trimAt);
+  const filter = buildFilter(cuts.all(), trimAt);
   const removed = filter?.removed ?? [];
-  const cutSeconds = removed.reduce((sum, r) => sum + (r.to - r.from), 0);
-  const duration = total - trimAt - cutSeconds;
-
+  const inserted = filter?.inserted ?? [];
   const mp4 = encodeMp4(outDir, name, recorded, trimAt, videoOpts, filter);
-  const timeline = buildTimeline(marks, trimAt, duration, removed);
+  const { frame, duration } = probeVideo(mp4);
 
   // Only write the log file when there really are errors, so the evidence directory stays free of clutter
   let problemFile = null;
@@ -1405,9 +1405,12 @@ async function main() {
     fs.writeFileSync(problemFile, `${problems.join('\n')}\n`);
   }
 
-  const shots = fs.readdirSync(outDir).filter((f) => f.endsWith('.png')).sort();
-  const runbook = writeRunbook(outDir, name, {
-    app, baseUrl, start: steps.start || '/', configFile, stepsFile, video: mp4,
+  // Every screenshot in the directory, the full-page one included, with when and around what it was
+  // taken where shot() took it.
+  const shotFiles = fs.readdirSync(outDir).filter((f) => f.endsWith('.png')).sort();
+  const data = {
+    name, app, baseUrl, start: steps.start || '/', configFile, stepsFile, video: mp4,
+    outDir: path.resolve(outDir), runner: __filename, recordedAt: new Date().toISOString(),
     captions: captions.enabled ? captions.locale : 'off',
     capture: capture.mode,
     // What was recorded and at how many pixels to the point. A window capture can be wrong in a
@@ -1415,15 +1418,23 @@ async function main() {
     // whole of it — so the numbers it used are written down where they can be measured against
     // the video itself.
     captureFrame: capture.frame(),
-    duration, recordedAt: new Date().toISOString(),
-    runner: __filename, timeline, hotkeySection: buildHotkeySection(hotkeys, trimAt, removed),
-    noteSection: buildNoteSection(notes, trimAt, removed),
-    commandSection: buildCommandSection(terminal.commands, trimAt, removed),
-    dialogSection: buildDialogSection(dialogs, trimAt, removed),
-    redactionSection: buildRedactionSection(redactions.all(), trimAt, removed),
-    removedSection: buildRemovedSection(removed),
-    shots, fixes, problems,
-  });
+    // Every box here is in frame pixels; a screenshot is in the page's. This is the step between.
+    pageInFrame: capture.pageInFrame(),
+    frame,
+    duration, trimAt,
+    removed: removed.map((r) => ({ ...r, from: r.from + trimAt, to: r.to + trimAt })),
+    inserted: inserted.map((i) => ({ ...i, at: i.at + trimAt })),
+    marks, hotkeys, notes, commands: terminal.commands, dialogs,
+    screenshots: shotFiles.map((file) => (
+      screenshots.find((s) => s.file === file) ?? { at: null, file, box: null }
+    )),
+    fixes, problems,
+  };
+  // In seconds of the finished video, unlike everything else here: what reads them is a tool
+  // looking at the mp4, which has no take time to convert from.
+  const remap = takeRemap(trimAt, data.removed, data.inserted);
+  data.fades = fadeWindows(data.inserted.map((i) => remap(i.at)));
+  const runbook = writeTake(outDir, data);
 
   if (settings.recording.devtools) {
     console.log(
@@ -1433,12 +1444,12 @@ async function main() {
     );
   }
   fixes.forEach((f) => console.log(`FIXED: ${f}`));
-  console.log(timeline);
+  console.log(buildTimeline(marks, remap, duration));
   if (problemFile) {
     console.log('');
     console.log(`PROBLEMS: ${problems.length} page errors — see ${path.relative(process.cwd(), problemFile)}`);
   }
-  reportResult(outDir, name, mp4, runbook, shots, duration);
+  reportResult(outDir, name, mp4, runbook, shotFiles, duration);
 }
 
 // Only self-runs when invoked directly; a require pulls in just the functions (used by the tests)
@@ -1505,7 +1516,11 @@ module.exports = {
   // .gitignore hints, none of which need a browser to be checked.
   fmt, keyCaps, readingTime, runCaseDisposers, buildTimeline, buildHotkeySection, buildNoteSection,
   failedTakeError,
-  buildCommandSection, buildDialogSection, buildRedactionSection, buildRemovedSection, placeAt,
+  buildCommandSection, buildDialogSection, buildRemovedSection, placeAt,
+  takeRemap,
+  // The one way a runbook is written, from the data in <name>-timeline.json: anything that
+  // describes a video made from the take renders through it with its own remap.
+  renderRunbook,
   ignoreHints,
   // Re-exported where the pacing tests already look for it; it lives in human.js with the rest
   // of the pacing, because the terminal helpers read the same vocabulary.

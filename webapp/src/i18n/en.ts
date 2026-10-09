@@ -121,8 +121,9 @@ export const en = {
   'features.runbook.title': 'A runbook, not just a file',
   'features.runbook.body':
     'The timeline, the captions, the commands run, the page errors seen, and the command that produces the same take again.',
-  'features.secrets.title': 'Secrets stay out',
-  'features.secrets.body': 'Blur, black out or cut a stretch, in the video and the screenshots alike.',
+  'features.edit.title': 'Edited after you watch it',
+  'features.edit.body':
+    'Faster, a wait cut out, a step highlighted, a value covered — on the finished take, which stays as it was recorded.',
   'features.local.title': 'Nothing leaves your machine',
   'features.local.body':
     'No service and no bot account. It runs inside the agent CLI you already have, against the site you name and nothing else.',

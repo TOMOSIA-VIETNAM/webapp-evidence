@@ -92,7 +92,7 @@ function createShell({
   onOutput = () => {},
   // Applied to everything that leaves this module — what is drawn, what waitFor matches, and
   // what an error message quotes. One place, so the panel and the runbook cannot disagree about
-  // what was redacted.
+  // what was scrubbed.
   scrub = (text) => text,
 } = {}) {
   assertPlatformHasShell();

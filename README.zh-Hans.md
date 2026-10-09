@@ -41,7 +41,7 @@ AI 让改动变快了，证明它能跑却没有变快 —— UAT、交接、缺
 - **看上去像人在操作** —— 指针会移动，敲键盘的节奏不均匀，滚动停在它要去的地方。没有任何跳变。
 - **给的是 runbook，不只是文件** —— 时间线、字幕、执行过的命令、记录到的页面错误，以及再录一次同样
   内容的命令。
-- **密钥留在外面** —— 模糊、涂黑，或者把那一段直接剪掉，视频和截图一视同仁。
+- **看完再改** —— 加速、剪掉等待、标出某一步、遮住某个值，都在录好的视频上完成；原始录制保持不变。
 - **没有东西离开你的机器** —— 没有服务，没有机器人账号；它在你本来就有的 agent CLI 里运行，只针对你
   指定的站点。
 
@@ -142,7 +142,7 @@ Antigravity 用 `/webapp-evidence-recording`，Codex 用 `$webapp-evidence-recor
 | 给 MR 或 PR 的证据 | `/webapp-evidence:recording https://gitlab.example.com/group/admin/-/merge_requests/1783` |
 | 数据变了之后再录一次同样的 | `/webapp-evidence:recording record that again` —— 旧的保留为 `v1`、`v2`…… |
 | 录慢一点，或换一种字幕语言 | `record it slower`、`captions in Japanese` —— 按项目记住 |
-| 把密钥挡在录制之外 | `blur the API key when it appears` |
+| 看完之后再修改 | `cover the API key in step 3`、`twice as fast` —— 原始录制保持不变 |
 | 让下拉框或对话框本身入镜 | `--screen` —— 录浏览器窗口，所以操作系统画的东西也在画面里 |
 | 无论流程如何都不占用屏幕 | `--headless` —— 默认行为，也是把这个问题直接定下来的方式 |
 | 给 README 用的 gif，自己托管页面用的 webm | `-f gif`、`-f webm` —— 其余情况是 mp4，因为它到哪都能内联播放 |

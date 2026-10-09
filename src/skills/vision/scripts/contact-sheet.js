@@ -116,8 +116,27 @@ function labelFilter(font, tileWidth) {
   ].join(':');
 }
 
-function buildFilter({ every, columns, rows, tile }, font) {
+// A recording that had a stretch cut out holds a frame on each side of the join and dissolves
+// between them. The dissolve shows neither picture, so its frames are dropped before sampling:
+// `fps` then carries the held frame before it into any tile that would have landed there, which
+// keeps one tile per interval and the ranges printed below still true.
+function fadeFilter(fades) {
+  if (!fades.length) return null;
+  const inside = fades.map(({ from, to }) => `between(t\\,${from}\\,${to})`).join('+');
+  return `select='not(${inside})'`;
+}
+
+// The runner writes where the dissolves are into the timeline beside the video. A video with no
+// timeline — any mp4 someone hands over — has none to skip.
+function fadesOf(video) {
+  const file = path.join(path.dirname(video), `${path.basename(video, path.extname(video))}-timeline.json`);
+  if (!fs.existsSync(file)) return [];
+  return JSON.parse(fs.readFileSync(file, 'utf8')).fades ?? [];
+}
+
+function buildFilter({ every, columns, rows, tile }, font, fades = []) {
   return [
+    fadeFilter(fades),
     `fps=1/${every}`,
     `scale=${tile}:-1:flags=lanczos`,
     labelFilter(font, tile),
@@ -157,7 +176,7 @@ function main() {
   const pattern = path.join(outDir, `${name}-sheet-%02d.png`);
 
   execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', video,
-    '-vf', buildFilter(options, font), '-vsync', 'vfr', pattern]);
+    '-vf', buildFilter(options, font, fadesOf(video)), '-vsync', 'vfr', pattern]);
 
   const sheets = fs.readdirSync(outDir)
     .filter((f) => f.startsWith(`${name}-sheet-`) && f.endsWith('.png'))
@@ -186,4 +205,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { DEFAULTS, parseArgs, resolveOptions, buildFilter, sheetRanges, mmss, findFont };
+module.exports = { DEFAULTS, parseArgs, resolveOptions, buildFilter, fadesOf, sheetRanges, mmss, findFont };

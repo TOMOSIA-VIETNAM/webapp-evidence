@@ -1,8 +1,8 @@
-// Redaction for everything the terminal panel produces.
+// Taking secrets out of everything the terminal panel produces.
 //
 // One function feeds the panel, the runbook and the console log, because those three have to
 // agree: a value blacked out in the video and printed in full in the runbook next to it is worse
-// than not redacting at all — it reads as safe.
+// than not scrubbing at all — it reads as safe.
 //
 // The list is deliberately small. There is no built-in denylist of "things that look like a
 // token": one that appears thorough and is not gives the operator a confidence the code cannot

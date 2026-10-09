@@ -42,7 +42,8 @@ use; it drives Chrome and hands back a video, screenshots of the main steps, and
   rest on what it travelled to. Nothing jumps.
 - **A runbook, not just a file** — the timeline, the captions, the commands run, the page errors
   seen, and the command that produces the same take again.
-- **Secrets stay out** — blur, black out or cut a stretch, in the video and the screenshots alike.
+- **Edited after you watch it** — faster, a wait cut out, a step highlighted, a value covered, on
+  the finished take. The recording itself stays as it was.
 - **Nothing leaves your machine** — no service, no bot account; it runs inside the agent CLI you
   already have, against the site you name and nothing else.
 
@@ -152,7 +153,7 @@ language you write it, and the agent answers in that language.
 | Evidence for an MR or PR | `/webapp-evidence:recording https://gitlab.example.com/group/admin/-/merge_requests/1783` |
 | The same take again, after the data changed | `/webapp-evidence:recording record that again` — old takes are kept as `v1`, `v2`, … |
 | A slower take, or captions in another language | `record it slower`, `captions in Japanese` — remembered per project |
-| A secret kept out of the recording | `blur the API key when it appears` |
+| A take changed after watching it | `cover the API key in step 3`, `twice as fast` — the recording itself stays as it was |
 | The dropdown or dialog itself in the video | `--screen` — records the browser window, so what the OS draws is in frame |
 | To stay off the screen, whatever the flow | `--headless` — the default, and the way to settle that question outright |
 | A gif for a README, a webm for a page you control | `-f gif`, `-f webm` — mp4 otherwise, because it plays inline everywhere |

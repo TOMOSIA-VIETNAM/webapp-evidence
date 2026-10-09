@@ -247,8 +247,8 @@ test('a page recording leaves a rectangle where it was measured', () => {
 });
 
 test('a window recording moves it past the browser chrome and onto physical pixels', () => {
-  // Drawn at page coordinates without this, a redaction lands on the browser's toolbar — and
-  // on a 2x display covers a quarter of what it was meant to.
+  // Drawn at page coordinates without this, a box lands on the browser's toolbar — and on a 2x
+  // display holds a quarter of what it was meant to.
   assert.deepEqual(
     frameRect(BOX, { x: 1, y: 80, scale: 2 }),
     { x: 82, y: 280, width: 400, height: 60 },
@@ -279,8 +279,8 @@ test('a window capture offsets the page by the browser chrome alone', () => {
 
 test('a screen capture offsets it by where the window is as well', () => {
   // The frame starts at the display's origin, and macOS puts the window below the menu bar
-  // whatever --window-position asks for. Without this a redaction lands 44 points — 88 pixels
-  // on a 2x display — above what it was meant to cover, and the video ships still legible.
+  // whatever --window-position asks for. Without this a box lands 44 points — 88 pixels on a 2x
+  // display — above the element it was measured on.
   assert.deepEqual(
     contentOffsetFor(WINDOW_GEOMETRY, 'screen', 2),
     { x: 1, y: 124, scale: 2 },
@@ -295,7 +295,7 @@ test('a window flush against the display origin makes the two agree', () => {
   );
 });
 
-test('a rectangle redacted in a screen capture clears the browser chrome', () => {
+test('a rectangle measured in a screen capture clears the browser chrome', () => {
   const offset = contentOffsetFor(WINDOW_GEOMETRY, 'screen', 2);
   const onPage = { x: 40, y: 10, width: 200, height: 24 };
   const inFrame = frameRect(onPage, offset);

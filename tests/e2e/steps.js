@@ -12,7 +12,7 @@ module.exports = {
   name: 'e2e-user-search',
   start: '/',
 
-  async run({ page, mark, click, type, select, upload, hotkey, note, shot, scrollTo, drag, sleep, term, redact, api }) {
+  async run({ page, mark, click, type, select, upload, hotkey, note, shot, scrollTo, drag, sleep, term, api }) {
     if (!process.env.DEMO_LOG) throw new Error('DEMO_LOG must point at the demo app\'s log file');
 
     mark('Open the search screen');
@@ -107,13 +107,11 @@ module.exports = {
     }
     await shot('summary');
 
-    mark('Reveal a value that must not survive into the evidence');
-    // The element does not exist on screen until the button is pressed, so the rectangle can only
-    // be measured on the way out — which is the case worth exercising here.
-    await redact(page.locator('#api_key'), async () => {
-      await click(page.getByRole('button', { name: 'Reveal API key' }), { pause: 'observe' });
-      await shot('key-masked');
-    }, { mode: 'box' });
+    // What the edits after the take cover: a value the page reveals on a click, recorded as it was
+    // on screen, so the check can pixelate it afterwards by naming this step.
+    mark('Reveal the API key');
+    await click(page.getByRole('button', { name: 'Reveal API key' }), { pause: 'observe' });
+    await shot('key-revealed');
 
     mark('Trigger the sync, whose work happens on the server');
     await click(page.getByRole('button', { name: 'Run sync' }), { pause: 'observe' });
