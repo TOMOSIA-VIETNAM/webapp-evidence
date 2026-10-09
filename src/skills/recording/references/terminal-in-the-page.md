@@ -35,16 +35,34 @@ await term.close();
 
 `term.script` writes the file before the panel opens and shows only the `cat` and the run, which is
 what someone with that file already in their repository would do. It runs the file with `sh`; pass
-`{ run: 'node seed.js' }` for anything else. Reach for it when the setup really is a file — a single
-command is typed, and a shell file written to hold one line is two steps in the video where there
-was one.
+`{ run: 'bin/rails runner seed.rb' }` or whatever runs a file in the project's own language for
+anything else. Reach for it when the setup really is a file — a single command is typed, and a
+shell file written to hold one line is two steps in the video where there was one.
+
+## Which language the commands are in
+
+The reviewer reads every command as something they could run in this repository. Pick by what the
+command has to show:
+
+1. **What the application holds** — a row, a job's status, a setting: the project's own tooling,
+   `bin/rails runner`, `bundle exec rake`, `npm run`, `php artisan tinker`, `python manage.py shell`,
+   `go run`, whichever its `Gemfile`, `package.json`, `composer.json`, `pyproject.toml`, `go.mod`,
+   `Cargo.toml` or `pom.xml` says it is built with. These go through the application's own models
+   and configuration, so what they print is what the application sees.
+   `bin/rails runner 'puts SyncJob.last.status'` proves the job finished; a Python query written for
+   the take proves only that query.
+2. **Everything else** — a file, a log, an HTTP response: plain shell tools, `curl`, `tail`, `grep`,
+   `jq`, `ls`, `psql`, `sqlite3`. Every reviewer reads them.
+3. **Another language**, only when neither of those can do it, or can only in a way nobody could
+   read. Say why in one line of the report: a Python script in a Ruby repository reads as a mistake
+   unless someone says it was not.
 
 `term.run` throws when the command exits non-zero, because a failing command in a piece of evidence
 is a broken take rather than a result — pass `{ allowFailure: true }` when the failure is the thing
 being shown. `term.waitFor` throws on timeout, with the last lines of output in the message.
 
 The pause after a command follows the same vocabulary as a click (`'quick' | 'normal' | 'observe'`,
-or a number of milliseconds): `term.run('rake db:seed', { pause: 'quick' })`.
+or a number of milliseconds): `term.run('bin/rails db:seed', { pause: 'quick' })`.
 
 **Write `waitFor`, not `sleep`.** A fixed wait either fails the day the machine is busy or pads every
 take with dead air, and neither one proves the line arrived. `waitFor` is also what the runbook
