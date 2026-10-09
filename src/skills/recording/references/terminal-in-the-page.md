@@ -35,9 +35,26 @@ await term.close();
 
 `term.script` writes the file before the panel opens and shows only the `cat` and the run, which is
 what someone with that file already in their repository would do. It runs the file with `sh`; pass
-`{ run: 'node seed.js' }` for anything else. Reach for it when the setup really is a file — a single
-command is typed, and a shell file written to hold one line is two steps in the video where there
-was one.
+`{ run: 'bin/rails runner seed.rb' }` or whatever runs a file in the project's own language for
+anything else. Reach for it when the setup really is a file — a single command is typed, and a
+shell file written to hold one line is two steps in the video where there was one.
+
+## Which language the commands are in
+
+The reviewer reads every command as something they could run in this repository. Pick in this
+order, and stop at the first that does the job:
+
+1. **The project's own tooling** — `bin/rails runner`, `bundle exec rake`, `npm run`,
+   `php artisan tinker`, `python manage.py shell`, `go run`: whichever the repository is built with,
+   which its `Gemfile`, `package.json`, `composer.json`, `pyproject.toml`, `go.mod`, `Cargo.toml` or
+   `pom.xml` says. These go through the application's own models and configuration, so what they
+   print is what the application sees. `bin/rails runner 'puts SyncJob.last.status'` proves the job
+   finished; a Python query written for the take proves only that query.
+2. **Plain shell tools** — `curl`, `tail`, `grep`, `jq`, `ls`, `psql`, `sqlite3`. Every machine has
+   them and every reviewer reads them.
+3. **Another language**, only when neither of those can do it, or can only in a way nobody could
+   read. Say why in one line of the report: a Python script in a Ruby repository reads as a mistake
+   unless someone says it was not.
 
 `term.run` throws when the command exits non-zero, because a failing command in a piece of evidence
 is a broken take rather than a result — pass `{ allowFailure: true }` when the failure is the thing
