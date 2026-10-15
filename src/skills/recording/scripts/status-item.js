@@ -80,10 +80,13 @@ function run(argv) {
     return found;
   }
 
-  function hex(h) {
+  function hex(h, alpha) {
     var n = parseInt(h.slice(1), 16);
-    return $.NSColor.colorWithSRGBRedGreenBlueAlpha((n >> 16 & 255) / 255, (n >> 8 & 255) / 255, (n & 255) / 255, 1);
+    return $.NSColor.colorWithSRGBRedGreenBlueAlpha(
+      (n >> 16 & 255) / 255, (n >> 8 & 255) / 255, (n & 255) / 255, alpha === undefined ? 1 : alpha);
   }
+  // The frame is a light grey on either appearance: the ink, faded
+  var FRAME_ALPHA = 0.35;
   var BOX_X = MARK.box[0], BOX_Y = MARK.box[1], BOX = MARK.box[2];
   function polygon(pts, k) {   // SVG y grows downward, AppKit's upward
     var p = $.NSBezierPath.bezierPath;
@@ -121,8 +124,9 @@ function run(argv) {
     var frame = $.NSBezierPath.bezierPathWithRoundedRectXRadiusYRadius(
       $.NSMakeRect(SCALE, SCALE, pxW - 2 * SCALE, pxH - 2 * SCALE), 5 * SCALE, 5 * SCALE);
     frame.setLineWidth(1.2 * SCALE);
-    hex(ink).set;
+    hex(ink, FRAME_ALPHA).set;
     if (text) frame.stroke;
+    hex(ink).set;
 
     var k = MARK_SIZE * SCALE / BOX, dx = PAD * SCALE, dy = (pxH - MARK_SIZE * SCALE) / 2;
     function shape(pts) {
