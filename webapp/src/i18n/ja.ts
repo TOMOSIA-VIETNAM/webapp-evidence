@@ -98,8 +98,8 @@ export const ja: Dictionary = {
   'proof.database.title': 'データベース',
   'proof.database.body':
     'psql、mysql、rake タスクなど、自分で実行するものなら何でも。新しい行が、それを作った画面の横に映ります。',
-  'proof.secrets':
-    'Cookie とトークンはファイル経由で curl に渡り、動画、スクリーンショット、ランブックのすべてでマスクされます。',
+  'proof.session':
+    'Cookie とトークンはファイル経由で curl に渡り、コマンドラインに打ち込まれることはありません。パターンを指定しない限り何も隠されず、指定したときも一致した部分だけです。',
 
   'vision.eyebrow': 'テイクの確認',
   'vision.heading': 'エージェントは動画を観られない。vision なら読める。',
@@ -119,8 +119,8 @@ export const ja: Dictionary = {
   'features.runbook.title': 'ただのファイルではなくランブック',
   'features.runbook.body':
     'タイムライン、字幕、実行したコマンド、発生したページエラー、そして同じテイクをもう一度作るコマンド。',
-  'features.secrets.title': '秘密は映さない',
-  'features.secrets.body': 'ぼかす、黒塗りにする、区間ごと切る。動画でもスクリーンショットでも。',
+  'features.edit.title': '見てから直せる',
+  'features.edit.body': '速くする、待ち時間を切る、手順を強調する、値を隠す。撮り終えたテイクに対して行い、録画はそのまま残る。',
   'features.local.title': 'マシンの外に何も出ない',
   'features.local.body':
     'サービスもボットアカウントもありません。手元のエージェント CLI の中で、指定したサイトだけを相手に動きます。',

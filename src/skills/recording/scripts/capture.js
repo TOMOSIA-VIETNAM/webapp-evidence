@@ -320,8 +320,8 @@ function assertReadable(file, stoppedBy) {
 // sits on that display is part of the offset too — and macOS puts a window below the menu bar
 // whatever `--window-position` asks for, so that is never zero there.
 //
-// Getting it wrong is silent: a redaction lands the height of a menu bar above what it was meant
-// to cover, and the video ships with the value still legible.
+// Getting it wrong is silent: a step's box lands the height of a menu bar above the element it
+// was measured on, and a highlight drawn round it afterwards points at the wrong thing.
 function contentOffsetFor(geometry, mode, scale) {
   const origin = mode === WINDOW ? { x: 0, y: 0 } : { x: geometry.x, y: geometry.y };
   return {
@@ -334,8 +334,8 @@ function contentOffsetFor(geometry, mode, scale) {
 // A rectangle measured on the page, moved into the frame the video actually holds.
 //
 // For a page recording they are the same thing. For a window recording the frame is the whole
-// window in physical pixels, so a redaction drawn at page coordinates lands on the browser's
-// toolbar — and on a 2x display covers a quarter of what it was meant to.
+// window in physical pixels, so a box drawn at page coordinates lands on the browser's toolbar —
+// and on a 2x display holds a quarter of what it was meant to.
 function frameRect(box, offset) {
   if (!offset) return box;
   return {
@@ -386,7 +386,7 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
     showOthers(pids);
   };
   // What the capture writes is not what is handed over: the encode reads it, applies whatever
-  // was redacted and the configured quality, and deletes it.
+  // was cut and the configured quality, and deletes it.
   const file = path.join(outDir, mode === PAGE ? `${name}.webm` : `${name}.raw.mp4`);
   let openedAt = null;
 
@@ -442,6 +442,9 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
 
     // Where a rectangle measured on the page lands in the recorded frame
     pageToFrame: (box) => frameRect(box, contentOffset),
+    // The offset and scale pageToFrame applies, null for a page take, where there is none: what
+    // reads the take back needs it to bring a frame box onto a screenshot, which is the page alone.
+    pageInFrame: () => contentOffset,
 
     // Returns the origin every timestamp in the take is measured from, and how much of the front
     // to cut off. They differ by backend: Playwright has been recording since the page existed,
@@ -500,7 +503,7 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
         // out is what gives the file a duration that matches the wall clock.
         '-fps_mode', 'cfr', '-r', String(screen.framerate),
         // Captured in real time, so the encoder must never be the bottleneck; the take is
-        // re-encoded to the configured quality afterwards, along with any redactions.
+        // re-encoded to the configured quality afterwards, along with any cuts.
         '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '18', '-pix_fmt', 'yuv420p',
         // Written so that killing the recorder still leaves a video that plays.
         //

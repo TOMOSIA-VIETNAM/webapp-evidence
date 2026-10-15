@@ -104,13 +104,11 @@ function harness(answers = []) {
       return answers.shift() ?? { exitCode: 0, output: 'HTTP 200 in 0.012s\n{}\n' };
     },
   };
-  const registerSecret = (value) => events.push({ registered: value });
   // The runner ends the take and so owns what the case leaves on disk; the harness collects the
   // same callbacks so a test can run them and see the session go.
   const disposers = [];
   const { api: helper } = api.helpers({
     term,
-    registerSecret,
     onDispose: (fn) => { disposers.push(fn); everyDisposer.push(fn); },
   });
   return {
@@ -137,23 +135,11 @@ test('no cookie value appears in the command line the panel shows', async () => 
   assert.ok(fs.readFileSync(req.jar, 'utf8').includes(SESSION));
 });
 
-test('every cookie value is a registered secret before the first command runs', async () => {
-  const { helper, events } = harness();
-  const req = await helper.from(page, { token: 'bearer-token-value' });
-  await req.curl('GET', '/api/orders');
-
-  const registered = events.filter((e) => e.registered).map((e) => e.registered);
-  assert.deepEqual(registered, [SESSION, 'bearer-token-value']);
-  assert.ok(events.findIndex((e) => e.ran) > events.findLastIndex((e) => e.registered),
-    'a command ran before the session was registered as a secret');
-});
-
 test('a token read out of the page is collected the same way as one handed over', async () => {
-  const { helper, events, ran } = harness();
+  const { helper, ran } = harness();
   const req = await helper.from(page, { token: (p) => `${new URL(p.url()).host}-jwt` });
   await req.curl('GET', '/api/orders');
 
-  assert.ok(events.some((e) => e.registered === 'app.example.com-jwt'));
   assert.ok(!ran()[0].includes('app.example.com-jwt'), ran()[0]);
   assert.ok(fs.readFileSync(req.config, 'utf8').includes('Authorization: Bearer app.example.com-jwt'));
 });

@@ -2,26 +2,15 @@ const test = require('node:test');
 const assert = require('node:assert');
 const { createScrub, MASK } = require('../src/skills/recording/scripts/scrub.js');
 
-test('nothing configured leaves the text alone', () => {
-  assert.strictEqual(createScrub()('plain output'), 'plain output');
+test('with no pattern configured, ordinary output that looks like a value is left exactly as it is', () => {
+  const text = '{"active": true, "theme": "dark mode", "trueName": 1, "session": "a1b2c3d4"}';
+  assert.strictEqual(createScrub({ patterns: [] })(text), text);
 });
 
-test('a secret is masked everywhere it appears, not only the first time', () => {
-  const scrub = createScrub({ secrets: ['EvSecret#7rq'] });
-  const out = scrub('login EvSecret#7rq then EvSecret#7rq again');
-  assert.ok(!out.includes('EvSecret#7rq'));
-  assert.strictEqual(out.split(MASK).length - 1, 2);
-});
-
-test('a secret containing regular-expression characters is matched literally', () => {
-  const scrub = createScrub({ secrets: ['a.c*d'] });
-  assert.strictEqual(scrub('abcxd'), 'abcxd');
-  assert.strictEqual(scrub('a.c*d'), MASK);
-});
-
-test('a value too short to be a credential is ignored', () => {
-  const scrub = createScrub({ secrets: ['ab'] });
-  assert.strictEqual(scrub('abcabc'), 'abcabc');
+test('a pattern replaces only the text it matches, never the words around it', () => {
+  const scrub = createScrub({ patterns: [/sk-[a-z0-9]+/] });
+  const out = scrub('{"active": true, "theme": "dark mode", "trueName": 1, "key": "sk-abc123"}');
+  assert.strictEqual(out, `{"active": true, "theme": "dark mode", "trueName": 1, "key": "${MASK}"}`);
 });
 
 test('a configured pattern is applied globally even when written without the flag', () => {

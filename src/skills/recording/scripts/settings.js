@@ -145,9 +145,8 @@ const DEFAULTS = {
       shell: ['bash', '--norc', '--noprofile', '-s'],
       cwd: undefined,        // defaults to the project root
       env: {},
-      // Extra patterns blacked out of the panel, the runbook and the screenshots. The password
-      // of the signed-in account is covered already; this is for whatever else the project's
-      // own commands print.
+      // Nothing in the panel, the runbook or the screenshots is covered unless a pattern is
+      // listed here, and then only the text it matches is replaced — nothing around it.
       scrub: [],
       title: undefined,      // the label in the panel's title bar; defaults to the shell's name
     },
@@ -430,4 +429,11 @@ function resolveSettings(config) {
   return settings;
 }
 
-module.exports = { DEFAULTS, resolveSettings, LOCALE_KEYS };
+// The encoder arguments of every mp4 the skill writes, from `recording.video`: the take and any
+// video edited from it come out of the same encode, so an edit does not change how the take looks.
+const mp4Encode = (video) => [
+  '-c:v', 'libx264', '-preset', video.preset, '-crf', String(video.crf),
+  '-pix_fmt', 'yuv420p', '-movflags', '+faststart',
+];
+
+module.exports = { DEFAULTS, resolveSettings, LOCALE_KEYS, mp4Encode };

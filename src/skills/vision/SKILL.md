@@ -43,6 +43,10 @@ the question is "what actually happened", read a sheet.
 
 ## Reading one
 
+A recording that had a stretch cut out dissolves across the join. Those frames show neither scene,
+so the sheet skips them when the runner's `<name>-timeline.json` sits beside the video: a tile that
+lands there repeats the frame before the join.
+
 Every tile carries `mm:ss` in its corner, the same shape the runbook's timeline uses. That is what
 makes a finding usable: **name the time**, not the tile. "The header overlaps the table at 00:14" can
 be checked in the mp4 and matched to a runbook line. "It looks broken in the third picture" cannot.

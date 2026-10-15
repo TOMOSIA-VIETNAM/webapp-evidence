@@ -1,23 +1,15 @@
-// Redaction for everything the terminal panel produces.
+// Covering text the terminal panel produces, with the patterns the project wrote.
+//
+// Nothing is covered by default. The runner does not guess what is sensitive — not from a field
+// name, not from a cookie, not from anything that looks like a token — because a guess replaces
+// ordinary output along with the value it was aimed at. A pattern listed in
+// `recording.terminal.scrub` replaces only the text it matches, and nothing around it.
 //
 // One function feeds the panel, the runbook and the console log, because those three have to
-// agree: a value blacked out in the video and printed in full in the runbook next to it is worse
-// than not redacting at all — it reads as safe.
-//
-// The list is deliberately small. There is no built-in denylist of "things that look like a
-// token": one that appears thorough and is not gives the operator a confidence the code cannot
-// back. What is covered by default is the one secret this skill introduces itself — the password
-// of the account it signs in with — and whatever the project names in its own config.
+// agree: a value covered in the video and printed in full in the runbook next to it is worse than
+// not covering it at all — it reads as safe.
 
 const MASK = '•'.repeat(6);
-
-// A password is free to contain . * + ? ( ) [ ] and would otherwise compile into a pattern that
-// matches far more than itself.
-const escapeLiteral = (text) => String(text).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-// Below this a "secret" is more likely to be a fragment of ordinary output than a credential,
-// and scrubbing it would punch holes through the whole take.
-const MIN_SECRET_LENGTH = 4;
 
 function assertPattern(pattern, index) {
   if (!(pattern instanceof RegExp)) {
@@ -33,19 +25,14 @@ function assertPattern(pattern, index) {
   }
 }
 
-function createScrub({ secrets = [], patterns = [] } = {}) {
+function createScrub({ patterns = [] } = {}) {
   patterns.forEach(assertPattern);
-
-  const literals = secrets
-    .filter((s) => typeof s === 'string' && s.length >= MIN_SECRET_LENGTH)
-    .map(escapeLiteral);
 
   // Compiled fresh, and every pattern gets the global flag: a pattern written without it would
   // mask the first occurrence and leave the rest, which is the failure nobody notices.
-  const all = [
-    ...literals.map((l) => new RegExp(l, 'g')),
-    ...patterns.map((p) => new RegExp(p.source, p.flags.includes('g') ? p.flags : `${p.flags}g`)),
-  ];
+  const all = patterns.map(
+    (p) => new RegExp(p.source, p.flags.includes('g') ? p.flags : `${p.flags}g`)
+  );
 
   return (text) => all.reduce((acc, re) => {
     re.lastIndex = 0;
@@ -53,4 +40,4 @@ function createScrub({ secrets = [], patterns = [] } = {}) {
   }, String(text));
 }
 
-module.exports = { createScrub, MASK, MIN_SECRET_LENGTH };
+module.exports = { createScrub, MASK };

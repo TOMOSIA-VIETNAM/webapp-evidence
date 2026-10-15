@@ -100,8 +100,8 @@ export const en = {
   'proof.database.title': 'The database',
   'proof.database.body':
     'psql, mysql, a rake task — whatever you would run yourself, with the new row in frame beside the screen that created it.',
-  'proof.secrets':
-    'Cookies and tokens reach curl through a file and are masked everywhere: video, screenshots, runbook.',
+  'proof.session':
+    'Cookies and tokens reach curl through a file, never typed on the command line. Nothing is covered unless you list a pattern, and then only what it matches.',
 
   'vision.eyebrow': 'Checking the take',
   'vision.heading': 'An agent cannot watch a video. vision lets it read one.',
@@ -121,8 +121,9 @@ export const en = {
   'features.runbook.title': 'A runbook, not just a file',
   'features.runbook.body':
     'The timeline, the captions, the commands run, the page errors seen, and the command that produces the same take again.',
-  'features.secrets.title': 'Secrets stay out',
-  'features.secrets.body': 'Blur, black out or cut a stretch, in the video and the screenshots alike.',
+  'features.edit.title': 'Edited after you watch it',
+  'features.edit.body':
+    'Faster, a wait cut out, a step highlighted, a value covered — on the finished take, which stays as it was recorded.',
   'features.local.title': 'Nothing leaves your machine',
   'features.local.body':
     'No service and no bot account. It runs inside the agent CLI you already have, against the site you name and nothing else.',

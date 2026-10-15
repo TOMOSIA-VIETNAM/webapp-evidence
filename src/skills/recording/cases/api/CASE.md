@@ -38,7 +38,7 @@ HTTP 201 in 0.184s
 
 | Call | What it does |
 |---|---|
-| `api.from(page)` | Takes the cookies the page's origin holds, writes them where curl can read them, registers every value as a secret, and answers with the request helper |
+| `api.from(page)` | Takes the cookies the page's origin holds, writes them where curl can read them, and answers with the request helper |
 | `req.curl(method, path, options)` | Builds one curl line, runs it in the panel, and throws when the status is not the one asserted |
 
 `api.from` takes a bearer token as well, when the session is one:
@@ -107,9 +107,11 @@ evidence.
 ## What this case will not do
 
 - **Put the session on the command line.** The cookies go to a file outside the project, and the
-  bearer token to a config file; both are registered as secrets before the first command is typed,
-  so anything that echoes one back is blacked out in the panel, the runbook and the screenshots.
-  There is no option to turn that off.
+  bearer token to a config file, so neither is typed in the panel or quoted in the runbook.
+- **Cover what a command prints.** Nothing is covered on its own: a session cookie or token a
+  command prints will be in the video unless a pattern in `recording.terminal.scrub` covers it,
+  and that pattern replaces only the text it matches. The jar keeps the value off the command line;
+  it does nothing about a response that echoes it back.
 - **Build the request from anything but the browser's own session.** A request made as nobody in
   particular proves nothing about what a signed-in user can do.
 - **Stand in for the page.** If the change is visible on a screen, record the screen. This is for
