@@ -123,3 +123,31 @@ test('an action waits while someone uses the machine, and the wait is bracketed 
   await scope.click('c');
   assert.equal(events.length, before + 1);
 });
+
+test('the terminal\'s actions wait like the ones beside them, and a class instance is left alone', async () => {
+  const m = machine();
+  const g = gate(m);
+  await g.wait();
+  const events = [];
+  class Page { async goto() { events.push('goto'); } }
+  const page = new Page();
+  const scope = holdWhenTouched({
+    term: {
+      run: async (command) => { events.push(['run', command, m.t]); return command; },
+      isOpen: () => true,
+    },
+    page,
+  }, {
+    handsOff: g,
+    onHold: async (over) => { events.push(over ? 'resume' : 'hold'); },
+  });
+
+  assert.equal(scope.page, page);
+  assert.equal(scope.term.isOpen(), true);
+
+  m.touch(m.t + 100);
+  await m.sleep(200);
+  assert.equal(await scope.term.run('ls'), 'ls');
+  assert.deepEqual(events.slice(0, 2), ['hold', 'resume']);
+  assert.equal(events[2][0], 'run');
+});

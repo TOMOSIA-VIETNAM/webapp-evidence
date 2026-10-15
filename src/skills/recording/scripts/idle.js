@@ -134,22 +134,30 @@ function createHandsOff({
 // was still running stays in the video; a check inside the long actions is the upgrade.
 //
 // Only the async ones. A synchronous function such as mark() is called without `await`, so turning
-// it into one that may wait would hand the step script a promise it never waits for.
+// it into one that may wait would hand the step script a promise it never waits for. A plain
+// object of actions (`term`) is held like the actions beside it; a class instance — Playwright's
+// `page` — is handed over as it is, so `page.*` called directly from a step script is not held.
 //
 // `onHold` brackets the wait: called with `false` when it begins, and with `true` once the
 // machine is the runner's again, so the caller can cut that stretch and put the frame back.
 const isAsync = (fn) => typeof fn === 'function' && fn.constructor.name === 'AsyncFunction';
+const isPlain = (v) => v !== null && typeof v === 'object' && Object.getPrototypeOf(v) === Object.prototype;
 
-function holdWhenTouched(scope, { handsOff, onHold }) {
+function holdWhenTouched(scope, options) {
+  const { handsOff, onHold } = options;
   const held = {};
   for (const [name, value] of Object.entries(scope)) {
+    if (isPlain(value)) {
+      held[name] = holdWhenTouched(value, options);
+      continue;
+    }
     held[name] = !isAsync(value) ? value : async (...args) => {
       if (handsOff.touched()) {
         await onHold(false);
         await handsOff.wait();
         await onHold(true);
       }
-      return value(...args);
+      return value.apply(scope, args);
     };
   }
   return held;

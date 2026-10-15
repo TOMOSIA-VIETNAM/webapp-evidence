@@ -360,7 +360,21 @@ async function browserPid(browser) {
   }
 }
 
-function createCapture({ mode = PAGE, outDir, name, settings, viewport, handsOff = null }) {
+// What to do about a take that ran into recording.screenCapture.maxSeconds. The recorder runs on
+// while the take waits for someone using the machine to leave it alone, so those waits count
+// against the limit too — and when they are what used it up, shortening the step script is the
+// wrong advice. `waitedSeconds` is how long the take spent waiting.
+function ceilingAdvice(waitedSeconds) {
+  if (waitedSeconds >= 1) {
+    return `${Math.round(waitedSeconds)}s of it went on waiting for someone using the machine to ` +
+      'leave it alone. Leave the machine alone during the take, or raise that limit.';
+  }
+  return 'Raise that limit for a longer take, or shorten the step script.';
+}
+
+function createCapture({
+  mode = PAGE, outDir, name, settings, viewport, handsOff = null, waited = () => 0,
+}) {
   if (!MODES.includes(mode)) {
     throw new Error(`recording.capture is invalid: ${JSON.stringify(mode)}\nUse one of ${MODES.join(' | ')}.`);
   }
@@ -583,8 +597,7 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport, handsOff
       if (endedEarly) {
         throw new Error(
           `The screen recording stopped on its own after recording.screenCapture.maxSeconds ` +
-          `(${screen.maxSeconds}s), so the take is cut short.\n` +
-          'Raise that limit for a longer take, or shorten the step script.'
+          `(${screen.maxSeconds}s), so the take is cut short.\n${ceilingAdvice(waited())}`
         );
       }
       return { file };
@@ -640,7 +653,7 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport, handsOff
 }
 
 module.exports = {
-  createCapture, browserPid, assertConsent, assertPlatformCanCapture, assertReadable, assertWindowFits,
+  createCapture, ceilingAdvice, browserPid, assertConsent, assertPlatformCanCapture, assertReadable, assertWindowFits,
   parseScreenDevices, cropFor, frameRect, contentOffsetFor,
   createProgressReader, stopRecorder,
   MODES, PAGE, WINDOW, SCREEN, CONSENT_ENV,

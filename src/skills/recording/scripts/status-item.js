@@ -97,7 +97,6 @@ function run(argv) {
     p.closePath;
     return p;
   }
-  // Drawn at three times the size it is shown at, so it stays sharp on any display
   // One image for the firefly, the seconds beside it and a frame round both, so they read as one
   // thing rather than as an icon with some number next to it. With no seconds there is nothing to
   // hold together: no frame, and the firefly takes the room the frame took. Drawn at three times

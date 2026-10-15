@@ -18,7 +18,7 @@ const { loadCases, applyCases } = require('./cases');
 const {
   createCuts, buildFilter, fadeWindows, unionBox, placeAt, takeRemap,
 } = require('./cuts');
-const { createCapture, browserPid } = require('./capture');
+const { createCapture, browserPid, ceilingAdvice } = require('./capture');
 const picker = require('./picker');
 const lock = require('./lock');
 const { watchInput, createHandsOff, holdWhenTouched } = require('./idle');
@@ -895,7 +895,9 @@ function buildNoteSection(notes, remap) {
 // a page recording — and nothing about it says which run wrote it or why it stopped, so a directory
 // collects one per attempt and none of them can be told from another. Encoded, it is a video of the
 // flow up to the failure, which is the one thing worth having from a take that did not finish.
-function failedTakeError({ error, raw, endedEarly }, { outDir, name, marks, trimAt, videoOpts, cuts, at, maxSeconds }) {
+function failedTakeError({ error, raw, endedEarly }, {
+  outDir, name, marks, trimAt, videoOpts, cuts, at, maxSeconds, waitedSeconds = 0,
+}) {
   let partial = null;
   if (raw) {
     try {
@@ -920,7 +922,8 @@ function failedTakeError({ error, raw, endedEarly }, { outDir, name, marks, trim
   // happened after it, with nothing saying why.
   if (partial && endedEarly) {
     left += `\nIt ends at recording.screenCapture.maxSeconds (${maxSeconds}s), where the recorder ` +
-      'stopped on its own — before the failure above, which is the other reason there is no take.';
+      'stopped on its own — before the failure above, which is the other reason there is no take.' +
+      `\n${ceilingAdvice(waitedSeconds)}`;
   }
 
   const failed = new Error(`The take failed ${fmt(at)} in, during ${step}:\n${said}\n\n${left}`);
@@ -1212,6 +1215,9 @@ async function main() {
   // before any action they interrupt. The state goes into the lock, which the menu bar item reads.
   // See idle.js and status-item.js.
   const screenTake = settings.recording.capture !== 'page';
+  // Seconds the take has spent waiting for someone to leave the machine alone. The recorder runs on
+  // through those waits, so they count against recording.screenCapture.maxSeconds.
+  let waitedSeconds = 0;
   const input = screenTake ? watchInput() : null;
   const handsOff = screenTake
     ? createHandsOff({
@@ -1230,6 +1236,7 @@ async function main() {
     settings: settings.recording,
     viewport,
     handsOff: handsOff && (async () => { if (handsOff.touched()) await handsOff.wait(); }),
+    waited: () => waitedSeconds,
   });
 
   if (screenTake) {
@@ -1382,6 +1389,7 @@ async function main() {
       await capture.takeBack();
       const resumed = (Date.now() - startedAt) / 1000;
       cuts.close(interrupted.cut, interrupted.at, resumed);
+      waitedSeconds += resumed - interrupted.at;
       // The step that was interrupted was marked an instant before its action waited, so its mark
       // sits at the start of the cut and would leave the runbook with it. It starts where the take
       // carries on.
@@ -1403,6 +1411,8 @@ async function main() {
     } catch {
       // The take is already lost; what matters is that the recorder is no longer writing.
     }
+    // Nothing is recorded from here on, so the firefly no longer says to leave the machine alone
+    if (screenTake) lock.update(ROOT, { screen: null, secondsLeft: null });
     failure = { error, raw: stopped.file, endedEarly: stopped.endedEarly };
   } finally {
     // A step script that throws halfway must not leave a shell — or whatever it was running —
@@ -1416,12 +1426,14 @@ async function main() {
     await browser.close().catch(() => { /* the abort above may already have taken it */ });
     throw failedTakeError(failure, {
       outDir, name, marks, trimAt, videoOpts, cuts, at: (Date.now() - startedAt) / 1000,
-      maxSeconds: settings.recording.screenCapture.maxSeconds,
+      maxSeconds: settings.recording.screenCapture.maxSeconds, waitedSeconds,
     });
   }
 
   await sleep(pace.tailMs);
   const { file: recorded } = await capture.stop();
+  // Nothing is recorded from here on: the firefly turns green while the take is encoded
+  if (screenTake) lock.update(ROOT, { screen: null, secondsLeft: null });
 
   // The fullPage screenshot has to be taken outside the recording context, because the scrolling would land in the video
   if (steps.fullPageShot !== false) {
