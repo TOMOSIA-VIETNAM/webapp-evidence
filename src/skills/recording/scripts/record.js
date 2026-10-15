@@ -21,6 +21,8 @@ const {
 const { createCapture, browserPid } = require('./capture');
 const picker = require('./picker');
 const lock = require('./lock');
+const { watchInput, createHandsOff, holdWhenTouched } = require('./idle');
+const { showStatusItem } = require('./status-item');
 
 const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
@@ -1203,11 +1205,23 @@ async function main() {
   archivePreviousRun(outDir, name, settings.output.overwrite);
 
   const fixes = await prepareApp({ appConfig, name: app, baseUrl });
-  const browser = await launchBrowser(settings);
 
-  // Sign in in a separate context, not recorded: the viewer does not need to see this step and
-  // the video must not leak the sign-in credentials
-  const storageState = await signIn({ browser, appConfig, name: app, baseUrl, settings });
+  // A take that records the screen takes the machine over: the browser comes to the front and every
+  // other application is hidden. So it waits for the person at the machine to leave it alone —
+  // before the browser opens, again before the first frame if they touched it in between, and
+  // before any action they interrupt. The state goes into the lock, which the menu bar item reads.
+  // See idle.js and status-item.js.
+  const screenTake = settings.recording.capture !== 'page';
+  const input = screenTake ? watchInput() : null;
+  const handsOff = screenTake
+    ? createHandsOff({
+      seconds: settings.recording.screenCapture.countdownSeconds,
+      lastInputAt: input.lastInputAt,
+      sleep,
+      onCountdown: (secondsLeft) => lock.update(ROOT, { screen: 'waiting', secondsLeft }),
+      onOwned: () => lock.update(ROOT, { screen: 'recording', secondsLeft: null }),
+    })
+    : null;
 
   const capture = createCapture({
     mode: settings.recording.capture,
@@ -1215,7 +1229,20 @@ async function main() {
     name,
     settings: settings.recording,
     viewport,
+    handsOff: handsOff && (async () => { if (handsOff.touched()) await handsOff.wait(); }),
   });
+
+  if (screenTake) {
+    process.once('exit', input.stop);
+    showStatusItem();
+    await handsOff.wait();
+  }
+
+  const browser = await launchBrowser(settings);
+
+  // Sign in in a separate context, not recorded: the viewer does not need to see this step and
+  // the video must not leak the sign-in credentials
+  const storageState = await signIn({ browser, appConfig, name: app, baseUrl, settings });
 
   // Asked once, before anyone hands their machine over: whether upload() can open the real file
   // picker in this take. Without the permission the take still runs, and says so now rather than
@@ -1327,15 +1354,39 @@ async function main() {
   // What has to happen once the last step is done and before the recorder stops: the page is still
   // the one the take ends on.
   const takeEnd = [];
-  const ctx = buildContext({
+  const scope = buildContext({
     page, outDir, marks, hotkeys, notes, dialogs, startedAt, pace, viewport, human, captions,
     terminal, cuts, capture, helpers, screenshots, onTakeEnd: (fn) => takeEnd.push(fn),
     // A dialog the browser draws is in the video when the window is being recorded, and needs a
     // caption standing in for it when only page content is.
     capturesBrowserUi: capture.mode !== 'page',
     picker: route === 'picker'
-      ? pickerDriver(browser, { onDispose: (fn) => caseDisposers.push(fn) })
+      ? pickerDriver(browser, {
+        onDispose: (fn) => caseDisposers.push(fn),
+        // The keys it posts are input the system counts, and they are not a person
+        onInput: () => handsOff?.runnerInput(),
+      })
       : null,
+  });
+  // Someone who used the machine in the middle of the take is waited for, and the stretch they
+  // spent on it does not reach the video.
+  let interrupted = null;
+  const ctx = !screenTake ? scope : holdWhenTouched(scope, {
+    handsOff,
+    onHold: async (over) => {
+      const at = (Date.now() - startedAt) / 1000;
+      if (!over) {
+        interrupted = { at, cut: cuts.open({ reason: 'someone using the machine, until it was left alone again' }) };
+        return;
+      }
+      await capture.takeBack();
+      const resumed = (Date.now() - startedAt) / 1000;
+      cuts.close(interrupted.cut, interrupted.at, resumed);
+      // The step that was interrupted was marked an instant before its action waited, so its mark
+      // sits at the start of the cut and would leave the runbook with it. It starts where the take
+      // carries on.
+      for (const m of marks) if (m.at >= interrupted.at - STEP_PROBE) m.at = resumed;
+    },
   });
   ctx.baseUrl = baseUrl;
   let failure = null;
@@ -1457,11 +1508,17 @@ if (require.main === module) {
 // step script's own file is left where it was. The copies are removed where the take ends, and
 // not before: the page reads the file when the form is sent, which may be after upload() returns.
 const STAGING_DEPTH = 8;
-function pickerDriver(browser, { onDispose }) {
+function pickerDriver(browser, { onDispose, onInput }) {
   let pid = null;
   let staging = null;
   return {
-    chooseFile: picker.chooseFile,
+    async chooseFile(options) {
+      try {
+        return await picker.chooseFile(options);
+      } finally {
+        onInput();
+      }
+    },
     stage(filePath) {
       if (!staging) {
         const root = fs.mkdtempSync(path.join(os.tmpdir(), 'webapp-evidence-upload-'));

@@ -9,7 +9,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const { acquire, fileFor, isRunning } = require('../src/skills/recording/scripts/lock');
+const { acquire, update, fileFor, isRunning } = require('../src/skills/recording/scripts/lock');
 
 const project = () => fs.mkdtempSync(path.join(os.tmpdir(), 'evidence-lock-'));
 
@@ -104,4 +104,26 @@ test('a take holding the lock is named as one', () => {
   } finally {
     release();
   }
+});
+
+test('the holder adds its state to the lock, and nobody else can', () => {
+  const root = project();
+  const release = acquire(root, { outDir: '/tmp/evidence-out' });
+  try {
+    update(root, { screen: 'waiting', secondsLeft: 2 });
+    const held = JSON.parse(fs.readFileSync(fileFor(root), 'utf8'));
+    assert.equal(held.screen, 'waiting');
+    assert.equal(held.secondsLeft, 2);
+    assert.equal(held.pid, process.pid);
+    assert.equal(held.outDir, '/tmp/evidence-out');
+
+    update(root, { screen: 'recording' }, process.pid + 1);
+    assert.equal(JSON.parse(fs.readFileSync(fileFor(root), 'utf8')).screen, 'waiting');
+    assert.deepEqual(fs.readdirSync(path.dirname(fileFor(root))).filter((f) => f.endsWith('.tmp')), []);
+  } finally {
+    release();
+  }
+  // Released, there is nothing to add to and nothing is created
+  update(root, { screen: 'recording' });
+  assert.equal(fs.existsSync(fileFor(root)), false);
 });

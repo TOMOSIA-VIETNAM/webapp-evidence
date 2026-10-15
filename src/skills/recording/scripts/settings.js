@@ -119,9 +119,11 @@ const DEFAULTS = {
     screenCapture: {
       framerate: 30,
       display: 0,             // which display, when there is more than one
-      // Between the answer given in the terminal and the first frame: time to take a hand off
-      // the keyboard. The notice that asks for that answer is shown by announce.js, before the
-      // question, so by the time a recording starts it has already been read and dismissed.
+      // How long the machine has to be left alone before the take takes it over: before the
+      // browser opens, and again before an action when someone used the machine in the middle of
+      // the take. Any key or mouse event starts the count again, and the menu bar shows it.
+      // The notice that asks for the take is shown by announce.js, before the question, so by the
+      // time this counts it has already been read and dismissed.
       countdownSeconds: 3,
       // A ceiling on the recording itself. A runner that dies partway cannot then leave a screen
       // recorder running until the disk fills; a take that needs longer says so and raises it.

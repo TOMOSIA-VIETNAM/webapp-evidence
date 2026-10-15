@@ -142,8 +142,8 @@ function createProgressReader(onFirstFrame) {
 // agreed to. Worse, the answer they gave in the terminal is the handover, so a notice after it
 // asks a question that has been answered.
 //
-// What is left is the few seconds between their answer and the first frame, which is time to
-// take a hand off the keyboard.
+// What is left is waiting for their hands to come off the machine: `handsOff` returns once nobody
+// has touched it for `countdownSeconds` — see idle.js. Without one, a plain wait of that long.
 const settle = (countdownSeconds) => new Promise((r) => setTimeout(r, countdownSeconds * 1000));
 
 // A window taller than the display is not an error anyone sees: macOS places it anyway, with the
@@ -360,7 +360,7 @@ async function browserPid(browser) {
   }
 }
 
-function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
+function createCapture({ mode = PAGE, outDir, name, settings, viewport, handsOff = null }) {
   if (!MODES.includes(mode)) {
     throw new Error(`recording.capture is invalid: ${JSON.stringify(mode)}\nUse one of ${MODES.join(' | ')}.`);
   }
@@ -377,6 +377,7 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
   let display = null;
   let contentOffset = null;
   let pointerWasAt = null;
+  let park = null;
   let hidden = [];
   let endedEarly = false;
   // Whatever ends the take, what was hidden comes back, and only once
@@ -459,7 +460,7 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
       // Checked before anyone is asked to hand over their machine, not after
       if (mode === WINDOW) assertWindowFits(geometry, display.usable);
 
-      await settle(screen.countdownSeconds);
+      await (handsOff ? handsOff() : settle(screen.countdownSeconds));
 
       contentOffset = contentOffsetFor(geometry, mode, scale);
 
@@ -472,7 +473,7 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
       // Playwright clicks through the browser, not by moving it. Parked outside the frame, and
       // put back when the recording stops.
       pointerWasAt = readPointer();
-      const park = parkTarget(rect, display);
+      park = parkTarget(rect, display);
       if (pointerWasAt && movePointer(park) && !park.outsideFrame) {
         console.log(
           'NOTE: the frame is the whole display, so there is nowhere outside it to park the mouse '
@@ -544,6 +545,17 @@ function createCapture({ mode = PAGE, outDir, name, settings, viewport }) {
         });
         ffmpeg.on('error', reject);
       });
+    },
+
+    // The frame put back the way the take left it, after someone used the machine in the middle
+    // of it — they have left it alone for the whole countdown by now. The pointer they moved goes
+    // back out of the frame, whatever they brought forward is hidden again, and the browser they
+    // may have clicked away from comes to the front.
+    async takeBack() {
+      if (mode === PAGE) return;
+      if (park) movePointer(park);
+      hidden = hidden.concat(hideOthers(await browserPid(context.browser())));
+      await page.bringToFront();
     },
 
     async stop() {
