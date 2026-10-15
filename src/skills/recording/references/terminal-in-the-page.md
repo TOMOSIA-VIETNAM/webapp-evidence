@@ -90,7 +90,10 @@ started with — the `PATH` from rbenv, nvm or asdf still applies. `recording.te
 `evidence.config.js` changes the directory, the environment, the panel's height and how
 opaque it is; the `panel…` keys in `recording.pace` change how fast it reveals output.
 
-The password of the account used to sign in is blacked out of the panel, the runbook and the
-screenshots — in what a command prints and in the command line itself. Anything else your commands print that should not be in a video goes in
-`recording.terminal.scrub`.
+Nothing in the panel is covered on its own. The password of the account used to sign in, or a
+session cookie or token a command prints, is in the video unless a scrub pattern covers it; the
+cookie jar the `api` case writes keeps a session off the command line, nothing more. To cover terminal text, list a pattern in `recording.terminal.scrub`,
+and only what it matches is replaced, in the panel, the runbook and the screenshots alike. For
+anything else in the finished video, use the `cover` operation of `node scripts/edit.js` —
+`--help` has its arguments.
 

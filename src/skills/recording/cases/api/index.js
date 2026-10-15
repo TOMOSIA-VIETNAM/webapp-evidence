@@ -4,7 +4,6 @@
 // and a response the reviewer would have to trust. That needs three things this file owns:
 //
 //   the session   the cookies the signed-in browser already has, handed to curl as a file
-//   the secrets   every one of those values registered before the first command is typed
 //   the status    written where it is readable on screen, and compared against what was asserted
 const fs = require('fs');
 const os = require('os');
@@ -21,9 +20,11 @@ const STATUS_LINE = /HTTP (\d{3}) in [\d.]+s/;
 // stack trace; not so much that the reason scrolls off the top of the agent's own output.
 const BODY_LINES = 10;
 
-// A session written along the command line is a secret on screen for as long as the command is,
-// and the command is in the video and in the runbook. As files, neither the cookies nor the
-// bearer token ever appear — and the line stays short enough to read.
+// A session written along the command line is on screen for as long as the command is, and the
+// command is in the video and in the runbook. As files, neither the cookies nor the bearer token
+// appear on the line that is typed — and the line stays short enough to read. Nothing here covers
+// a value a command prints back: that is in the video unless a `recording.terminal.scrub`
+// pattern matches it.
 //
 // Outside the project and outside the skill directory, because nothing a recording produces
 // belongs in either, and this one holds a live session on disk.
@@ -105,7 +106,7 @@ const firstLines = (output) => String(output)
   .slice(0, BODY_LINES)
   .join('\n');
 
-function helpers({ term, registerSecret, onDispose }) {
+function helpers({ term, onDispose }) {
   // The page is passed in rather than taken from the runtime, so the line in the step script says
   // which page the session comes from — a take that signed in as two different users reads
   // correctly instead of quietly using whichever page the runner happened to hold.
@@ -113,12 +114,6 @@ function helpers({ term, registerSecret, onDispose }) {
     const origin = new URL(page.url()).origin;
     const cookies = await page.context().cookies(origin);
     const bearer = typeof token === 'function' ? await token(page) : token;
-
-    // Before anything is typed, because a value registered after the command that echoed it is a
-    // value that was on screen. There is no flag to turn this off: the alternative is a session
-    // token in an mp4 attached to a merge request.
-    cookies.forEach((cookie) => registerSecret(cookie.value));
-    if (bearer) registerSecret(bearer);
 
     const dir = sessionDir();
     const jar = path.join(dir, 'cookies.txt');

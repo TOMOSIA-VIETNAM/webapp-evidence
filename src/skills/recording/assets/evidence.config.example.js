@@ -56,8 +56,8 @@ module.exports = {
     //   height: 400,             // the bottom strip while open; half the viewport if left out
     //   cwd: 'apps/api',         // where commands run; the project root by default
     //   env: { RAILS_ENV: 'development' },
-    //   // Blacked out of the panel, the runbook and the screenshots. The password of the
-    //   // account used to sign in is covered already; add what your own commands print.
+    //   // Nothing in the panel, the runbook or the screenshots is covered unless a pattern is
+    //   // listed here, and then only the text it matches is replaced.
     //   scrub: [/ghp_[A-Za-z0-9]{20,}/g],
     // },
 

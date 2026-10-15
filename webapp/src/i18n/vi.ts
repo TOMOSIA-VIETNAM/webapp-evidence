@@ -98,8 +98,8 @@ export const vi: Dictionary = {
   'proof.database.title': 'Database',
   'proof.database.body':
     'psql, mysql, một rake task — lệnh gì bạn tự chạy cũng được, với dòng mới nằm trong khung hình cạnh màn hình đã tạo ra nó.',
-  'proof.secrets':
-    'Cookie và token đến tay curl qua một file và được che ở mọi nơi: video, ảnh chụp, runbook.',
+  'proof.session':
+    'Cookie và token đến tay curl qua một file, không bao giờ bị gõ ra trên dòng lệnh. Không có gì bị che trừ khi bạn khai báo một pattern, và khi đó chỉ che đúng phần khớp.',
 
   'vision.eyebrow': 'Kiểm lại lần quay',
   'vision.heading': 'Agent không xem được video. vision giúp nó đọc được.',

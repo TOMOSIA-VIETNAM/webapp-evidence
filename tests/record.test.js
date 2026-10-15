@@ -346,37 +346,36 @@ test('a case cannot take a name a step script already means something by', () =>
   assert.throws(() => scopeFrom({ click: () => {} }), /click/);
 });
 
-test('a secret a case registers is scrubbed out of the panel and out of the runbook', async () => {
-  // The value is registered the way a session is: after the terminal exists, before any command
-  // is typed. Both the line that uses it and the line that echoes it back have to come out masked.
-  const secret = 'a1b2c3-this-is-the-session-value';
-  const settings = resolveSettings({ recording: { speed: 'fast' } }).recording;
+test('a scrub pattern covers what it matches in the panel and the runbook, and nothing else', async () => {
+  const key = 'sk-abc123';
+  const settings = resolveSettings({
+    recording: { speed: 'fast', terminal: { scrub: [/sk-[a-z0-9]+/] } },
+  }).recording;
   const sent = [];
   const terminal = createTerminal({
     page: { async evaluate(_fn, payload) { sent.push(payload); } },
     viewport: settings.viewport,
     config: settings.terminal,
-    human: createHuman({ pace: settings.pace, viewport: settings.viewport, seed: 'secrets' }),
+    human: createHuman({ pace: settings.pace, viewport: settings.viewport, seed: 'scrub' }),
     pace: settings.pace,
     since: () => 0,
     root: PROJECT,
   });
 
-  terminal.registerSecret(secret);
   try {
-    await terminal.term.run(`echo ${secret}`, { pause: 'quick' });
+    await terminal.term.run(`echo true dark ${key}`, { pause: 'quick' });
   } finally {
     await terminal.dispose();
   }
 
   const drawn = sent.flatMap((payload) => payload.lines ?? [])
     .flatMap((row) => row.map((segment) => segment.text)).join('');
-  assert.ok(drawn.includes('echo'), 'the command never reached the panel at all');
-  assert.ok(!drawn.includes(secret), 'the session is on screen in the panel');
+  assert.ok(drawn.includes('echo true dark'), 'the words around the match did not reach the panel');
+  assert.ok(!drawn.includes(key), 'the matched text is on screen in the panel');
 
   const section = buildCommandSection(terminal.commands, takeRemap(0));
-  assert.ok(section.includes('echo'), 'the command never reached the runbook');
-  assert.ok(!section.includes(secret), 'the session is written out in the runbook');
+  assert.ok(section.includes('echo true dark'), 'the words around the match did not reach the runbook');
+  assert.ok(!section.includes(key), 'the matched text is written out in the runbook');
 });
 
 test('cleaning up after the cases runs every one of them, and outlives one that throws', () => {

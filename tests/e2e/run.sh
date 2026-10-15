@@ -57,8 +57,8 @@ export DEMO_LOG="$OUT_DIR/worker.log"
 : >"$DEMO_LOG"
 
 # The session the demo app hands the browser. The take calls an endpoint with it from the terminal
-# panel, and the checks below prove it got there without the value appearing anywhere in the
-# evidence — which is the whole reason the cookies travel as a file.
+# panel, and the checks below prove it got there through the cookie file curl reads, never typed
+# along the command line.
 export DEMO_SESSION=demo-session-8f3c1d9a2b
 
 step "Serving the demo app"
@@ -109,13 +109,15 @@ grep -qE '^[0-9]{2}:[0-9]{2} - [0-9]{2}:[0-9]{2}' "$RUNBOOK" \
   || fail "the runbook has no timeline rows"
 
 # The request in the panel was made with the session the browser holds, and the runbook quotes
-# every command that ran. The session must be in none of it: handed to curl along the command line
-# it would be in the video for as long as the command was on screen, and in this file underneath.
+# every command exactly as it was typed. The session travels in the cookie file, so it is on none
+# of those lines: handed to curl along the command line it would be in the video for as long as
+# the command was on screen, and in this file underneath. Nothing covers it — the endpoint does not
+# print it back, so it is not in the output either.
 #
 # The status is not checked here — `expect: 200` in the step script is the assertion, and a take
 # that got anything else never reached the point of writing a runbook.
-step "Checking the session stayed out of the evidence"
-grep -q "$DEMO_SESSION" "$RUNBOOK" && fail "the session cookie is written out in $RUNBOOK"
+step "Checking the session went through the cookie file"
+grep -q "$DEMO_SESSION" "$RUNBOOK" && fail "the session cookie was typed on a command line in $RUNBOOK"
 grep -q -- '-b /' "$RUNBOOK" || fail "the request did not send the session as a cookie file"
 [ -n "$(find "$OUT_DIR" -maxdepth 1 -name '*-api-response.png' | awk 'NR==1')" ] \
   || fail "no screenshot was taken while the response was on screen"
@@ -318,7 +320,7 @@ printf '  video     %s (%s bytes, %.1fs)\n' "$VIDEO" "$SIZE" "$DURATION"
 printf '  runbook   %s\n' "$RUNBOOK"
 printf '  screenshots %s\n' "$SHOTS"
 printf '  panel     drawn (brightness %s over the bottom %spx)\n' "$PANEL_LUMA" "$PANEL_BAND"
-printf '  endpoint  answered 200, session kept out of the runbook\n'
+printf '  endpoint  answered 200, session sent as a cookie file, not typed on the command line\n'
 printf '  edited    %ss (predicted %ss), join brightness %s between %s and %s\n' \
   "$EDITED_DURATION" "$PREDICTED_DURATION" "$JOIN_LUMA" "$BEFORE_LUMA" "$AFTER_LUMA"
 [ "$KEEP" = yes ] || printf '\nRe-run with --keep to watch the video.\n'

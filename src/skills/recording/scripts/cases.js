@@ -2,15 +2,15 @@
 //
 // Proving an endpoint works needs things no other recording needs: a request built from the
 // session the browser is already holding, a response formatted so it can be read, cookies that
-// must not survive into the video. Written into the skill document, that is a page every
+// must not be typed along the command line. Written into the skill document, that is a page every
 // recording loads and almost none uses, and the next special kind of evidence after it makes
 // that worse.
 //
 // So each kind is a directory under cases/, holding the page the agent reads when the flow is
 // that kind and the helpers those steps call. What the runner hands a case is fixed and small —
-// the page, the terminal, the project root, the output directory and the way to register a
-// secret — because a case that needs more than that is a change made here, once, for all of
-// them, rather than one case reaching into the runner for itself.
+// the page, the terminal, the project root, the output directory and a way to clean up what it
+// leaves on disk — because a case that needs more than that is a change made here, once, for all
+// of them, rather than one case reaching into the runner for itself.
 const fs = require('fs');
 const path = require('path');
 

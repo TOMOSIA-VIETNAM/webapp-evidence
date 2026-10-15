@@ -86,22 +86,12 @@ function asTyped(target, from) {
 const isBehindPanel = (box, viewportHeight, panelHeight) =>
   box.y + box.height > viewportHeight - panelHeight;
 
-function createTerminal({ page, viewport, config, human, pace, since, secrets = [], root }) {
+function createTerminal({ page, viewport, config, human, pace, since, root }) {
   const {
     height: ceiling, fontSize, opacity, shell: shellCommand, cwd, env, scrub: patterns, title,
   } = config;
 
-  // The list of secrets grows while a take runs: a flow that collects a session registers every
-  // value in it before its first command is typed. What a scrub matches is decided when its
-  // patterns are compiled, so a new secret rebuilds it rather than being appended to a list
-  // nothing reads again.
-  const known = [...secrets];
-  let compiled = createScrub({ secrets: known, patterns });
-  const scrub = (text) => compiled(text);
-  const registerSecret = (value) => {
-    known.push(value);
-    compiled = createScrub({ secrets: known, patterns });
-  };
+  const scrub = createScrub({ patterns });
 
   const workingDir = cwd || root;
   // One width for both: what the shell is told it has, and what the screen model wraps at. The
@@ -285,9 +275,9 @@ function createTerminal({ page, viewport, config, human, pace, since, secrets = 
   // rhythm as typing into a form field, so a take does not change pace when it moves from the
   // browser to the shell.
   //
-  // What is typed is the scrubbed command, while the shell is sent the real one: a secret is as
-  // exposed in the line that used it as in the line that echoed it back, and this is the only
-  // place the two versions can differ.
+  // What is typed is the scrubbed command, while the shell is sent the real one: text a scrub
+  // pattern matches is as exposed in the line that used it as in the line that echoed it back,
+  // and this is the only place the two versions can differ.
   async function typeCommand(text) {
     // The prompt row is where this command's block begins, and the block is what the panel is
     // sized to. Everything above it belongs to the command before.
@@ -444,9 +434,6 @@ function createTerminal({ page, viewport, config, human, pace, since, secrets = 
     term,
     commands,
     isOpen: () => open,
-    // Everything the panel draws, the runbook quotes and a screenshot catches goes through one
-    // scrub, so a value handed to this is covered in all three or in none of them.
-    registerSecret,
     // Asked of the page rather than answered from here: this file knows the height the panel is
     // being animated towards, and a click lands while it is still on its way there.
     async panelHeight() {

@@ -16,8 +16,8 @@ const LOG = process.env.DEMO_LOG;
 let job = 0;
 
 // The session the page hands the browser. The end-to-end check names the value, then proves the
-// recording carried it to an endpoint without ever putting it on screen: a session is the one
-// thing a request made from a video must not show.
+// recording carried it to an endpoint in the cookie file rather than on the command line it typed.
+// The endpoint never prints it back, so it is not in the output either.
 const SESSION = process.env.DEMO_SESSION;
 
 // Two lines, seconds apart, because that is the shape of the thing being demonstrated: the click

@@ -79,7 +79,8 @@ Flow:
 - **Database.** `psql`, `mysql`, một rake task — thứ bạn vẫn tự chạy, chạy trong đúng panel đó, dòng
   mới nằm cùng khung hình với màn hình vừa tạo ra nó.
 
-Cookie và token tới curl qua file và được che ở mọi nơi: video, screenshot, runbook.
+Cookie và token tới curl qua file, nên không bao giờ bị gõ ra trên dòng lệnh. Không có gì tự động bị
+che: một pattern trong `recording.terminal.scrub` chỉ thay đúng phần nó khớp.
 
 ## Nhận về những gì
 

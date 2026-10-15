@@ -128,8 +128,8 @@ module.exports = {
 
     mark('Call the export endpoint with the session the browser is holding');
     // The request is made from the same session as the page, and the cookie carrying it reaches
-    // curl as a file: the check afterwards greps the runbook for that value and fails if it is
-    // anywhere in the evidence.
+    // curl as a file: the check afterwards greps the runbook for that value and fails if it was
+    // typed on any command line.
     const req = await api.from(page);
     await req.curl('GET', '/report', { expect: 200, jq: '.records[0]' });
     await shot('api-response');

@@ -145,9 +145,8 @@ const DEFAULTS = {
       shell: ['bash', '--norc', '--noprofile', '-s'],
       cwd: undefined,        // defaults to the project root
       env: {},
-      // Extra patterns blacked out of the panel, the runbook and the screenshots. The password
-      // of the signed-in account is covered already; this is for whatever else the project's
-      // own commands print.
+      // Nothing in the panel, the runbook or the screenshots is covered unless a pattern is
+      // listed here, and then only the text it matches is replaced — nothing around it.
       scrub: [],
       title: undefined,      // the label in the panel's title bar; defaults to the shell's name
     },

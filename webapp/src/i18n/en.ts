@@ -100,8 +100,8 @@ export const en = {
   'proof.database.title': 'The database',
   'proof.database.body':
     'psql, mysql, a rake task — whatever you would run yourself, with the new row in frame beside the screen that created it.',
-  'proof.secrets':
-    'Cookies and tokens reach curl through a file and are masked everywhere: video, screenshots, runbook.',
+  'proof.session':
+    'Cookies and tokens reach curl through a file, never typed on the command line. Nothing is covered unless you list a pattern, and then only what it matches.',
 
   'vision.eyebrow': 'Checking the take',
   'vision.heading': 'An agent cannot watch a video. vision lets it read one.',

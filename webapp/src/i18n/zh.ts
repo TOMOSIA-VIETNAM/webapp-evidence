@@ -95,7 +95,7 @@ export const zh: Dictionary = {
   'proof.endpoint.body': '页面上方打开一个终端面板，curl 带着浏览器的 Cookie 在里面运行。该步骤断言状态码，全程在画面中。',
   'proof.database.title': '数据库',
   'proof.database.body': 'psql、mysql、一个 rake 任务 —— 你自己会跑的任何命令，新写入的行就出现在创建它的页面旁边。',
-  'proof.secrets': 'Cookie 和令牌通过文件传给 curl，并在所有地方被遮盖：视频、截图、运行手册。',
+  'proof.session': 'Cookie 和令牌通过文件传给 curl，从不出现在敲出的命令行上。除非你指定模式，否则不会遮盖任何内容；指定了也只遮盖匹配的部分。',
 
   'vision.eyebrow': '检查录制',
   'vision.heading': '智能体看不了视频。vision 让它能读。',

@@ -80,7 +80,8 @@ Flow:
 - **The database.** `psql`, `mysql`, a rake task — whatever you would run yourself, in that same
   panel, with the new row in frame beside the screen that created it.
 
-Cookies and tokens reach curl through a file and are masked everywhere: video, screenshots, runbook.
+Cookies and tokens reach curl through a file, so they are never typed on the command line. Nothing
+is covered on its own: a pattern in `recording.terminal.scrub` replaces only the text it matches.
 
 ## What comes back
 

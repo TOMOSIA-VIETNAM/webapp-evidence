@@ -98,8 +98,8 @@ export const ja: Dictionary = {
   'proof.database.title': 'データベース',
   'proof.database.body':
     'psql、mysql、rake タスクなど、自分で実行するものなら何でも。新しい行が、それを作った画面の横に映ります。',
-  'proof.secrets':
-    'Cookie とトークンはファイル経由で curl に渡り、動画、スクリーンショット、ランブックのすべてでマスクされます。',
+  'proof.session':
+    'Cookie とトークンはファイル経由で curl に渡り、コマンドラインに打ち込まれることはありません。パターンを指定しない限り何も隠されず、指定したときも一致した部分だけです。',
 
   'vision.eyebrow': 'テイクの確認',
   'vision.heading': 'エージェントは動画を観られない。vision なら読める。',

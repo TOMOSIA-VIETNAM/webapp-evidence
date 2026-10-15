@@ -7,7 +7,7 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 const {
   HELP_ENV, sleep, watchProblems, assertOutsideSkill, resolveSettings,
-  loadProjectConfig, resolveApp, launchBrowser, prepareApp, signIn, makeAccountStore, ROOT, openPage,
+  loadProjectConfig, resolveApp, launchBrowser, prepareApp, signIn, ROOT, openPage,
 } = require('./session');
 const { mp4Encode } = require('./settings');
 const { createHuman, resolvePause } = require('./human');
@@ -1164,19 +1164,6 @@ function probeVideo(mp4) {
   return { frame: { width, height }, duration: Number(format) };
 }
 
-// The account is stored so a recording does not have to ask for it again, which means the runner
-// holds a password while a step script runs commands that may echo one. Whatever the project's
-// login adapter chose to call it, these are the fields worth blacking out of the panel, the
-// runbook and the screenshots.
-const SECRET_FIELD = /pass|secret|token|key/i;
-
-function accountSecrets(account) {
-  if (!account || typeof account !== 'object') return [];
-  return Object.entries(account)
-    .filter(([field, value]) => typeof value === 'string' && SECRET_FIELD.test(field))
-    .map(([, value]) => value);
-}
-
 // ---------- run ----------
 async function main() {
   const stepsPath = process.argv[2];
@@ -1305,7 +1292,6 @@ async function main() {
     pace,
     root: ROOT,
     since: () => (Date.now() - startedAt) / 1000,
-    secrets: accountSecrets(makeAccountStore(settings.output.accountStore).get(app)),
   });
 
   // Loaded here because a case is handed the terminal it runs its commands in. Each one is given
@@ -1317,7 +1303,6 @@ async function main() {
     page,
     term: terminal.term,
     root: ROOT,
-    registerSecret: terminal.registerSecret,
     outDir,
     onDispose: (fn) => caseDisposers.push(fn),
   });
