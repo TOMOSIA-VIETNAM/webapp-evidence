@@ -1,8 +1,10 @@
 // The plugin's firefly in the menu bar for as long as a screen take holds the machine, its lantern
 // lit by what the take is doing:
 //
-//   amber + seconds   the take starts, or carries on, once the mouse and keyboard are left alone
-//   red, rays flashing  recording: leave the mouse and keyboard alone
+//   grey + seconds  the take starts, or carries on, once the mouse and keyboard are left alone
+//   red             recording: leave the mouse and keyboard alone
+//
+// The rays flash in both, inside a frame that holds the firefly and the seconds together.
 //
 // and gone once the take is over. No firefly means nothing is about to move the pointer.
 //
@@ -31,7 +33,8 @@ const MARK = require('../assets/firefly-mark.json');
 
 const PID_FILE = path.join(DIR, 'status-item.pid');
 
-const LIGHT = { waiting: '#F59E0B', recording: '#EF3B2D' };
+// Grey for waiting, so the colour that means recording is the only colour there is
+const LIGHT = { waiting: '#8E8E93', recording: '#EF3B2D' };
 
 // How long a fresh item waits for the take that started it to write its first state, before it
 // concludes there is no take and leaves.
@@ -89,28 +92,53 @@ function run(argv) {
     return p;
   }
   // Drawn at three times the size it is shown at, so it stays sharp on any display
-  // The rays reach past the body, so the box is larger than the body's; 22 points keeps the
-  // body the size of its neighbours'.
-  var POINTS = 22;
+  // One image for the firefly, the seconds beside it and a frame round both, so they read as one
+  // thing rather than as an icon with some number next to it. Drawn at three times the size it is
+  // shown at, so it stays sharp on any display.
+  var HEIGHT = 22, MARK_SIZE = 17, PAD = 4, GAP = 1, SCALE = 3;
+  var font = $.NSFont.monospacedDigitSystemFontOfSizeWeight(12 * SCALE, $.NSFontWeightSemibold);
   var cache = {};
-  function firefly(ink, light, rays) {
-    var key = [ink, light, rays].join('|');
+  function badge(ink, light, rays, text) {
+    var key = [ink, light, rays, text].join('|');
     if (cache[key]) return cache[key];
-    var px = POINTS * 3, k = px / BOX;
+    var attrs = $({ NSFont: font, NSColor: hex(ink) });
+    var label = $(text);
+    var textSize = text ? label.sizeWithAttributes(attrs) : { width: 0, height: 0 };
+    var width = PAD + MARK_SIZE + (text ? GAP + textSize.width / SCALE : 0) + PAD;
+    var pxW = Math.ceil(width * SCALE), pxH = HEIGHT * SCALE;
     var rep = $.NSBitmapImageRep.alloc.initWithBitmapDataPlanesPixelsWidePixelsHighBitsPerSampleSamplesPerPixelHasAlphaIsPlanarColorSpaceNameBytesPerRowBitsPerPixel(
-      null, px, px, 8, 4, true, false, 'NSDeviceRGBColorSpace', 0, 0);
+      null, pxW, pxH, 8, 4, true, false, 'NSDeviceRGBColorSpace', 0, 0);
     var ctx = $.NSGraphicsContext.graphicsContextWithBitmapImageRep(rep);
     $.NSGraphicsContext.saveGraphicsState;
     $.NSGraphicsContext.setCurrentContext(ctx);
+
+    var frame = $.NSBezierPath.bezierPathWithRoundedRectXRadiusYRadius(
+      $.NSMakeRect(SCALE, SCALE, pxW - 2 * SCALE, pxH - 2 * SCALE), 5 * SCALE, 5 * SCALE);
+    frame.setLineWidth(1.2 * SCALE);
     hex(ink).set;
-    MARK.body.forEach(function (shape) { polygon(shape, k).fill; });
+    frame.stroke;
+
+    var k = MARK_SIZE * SCALE / BOX, dx = PAD * SCALE, dy = (pxH - MARK_SIZE * SCALE) / 2;
+    function shape(pts) {
+      var p = polygon(pts, k);
+      var move = $.NSAffineTransform.transform;
+      move.translateXByYBy(dx, dy);
+      p.transformUsingAffineTransform(move);
+      p.fill;
+    }
+    MARK.body.forEach(shape);
     hex(light).set;
-    polygon(MARK.lantern, k).fill;
-    if (rays) MARK.rays.forEach(function (shape) { polygon(shape, k).fill; });
+    shape(MARK.lantern);
+    if (rays) MARK.rays.forEach(shape);
+
+    if (text) {
+      label.drawAtPointWithAttributes(
+        $.NSMakePoint((PAD + MARK_SIZE + GAP) * SCALE, (pxH - textSize.height) / 2), attrs);
+    }
     ctx.flushGraphics;
     $.NSGraphicsContext.restoreGraphicsState;
-    rep.setSize($.NSMakeSize(POINTS, POINTS));
-    var image = $.NSImage.alloc.initWithSize($.NSMakeSize(POINTS, POINTS));
+    rep.setSize($.NSMakeSize(width, HEIGHT));
+    var image = $.NSImage.alloc.initWithSize($.NSMakeSize(width, HEIGHT));
     image.addRepresentation(rep);
     return (cache[key] = image);
   }
@@ -131,21 +159,18 @@ function run(argv) {
         seen = true;
         if (!item) {
           item = $.NSStatusBar.systemStatusBar.statusItemWithLength($.NSVariableStatusItemLength);
-          item.button.setImagePosition($.NSImageLeft);
-          item.button.setFont($.NSFont.monospacedDigitSystemFontOfSizeWeight(0, 0));
         }
         var button = item.button;
         var dark = button.effectiveAppearance.bestMatchFromAppearancesWithNames(
           $(['NSAppearanceNameAqua', 'NSAppearanceNameDarkAqua'])).js === 'NSAppearanceNameDarkAqua';
         var ink = dark ? MARK.ink.dark : MARK.ink.light;
-        // Recording flashes its rays once a second, the way a recording light does
-        var rays = now.state === 'recording' && Math.floor(Date.now() / 500) % 2 === 0;
-        var title = now.state === 'waiting' && typeof now.left === 'number' ? ' ' + now.left : '';
-        var look = [ink, rays, title, now.state].join('|');
+        // The rays flash once a second in either state, the way a recording light does
+        var rays = Math.floor(Date.now() / 500) % 2 === 0;
+        var text = now.state === 'waiting' && typeof now.left === 'number' ? String(now.left) : '';
+        var look = [ink, rays, text, now.state].join('|');
         if (look !== shown) {
           shown = look;
-          button.setImage(firefly(ink, LIGHT[now.state], rays));
-          button.setTitle(title);
+          button.setImage(badge(ink, LIGHT[now.state], rays, text));
           button.setToolTip(TIPS[now.state]);
         }
       }

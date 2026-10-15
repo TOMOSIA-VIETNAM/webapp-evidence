@@ -23,8 +23,9 @@ macOS only, like the screen capture itself. Windows is out of scope.
   wrapped: step scripts call them without `await`.
 - **Shows whose machine it is** (`scripts/status-item.js`). A detached accessory process
   (`osascript -l JavaScript`) puts the plugin's firefly in the menu bar while a take holds the
-  machine: lantern amber + seconds while waiting, red with flashing rays while recording, body in
-  the wordmark's ink for the menu bar's appearance. The lantern is larger than the favicon's and
+  machine, in a frame holding it and the seconds together: lantern grey + seconds while waiting,
+  red while recording, rays flashing in both, body and frame in the wordmark's ink for the menu
+  bar's appearance. The lantern is larger than the favicon's and
   carries the full logo's rays: the favicon's lantern is a few pixels at menu bar size. It leaves when no live take holds a lock, so no
   firefly means the machine is free. The drawing is the favicon's, from
   `src/skills/recording/assets/firefly-mark.json`, which `docs/images/logo/build-firefly-assets.py`
@@ -37,7 +38,7 @@ macOS only, like the screen capture itself. Windows is out of scope.
   2 s, idle went 7.67 s → 9.79 s.
 - A key posted to the HID tap does reset it: idle 3.2 s → 0.01 s after one shift down/up. So the
   file picker driver reports its own input, and input within 300 ms after it is not a person.
-- The firefly renders amber with a countdown and red with flashing rays, a second `showStatusItem()` adds no second
+- The framed firefly renders grey with a countdown and red, rays flashing, a second `showStatusItem()` adds no second
   item, and it exits within a second of the lock being released.
 
 - `tests/e2e/run-window.sh`, with shift taps posted to the HID tap standing in for a person: taps
