@@ -21,10 +21,14 @@ macOS only, like the screen capture itself. Windows is out of scope.
   is parked again, other applications are hidden again, the browser comes to the front, and the
   stretch is cut with `createCuts()`. The runbook names it. Synchronous ones (`mark()`) are not
   wrapped: step scripts call them without `await`.
-- **Shows whose machine it is** (`scripts/status-item.js`). A detached accessory process draws a
-  menu bar dot: grey free, yellow + seconds waiting, red recording. The state lives in the take's
-  own lock (`lock.update()`, written via rename so it is never seen half-written), so a crashed
-  run reads as grey. One item per machine (pid file); it exits after 30 minutes of grey.
+- **Shows whose machine it is** (`scripts/status-item.js`). A detached accessory process
+  (`osascript -l JavaScript`) puts the plugin's firefly in the menu bar while a take holds the
+  machine: lantern amber + seconds while waiting, red and pulsing while recording, body in the
+  wordmark's ink for the menu bar's appearance. It leaves when no live take holds a lock, so no
+  firefly means the machine is free. The drawing is the favicon's, from
+  `src/skills/recording/assets/firefly-mark.json`, which `docs/images/logo/build-firefly-assets.py`
+  writes. The state lives in the take's own lock (`lock.update()`, written via rename so it is
+  never seen half-written), so a crashed run puts the light out. One item per machine (pid file).
 
 ## Measured
 
@@ -32,10 +36,9 @@ macOS only, like the screen capture itself. Windows is out of scope.
   2 s, idle went 7.67 s → 9.79 s.
 - A key posted to the HID tap does reset it: idle 3.2 s → 0.01 s after one shift down/up. So the
   file picker driver reports its own input, and input within 300 ms after it is not a person.
-- The status item renders all three states and a second `showStatusItem()` adds no second item.
+- The firefly renders amber with a countdown and red, a second `showStatusItem()` adds no second
+  item, and it exits within a second of the lock being released.
 
-## Not yet run
-
-`tests/e2e/run-window.sh` with someone moving the mouse when it starts (the take should not open
-the browser until they stop), and nudging the mouse mid-take (the take should come out with that
-stretch cut). Both need the machine for about a minute.
+- `tests/e2e/run-window.sh`, with shift taps posted to the HID tap standing in for a person: taps
+  for the first 6 s held the countdown at 3 and the browser closed; one tap mid-take turned the
+  state back to waiting for 3 s, and the runbook listed a 3.5 s stretch cut with both steps kept.

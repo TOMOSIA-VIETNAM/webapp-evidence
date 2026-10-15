@@ -160,9 +160,9 @@ them second, in that order:
    `recording.screenCapture.countdownSeconds` before it opens the browser, and starts that count
    again at every touch.
 
-A dot in the menu bar says whose the machine is: grey while nothing is about to move the pointer,
-yellow with the seconds left while a take waits for hands off, red while it records. Tell them
-that once, with the question. Someone who touches the machine in the middle of a take is waited
+The plugin's firefly sits in the menu bar while a take holds the machine: its lantern amber with
+the seconds left while the take waits for hands off, red and pulsing while it records. It leaves
+when the take ends — no firefly, the machine is theirs. Tell them that once, with the question. Someone who touches the machine in the middle of a take is waited
 for — the take carries on once they leave it alone again, and the wait is cut from the video and
 named in the runbook. What they did while the action they interrupted was still running is not
 cut: the check sits between actions, so report it like anything else on the screen. Do not ask them anything else until the take is finished, and tell

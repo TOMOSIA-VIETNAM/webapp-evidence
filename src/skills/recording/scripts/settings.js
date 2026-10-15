@@ -121,7 +121,7 @@ const DEFAULTS = {
       display: 0,             // which display, when there is more than one
       // How long the machine has to be left alone before the take takes it over: before the
       // browser opens, and again before an action when someone used the machine in the middle of
-      // the take. Any key or mouse event starts the count again, and the menu bar shows it.
+      // the take. Any key or mouse event starts the count again, and the menu bar firefly shows it.
       // The notice that asks for the take is shown by announce.js, before the question, so by the
       // time this counts it has already been read and dismissed.
       countdownSeconds: 3,

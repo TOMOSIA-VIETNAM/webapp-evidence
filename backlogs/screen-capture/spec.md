@@ -98,7 +98,7 @@ Then, on the machine itself:
 - Do Not Disturb is asked for, not set. macOS offers no dependable way to turn it on and put it
   back, and a take that silently left it on afterwards would be worse than one that asked.
 - After their answer the runner waits until the keyboard and mouse have been left alone for the
-  countdown, and starts it again at every touch; a menu bar dot shows the state. There is no
+  countdown, and starts it again at every touch; the plugin's firefly in the menu bar shows the state. There is no
   second notice: the answer is the handover. `backlogs/screen-capture/handover.md` has the rest.
 
 ## Redaction
