@@ -144,6 +144,11 @@ them second, in that order:
    A `--screen` or `--headless` on the command is this question already answered. Do not ask it
    again.
 
+   With the second answer, say once what the menu bar will show: the plugin's firefly, its rays
+   flashing — orange with the seconds left while a take waits for hands off, red while it records,
+   green between takes, when the machine is theirs and another take may follow. It leaves ten
+   minutes after the last take.
+
 3. **Only on the second answer**, record with `SCREEN_CAPTURE=1`:
 
    ```bash
@@ -154,11 +159,16 @@ them second, in that order:
    The runner refuses without that variable, and it cannot ask for it itself: started through a
    shell, a prompt on stdin waits forever. Passing it is the agent saying the person agreed.
 
-   Their answer is the handover — nothing else appears on their screen, because by then they
-   have read the notice, turned off notifications and walked back to this terminal. A few
-   seconds after they answer, the first frame is recorded.
+   Their answer is the handover — no other dialog appears on their screen, because by then they
+   have read the notice, turned off notifications and walked back to this terminal. The runner
+   then waits until nobody has touched the keyboard or mouse for
+   `recording.screenCapture.countdownSeconds` before it opens the browser, and starts that count
+   again at every touch.
 
-From the moment they answer, the machine is the agent's. Do not ask them anything else until the
+Someone who touches the machine in the middle of a take is waited for — the take carries on once
+they leave it alone again, and the wait is cut from the video and named in the runbook. What they
+did while the action they interrupted was still running is not cut: the check sits between
+actions, so report it like anything else on the screen. Do not ask them anything else until the
 take is finished, and tell them plainly when it is.
 
 ## Looking at the take afterwards

@@ -101,4 +101,22 @@ function release(file, pid = process.pid) {
   try { fs.unlinkSync(file); } catch { /* already gone */ }
 }
 
-module.exports = { acquire, fileFor, isRunning };
+// Add to what the lock says about the run holding it — what a screen take is doing at the moment,
+// for the menu bar item to show. Only the holder writes, and only while it still holds the lock.
+// Written beside the lock and renamed over it: a run reading a half-written lock takes it for one
+// left behind and removes it, so the file must never be seen half-written.
+function update(projectRoot, fields, pid = process.pid) {
+  const file = fileFor(projectRoot);
+  const holder = readHolder(file);
+  if (!holder || holder.pid !== pid) return;
+  const next = `${file}.${pid}.tmp`;
+  try {
+    fs.writeFileSync(next, JSON.stringify({ ...holder, ...fields }));
+    fs.renameSync(next, file);
+  } catch {
+    // A status nobody can see is not worth failing a take over
+    try { fs.unlinkSync(next); } catch { /* never written */ }
+  }
+}
+
+module.exports = { acquire, update, fileFor, isRunning, DIR };

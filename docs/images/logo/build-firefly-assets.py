@@ -8,7 +8,8 @@ mark reads both as an insect and as something that is recording.
 
 Run this script to regenerate every asset after editing the geometry below:
     python3 build-firefly-assets.py
-Outputs land beside this script (mark, dark variant, lockups, favicon, sheet).
+Outputs land beside this script (mark, dark variant, lockups, favicon, sheet),
+and the menu bar mark goes to the recorder's assets, which ship with it.
 Everything is flat polygons in one 128x128 coordinate system, four tones of a
 single hue, no gradients and no strokes.
 
@@ -18,6 +19,7 @@ so the name looked different everywhere. Outlining needs fontTools and brotli
 (pip install fonttools brotli) and the Inter font the site already installs
 (pnpm install in webapp/).
 """
+import json
 import math
 import pathlib
 
@@ -27,6 +29,7 @@ from fontTools.ttLib import TTFont
 from fontTools.varLib.instancer import instantiateVariableFont
 
 OUT = pathlib.Path(__file__).resolve().parent
+MENU_BAR_MARK = OUT.parents[2] / "src/skills/recording/assets/firefly-mark.json"
 
 # Four tones of one lime hue: the colour of the light a firefly actually makes.
 # The dark-background variant lifts every tone so the body does not sink into a
@@ -74,11 +77,11 @@ def ngon(cx, cy, r, sides=8, turn=22.5):
             for i in range(sides)]
 
 
-def ray(angle):
+def ray(angle, lantern=LANTERN, glow=GLOW):
     """One wedge of escaping light, drawn outward from the lantern."""
-    a0, a1 = math.radians(angle - GLOW["half"]), math.radians(angle + GLOW["half"])
-    cx, cy = LANTERN["cx"], LANTERN["cy"]
-    ri, ro = GLOW["inner"], GLOW["outer"]
+    a0, a1 = math.radians(angle - glow["half"]), math.radians(angle + glow["half"])
+    cx, cy = lantern["cx"], lantern["cy"]
+    ri, ro = glow["inner"], glow["outer"]
     return [(cx + ri * math.cos(a0), cy + ri * math.sin(a0)),
             (cx + ro * math.cos(a0), cy + ro * math.sin(a0)),
             (cx + ro * math.cos(a1), cy + ro * math.sin(a1)),
@@ -107,25 +110,64 @@ def full_mark(t):
     ])
 
 
-def reduced_mark(t):
+def reduced_shapes(t):
     """Favicon build: solid body, two wing blades, no legs, no rays, a big lantern.
 
     A mascot cannot simply be scaled down — small facets turn to mud below about
     24px, so the small size gets its own drawing with fewer, larger shapes. The
     rays and the legs are the first things to go: below 24px they close up into a
     blur around the body and cost the lantern its shape.
+
+    Returned as (points, fill) pairs, unshifted: the favicon renders them, and the
+    menu bar item draws the same shapes itself.
     """
     # The antennae stay in the reduced drawing even though they nearly vanish:
     # without them the body reads as an anonymous capsule at 16px, with them the
     # silhouette still says insect.
-    return "".join([
-        both([(50, 40), (8, 26), (0, 54), (32, 80), (48, 64)], t["light"]),
-        both([(50, 36), (62, 36), (62, 86), (52, 94), (44, 72), (44, 46)], t["mid"]),
-        both([(55, 14), (57, 10), (33, 0), (31, 5)], t["mid"]),
-        polygon([(50, 12), (78, 12), (80, 40), (48, 40)], t["deep"]),
-        polygon([(52, 82), (76, 82), (74, 102), (54, 102)], t["deep"]),
-        polygon(ngon(64, 104, 21), t["pale"]),
-    ])
+    def pair(points, fill):
+        return [(points, fill), (mirror(points), fill)]
+    return [
+        *pair([(50, 40), (8, 26), (0, 54), (32, 80), (48, 64)], t["light"]),
+        *pair([(50, 36), (62, 36), (62, 86), (52, 94), (44, 72), (44, 46)], t["mid"]),
+        *pair([(55, 14), (57, 10), (33, 0), (31, 5)], t["mid"]),
+        ([(50, 12), (78, 12), (80, 40), (48, 40)], t["deep"]),
+        ([(52, 82), (76, 82), (74, 102), (54, 102)], t["deep"]),
+        (ngon(64, 104, 21), t["pale"]),
+    ]
+
+
+def reduced_mark(t):
+    return "".join(polygon(points, fill) for points, fill in reduced_shapes(t))
+
+
+# The menu bar item's lantern is the one thing in it that changes, and at menu bar
+# size the favicon's lantern is a few pixels: it gets a larger lantern and the full
+# mark's rays, sized for that lantern, so the light can be seen from across a desk.
+MENU_BAR_LANTERN = dict(cx=64, cy=104, r=25)
+MENU_BAR_GLOW = dict(inner=30, outer=44, half=13)
+
+
+def menu_bar_mark():
+    """The reduced drawing for the recorder's menu bar item, in three parts: the
+    body, drawn in the menu bar's ink like every other item there (the wordmark's
+    ink, per appearance); the lantern, lit in the colour of what the take is doing;
+    and the rays around it. `box` is the square that holds all three, as x, y, size."""
+    shapes = reduced_shapes(LIGHT_BG)
+    body = [shift(points) for points, fill in shapes if fill != LIGHT_BG["pale"]]
+    lantern = shift(ngon(**MENU_BAR_LANTERN))
+    rays = [shift(ray(a, MENU_BAR_LANTERN, MENU_BAR_GLOW)) for a in GLOW_ANGLES]
+    every = [pt for shape in body + [lantern] + rays for pt in shape]
+    x0, x1 = min(x for x, _ in every), max(x for x, _ in every)
+    y0, y1 = min(y for _, y in every), max(y for _, y in every)
+    size = max(x1 - x0, y1 - y0)
+    flat = lambda points: [round(v, 1) for x, y in points for v in (x, y)]
+    return json.dumps({
+        "box": [round((x0 + x1 - size) / 2, 1), round((y0 + y1 - size) / 2, 1), round(size, 1)],
+        "body": [flat(points) for points in body],
+        "lantern": flat(lantern),
+        "rays": [flat(points) for points in rays],
+        "ink": WORDMARK_INK,
+    }) + "\n"
 
 
 # --- contact sheet -----------------------------------------------------------
@@ -287,6 +329,8 @@ def main():
         "logo-lockup.svg":      lockup_svg(full_mark(LIGHT_BG), WORDMARK_INK["light"]),
         "logo-lockup-dark.svg": lockup_svg(full_mark(DARK_BG), WORDMARK_INK["dark"]),
         "brand-sheet.svg":      sheet_svg(),
+        # Shipped with the recorder, which draws its menu bar item from it
+        str(MENU_BAR_MARK):     menu_bar_mark(),
     }.items():
         (OUT / name).write_text(content)
         print("wrote", name)

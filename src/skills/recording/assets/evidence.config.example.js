@@ -45,7 +45,7 @@ module.exports = {
     // screenCapture: {
     //   framerate: 30,
     //   display: 0,             // only the main display is implemented
-    //   countdownSeconds: 3,    // between the answer given in the terminal and the first frame
+    //   countdownSeconds: 3,    // the machine left alone this long before a take takes it over
     //   maxSeconds: 600,        // a ceiling, so a runner that dies leaves no recorder running
     // },
 

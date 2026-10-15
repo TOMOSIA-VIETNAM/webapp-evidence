@@ -363,3 +363,11 @@ test('aborting reports that the recorder had not stopped on its own', async () =
   const { capture } = pageCapture(dir, { video: () => null });
   assert.equal((await capture.abort()).endedEarly, false);
 });
+
+test('a take that hit its ceiling while waiting for someone names the wait, not the step script', () => {
+  const { ceilingAdvice } = require('../src/skills/recording/scripts/capture');
+  const waited = ceilingAdvice(184.4);
+  assert.match(waited, /184s/);
+  assert.notEqual(waited, ceilingAdvice(0));
+  assert.equal(ceilingAdvice(0.2), ceilingAdvice(0));
+});
