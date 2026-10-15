@@ -4,7 +4,7 @@
 //   grey + seconds  the take starts, or carries on, once the mouse and keyboard are left alone
 //   red             recording: leave the mouse and keyboard alone
 //
-// The rays flash in both, inside a frame that holds the firefly and the seconds together.
+// The rays flash in both. While there are seconds, a frame holds the firefly and them together.
 //
 // and gone once the take is over. No firefly means nothing is about to move the pointer.
 //
@@ -93,9 +93,11 @@ function run(argv) {
   }
   // Drawn at three times the size it is shown at, so it stays sharp on any display
   // One image for the firefly, the seconds beside it and a frame round both, so they read as one
-  // thing rather than as an icon with some number next to it. Drawn at three times the size it is
-  // shown at, so it stays sharp on any display.
-  var HEIGHT = 22, MARK_SIZE = 17, PAD = 4, GAP = 1, SCALE = 3;
+  // thing rather than as an icon with some number next to it. With no seconds there is nothing to
+  // hold together: no frame, and the firefly takes the room the frame took. Drawn at three times
+  // the size it is shown at, so it stays sharp on any display.
+  var HEIGHT = 22, GAP = 1, SCALE = 3;
+  var FRAMED = { mark: 17, pad: 4 }, BARE = { mark: 21, pad: 0 };
   var font = $.NSFont.monospacedDigitSystemFontOfSizeWeight(12 * SCALE, $.NSFontWeightSemibold);
   var cache = {};
   function badge(ink, light, rays, text) {
@@ -104,6 +106,7 @@ function run(argv) {
     var attrs = $({ NSFont: font, NSColor: hex(ink) });
     var label = $(text);
     var textSize = text ? label.sizeWithAttributes(attrs) : { width: 0, height: 0 };
+    var layout = text ? FRAMED : BARE, MARK_SIZE = layout.mark, PAD = layout.pad;
     var width = PAD + MARK_SIZE + (text ? GAP + textSize.width / SCALE : 0) + PAD;
     var pxW = Math.ceil(width * SCALE), pxH = HEIGHT * SCALE;
     var rep = $.NSBitmapImageRep.alloc.initWithBitmapDataPlanesPixelsWidePixelsHighBitsPerSampleSamplesPerPixelHasAlphaIsPlanarColorSpaceNameBytesPerRowBitsPerPixel(
@@ -116,7 +119,7 @@ function run(argv) {
       $.NSMakeRect(SCALE, SCALE, pxW - 2 * SCALE, pxH - 2 * SCALE), 5 * SCALE, 5 * SCALE);
     frame.setLineWidth(1.2 * SCALE);
     hex(ink).set;
-    frame.stroke;
+    if (text) frame.stroke;
 
     var k = MARK_SIZE * SCALE / BOX, dx = PAD * SCALE, dy = (pxH - MARK_SIZE * SCALE) / 2;
     function shape(pts) {

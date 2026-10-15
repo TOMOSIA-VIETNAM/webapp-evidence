@@ -23,7 +23,7 @@ macOS only, like the screen capture itself. Windows is out of scope.
   wrapped: step scripts call them without `await`.
 - **Shows whose machine it is** (`scripts/status-item.js`). A detached accessory process
   (`osascript -l JavaScript`) puts the plugin's firefly in the menu bar while a take holds the
-  machine, in a frame holding it and the seconds together: lantern grey + seconds while waiting,
+  machine: lantern grey + seconds while waiting, framed with the seconds,
   red while recording, rays flashing in both, body and frame in the wordmark's ink for the menu
   bar's appearance. The lantern is larger than the favicon's and
   carries the full logo's rays: the favicon's lantern is a few pixels at menu bar size. It leaves when no live take holds a lock, so no

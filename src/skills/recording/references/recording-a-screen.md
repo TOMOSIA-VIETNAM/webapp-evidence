@@ -160,8 +160,8 @@ them second, in that order:
    `recording.screenCapture.countdownSeconds` before it opens the browser, and starts that count
    again at every touch.
 
-The plugin's firefly sits in the menu bar, framed, while a take holds the machine: its lantern
-grey with the seconds left while the take waits for hands off, red while it records, its rays
+The plugin's firefly sits in the menu bar while a take holds the machine: its lantern grey, framed
+with the seconds left, while the take waits for hands off, red while it records, its rays
 flashing in both. It leaves
 when the take ends — no firefly, the machine is theirs. Tell them that once, with the question. Someone who touches the machine in the middle of a take is waited
 for — the take carries on once they leave it alone again, and the wait is cut from the video and
