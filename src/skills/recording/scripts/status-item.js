@@ -1,20 +1,21 @@
-// The plugin's firefly in the menu bar for as long as a screen take holds the machine, its lantern
-// lit by what the take is doing:
+// The plugin's firefly in the menu bar while screen takes are being made, its lantern lit by what
+// is happening, its rays flashing once a second:
 //
-//   grey + seconds  the take starts, or carries on, once the mouse and keyboard are left alone
-//   red             recording: leave the mouse and keyboard alone
+//   orange + seconds  a take starts, or carries on, once the mouse and keyboard are left alone
+//   red               recording: leave the mouse and keyboard alone
+//   green             between takes: the machine is the person's, and another take may follow
 //
-// The rays flash in both. While there are seconds, a frame holds the firefly and them together.
-//
-// and gone once the take is over. No firefly means nothing is about to move the pointer.
+// While there are seconds, a frame holds the firefly and them together. The firefly leaves once
+// BETWEEN_TAKES_SECONDS have passed with no take; no firefly means nothing is about to happen.
 //
 // Between two takes the runner is not running at all — a step failed, the agent is rewriting the
 // script — and nothing on the screen used to say so. The person either sat waiting, or went back
-// to work and had the machine taken from them when the next take began.
+// to work and had the machine taken from them when the next take began. Green is that gap: the
+// runner cannot know whether the agent will record again, so it says the machine is free for now.
 //
 // The state is read from the lock each take already holds (lock.js), which the runner adds the
-// state to: a run that crashed leaves a lock whose process is gone, and that reads as no take
-// rather than as a red light nobody will ever put out. One item for the whole machine, whichever
+// state to: a run that crashed leaves a lock whose process is gone, and that reads as no take —
+// green, then gone — rather than as a red light nobody will ever put out. One item for the whole machine, whichever
 // project is recording.
 //
 // The drawing is the favicon's, from assets/firefly-mark.json — written by
@@ -33,12 +34,14 @@ const MARK = require('../assets/firefly-mark.json');
 
 const PID_FILE = path.join(DIR, 'status-item.pid');
 
-// Grey for waiting, so the colour that means recording is the only colour there is
-const LIGHT = { waiting: '#8E8E93', recording: '#EF3B2D' };
+const LIGHT = { waiting: '#F5820B', recording: '#EF3B2D', between: '#2FB344' };
 
 // How long a fresh item waits for the take that started it to write its first state, before it
 // concludes there is no take and leaves.
 const FIRST_STATE_SECONDS = 15;
+// How long green stays after a take: long enough to span an agent fixing a step script and
+// recording again, short enough that a session that has moved on does not keep a light on.
+const BETWEEN_TAKES_SECONDS = 10 * 60;
 
 const PROGRAM = `
 ObjC.import('AppKit');
@@ -47,7 +50,7 @@ ObjC.bindFunction('getpid', ['int', []]);
 
 function run(argv) {
   var DIR = argv[0], PID_FILE = argv[1], MARK = JSON.parse(argv[2]), LIGHT = JSON.parse(argv[3]);
-  var FIRST_STATE = Number(argv[4]);
+  var FIRST_STATE = Number(argv[4]), BETWEEN_TAKES = Number(argv[5]);
   var files = $.NSFileManager.defaultManager;
 
   function read(file) {
@@ -149,17 +152,24 @@ function run(argv) {
   var TIPS = {
     waiting: 'Webapp Evidence: a take starts once the mouse and keyboard are left alone',
     recording: 'Webapp Evidence: recording - leave the mouse and keyboard alone',
+    between: 'Webapp Evidence: between takes - the machine is yours; another take may follow',
   };
 
   $.NSApplication.sharedApplication.setActivationPolicy($.NSApplicationActivationPolicyAccessory);
-  var item = null, shown = null, startedAt = Date.now(), seen = false;
+  var item = null, shown = null, startedAt = Date.now(), lastTakeAt = null;
   try {
     for (;;) {
       var now = current();
-      if (!now) {
-        if (seen || Date.now() - startedAt > FIRST_STATE * 1000) break;
+      if (now) {
+        lastTakeAt = Date.now();
+      } else if (lastTakeAt === null) {
+        if (Date.now() - startedAt > FIRST_STATE * 1000) break;
+      } else if (Date.now() - lastTakeAt > BETWEEN_TAKES * 1000) {
+        break;
       } else {
-        seen = true;
+        now = { state: 'between' };
+      }
+      if (now) {
         if (!item) {
           item = $.NSStatusBar.systemStatusBar.statusItemWithLength($.NSVariableStatusItemLength);
         }
@@ -167,7 +177,7 @@ function run(argv) {
         var dark = button.effectiveAppearance.bestMatchFromAppearancesWithNames(
           $(['NSAppearanceNameAqua', 'NSAppearanceNameDarkAqua'])).js === 'NSAppearanceNameDarkAqua';
         var ink = dark ? MARK.ink.dark : MARK.ink.light;
-        // The rays flash once a second in either state, the way a recording light does
+        // The rays flash once a second in every state, the way a recording light does
         var rays = Math.floor(Date.now() / 500) % 2 === 0;
         var text = now.state === 'waiting' && typeof now.left === 'number' ? String(now.left) : '';
         var look = [ink, rays, text, now.state].join('|');
@@ -202,6 +212,7 @@ function showStatusItem() {
     const child = spawn('osascript', [
       '-l', 'JavaScript', '-e', PROGRAM,
       DIR, PID_FILE, JSON.stringify(MARK), JSON.stringify(LIGHT), String(FIRST_STATE_SECONDS),
+      String(BETWEEN_TAKES_SECONDS),
     ], { detached: true, stdio: 'ignore' });
     child.on('error', () => { /* no item, and the take goes on */ });
     child.unref();

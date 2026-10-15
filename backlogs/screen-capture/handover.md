@@ -22,15 +22,15 @@ macOS only, like the screen capture itself. Windows is out of scope.
   stretch is cut with `createCuts()`. The runbook names it. Synchronous ones (`mark()`) are not
   wrapped: step scripts call them without `await`.
 - **Shows whose machine it is** (`scripts/status-item.js`). A detached accessory process
-  (`osascript -l JavaScript`) puts the plugin's firefly in the menu bar while a take holds the
-  machine: lantern grey + seconds while waiting, framed with the seconds,
-  red while recording, rays flashing in both, body and frame in the wordmark's ink for the menu
-  bar's appearance. The lantern is larger than the favicon's and
-  carries the full logo's rays: the favicon's lantern is a few pixels at menu bar size. It leaves when no live take holds a lock, so no
-  firefly means the machine is free. The drawing is the favicon's, from
-  `src/skills/recording/assets/firefly-mark.json`, which `docs/images/logo/build-firefly-assets.py`
-  writes. The state lives in the take's own lock (`lock.update()`, written via rename so it is
-  never seen half-written), so a crashed run puts the light out. One item per machine (pid file).
+  (`osascript -l JavaScript`) puts the plugin's firefly in the menu bar, rays flashing: lantern
+  orange + seconds in a frame while a take waits for hands off, red while it records, green for
+  ten minutes after a take ends — the runner cannot know whether the agent will record again, so
+  green says the machine is free for now. Body and frame in the wordmark's ink for the menu bar's
+  appearance. The lantern is larger than the favicon's and carries the full logo's rays. The
+  drawing comes from `src/skills/recording/assets/firefly-mark.json`, which
+  `docs/images/logo/build-firefly-assets.py` writes. The state lives in the take's own lock
+  (`lock.update()`, written via rename so it is never seen half-written), so a crashed run reads
+  as between takes. One item per machine (pid file), reused by the next take.
 
 ## Measured
 
