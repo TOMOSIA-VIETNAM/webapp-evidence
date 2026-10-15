@@ -1,8 +1,8 @@
-// The plugin's firefly in the menu bar for as long as a screen take holds the machine, the whole
-// of it coloured by what the take is doing:
+// The plugin's firefly in the menu bar for as long as a screen take holds the machine, its lantern
+// lit by what the take is doing:
 //
-//   amber + seconds  the take starts, or carries on, once the mouse and keyboard are left alone
-//   red, lantern pulsing  recording: leave the mouse and keyboard alone
+//   amber + seconds   the take starts, or carries on, once the mouse and keyboard are left alone
+//   red, rays flashing  recording: leave the mouse and keyboard alone
 //
 // and gone once the take is over. No firefly means nothing is about to move the pointer.
 //
@@ -16,9 +16,9 @@
 // project is recording.
 //
 // The drawing is the favicon's, from assets/firefly-mark.json — written by
-// docs/images/logo/build-firefly-assets.py, so the two cannot drift apart. Coloured whole rather
-// than as one lit lantern: at menu bar size the lantern alone is a few pixels, too small to tell
-// amber from red at a glance. The lantern is a lighter tone of the body's colour, as in the logo.
+// docs/images/logo/build-firefly-assets.py, so the two cannot drift apart, with a larger lantern
+// and the full logo's rays so the light can be seen at menu bar size. The body is drawn in the
+// brand's ink for the menu bar's appearance, as every other item there is one flat colour.
 //
 // AppKit through JavaScript for Automation (`osascript -l JavaScript`): nothing installed. The
 // process is an accessory application, with no Dock icon, which also keeps desktop.js from hiding
@@ -31,12 +31,7 @@ const MARK = require('../assets/firefly-mark.json');
 
 const PID_FILE = path.join(DIR, 'status-item.pid');
 
-// Body and lantern, per state. Recording alternates its lantern between the two tones.
-const TONES = {
-  waiting: { body: '#D2690A', lantern: '#FFB21F' },
-  recording: { body: '#E0362B', lantern: '#FF7D6E' },
-  recordingDim: { body: '#E0362B', lantern: '#E0362B' },
-};
+const LIGHT = { waiting: '#F59E0B', recording: '#EF3B2D' };
 
 // How long a fresh item waits for the take that started it to write its first state, before it
 // concludes there is no take and leaves.
@@ -48,7 +43,7 @@ ObjC.bindFunction('kill', ['int', ['int', 'int']]);
 ObjC.bindFunction('getpid', ['int', []]);
 
 function run(argv) {
-  var DIR = argv[0], PID_FILE = argv[1], MARK = JSON.parse(argv[2]), TONES = JSON.parse(argv[3]);
+  var DIR = argv[0], PID_FILE = argv[1], MARK = JSON.parse(argv[2]), LIGHT = JSON.parse(argv[3]);
   var FIRST_STATE = Number(argv[4]);
   var files = $.NSFileManager.defaultManager;
 
@@ -83,31 +78,35 @@ function run(argv) {
     var n = parseInt(h.slice(1), 16);
     return $.NSColor.colorWithSRGBRedGreenBlueAlpha((n >> 16 & 255) / 255, (n >> 8 & 255) / 255, (n & 255) / 255, 1);
   }
+  var BOX_X = MARK.box[0], BOX_Y = MARK.box[1], BOX = MARK.box[2];
   function polygon(pts, k) {   // SVG y grows downward, AppKit's upward
     var p = $.NSBezierPath.bezierPath;
     for (var i = 0; i < pts.length; i += 2) {
-      var pt = $.NSMakePoint(pts[i] * k, (MARK.viewBox - pts[i + 1]) * k);
+      var pt = $.NSMakePoint((pts[i] - BOX_X) * k, (BOX - (pts[i + 1] - BOX_Y)) * k);
       if (i === 0) p.moveToPoint(pt); else p.lineToPoint(pt);
     }
     p.closePath;
     return p;
   }
   // Drawn at three times the size it is shown at, so it stays sharp on any display
-  var POINTS = 18;
+  // The rays reach past the body, so the box is larger than the body's; 22 points keeps the
+  // body the size of its neighbours'.
+  var POINTS = 22;
   var cache = {};
-  function firefly(tones) {
-    var key = tones.body + tones.lantern;
+  function firefly(ink, light, rays) {
+    var key = [ink, light, rays].join('|');
     if (cache[key]) return cache[key];
-    var px = POINTS * 3, k = px / MARK.viewBox;
+    var px = POINTS * 3, k = px / BOX;
     var rep = $.NSBitmapImageRep.alloc.initWithBitmapDataPlanesPixelsWidePixelsHighBitsPerSampleSamplesPerPixelHasAlphaIsPlanarColorSpaceNameBytesPerRowBitsPerPixel(
       null, px, px, 8, 4, true, false, 'NSDeviceRGBColorSpace', 0, 0);
     var ctx = $.NSGraphicsContext.graphicsContextWithBitmapImageRep(rep);
     $.NSGraphicsContext.saveGraphicsState;
     $.NSGraphicsContext.setCurrentContext(ctx);
-    hex(tones.body).set;
+    hex(ink).set;
     MARK.body.forEach(function (shape) { polygon(shape, k).fill; });
-    hex(tones.lantern).set;
+    hex(light).set;
     polygon(MARK.lantern, k).fill;
+    if (rays) MARK.rays.forEach(function (shape) { polygon(shape, k).fill; });
     ctx.flushGraphics;
     $.NSGraphicsContext.restoreGraphicsState;
     rep.setSize($.NSMakeSize(POINTS, POINTS));
@@ -136,14 +135,16 @@ function run(argv) {
           item.button.setFont($.NSFont.monospacedDigitSystemFontOfSizeWeight(0, 0));
         }
         var button = item.button;
-        // Recording pulses once a second, the way a recording light does
-        var tones = now.state === 'waiting' ? TONES.waiting
-          : (Math.floor(Date.now() / 500) % 2 ? TONES.recordingDim : TONES.recording);
+        var dark = button.effectiveAppearance.bestMatchFromAppearancesWithNames(
+          $(['NSAppearanceNameAqua', 'NSAppearanceNameDarkAqua'])).js === 'NSAppearanceNameDarkAqua';
+        var ink = dark ? MARK.ink.dark : MARK.ink.light;
+        // Recording flashes its rays once a second, the way a recording light does
+        var rays = now.state === 'recording' && Math.floor(Date.now() / 500) % 2 === 0;
         var title = now.state === 'waiting' && typeof now.left === 'number' ? ' ' + now.left : '';
-        var look = [tones.lantern, title, now.state].join('|');
+        var look = [ink, rays, title, now.state].join('|');
         if (look !== shown) {
           shown = look;
-          button.setImage(firefly(tones));
+          button.setImage(firefly(ink, LIGHT[now.state], rays));
           button.setTitle(title);
           button.setToolTip(TIPS[now.state]);
         }
@@ -172,7 +173,7 @@ function showStatusItem() {
     // once no take holds the machine.
     const child = spawn('osascript', [
       '-l', 'JavaScript', '-e', PROGRAM,
-      DIR, PID_FILE, JSON.stringify(MARK), JSON.stringify(TONES), String(FIRST_STATE_SECONDS),
+      DIR, PID_FILE, JSON.stringify(MARK), JSON.stringify(LIGHT), String(FIRST_STATE_SECONDS),
     ], { detached: true, stdio: 'ignore' });
     child.on('error', () => { /* no item, and the take goes on */ });
     child.unref();

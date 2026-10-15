@@ -77,11 +77,11 @@ def ngon(cx, cy, r, sides=8, turn=22.5):
             for i in range(sides)]
 
 
-def ray(angle):
+def ray(angle, lantern=LANTERN, glow=GLOW):
     """One wedge of escaping light, drawn outward from the lantern."""
-    a0, a1 = math.radians(angle - GLOW["half"]), math.radians(angle + GLOW["half"])
-    cx, cy = LANTERN["cx"], LANTERN["cy"]
-    ri, ro = GLOW["inner"], GLOW["outer"]
+    a0, a1 = math.radians(angle - glow["half"]), math.radians(angle + glow["half"])
+    cx, cy = lantern["cx"], lantern["cy"]
+    ri, ro = glow["inner"], glow["outer"]
     return [(cx + ri * math.cos(a0), cy + ri * math.sin(a0)),
             (cx + ro * math.cos(a0), cy + ro * math.sin(a0)),
             (cx + ro * math.cos(a1), cy + ro * math.sin(a1)),
@@ -140,16 +140,33 @@ def reduced_mark(t):
     return "".join(polygon(points, fill) for points, fill in reduced_shapes(t))
 
 
+# The menu bar item's lantern is the one thing in it that changes, and at menu bar
+# size the favicon's lantern is a few pixels: it gets a larger lantern and the full
+# mark's rays, sized for that lantern, so the light can be seen from across a desk.
+MENU_BAR_LANTERN = dict(cx=64, cy=104, r=25)
+MENU_BAR_GLOW = dict(inner=30, outer=44, half=13)
+
+
 def menu_bar_mark():
-    """The reduced drawing for the recorder's menu bar item, split into the body and
-    the lantern: the item colours the whole firefly by what the take is doing, with
-    the lantern a lighter tone of the same colour, as `pale` is here."""
+    """The reduced drawing for the recorder's menu bar item, in three parts: the
+    body, drawn in the menu bar's ink like every other item there (the wordmark's
+    ink, per appearance); the lantern, lit in the colour of what the take is doing;
+    and the rays around it. `box` is the square that holds all three, as x, y, size."""
     shapes = reduced_shapes(LIGHT_BG)
-    flat = lambda points: [round(v, 1) for x, y in shift(points) for v in (x, y)]
+    body = [shift(points) for points, fill in shapes if fill != LIGHT_BG["pale"]]
+    lantern = shift(ngon(**MENU_BAR_LANTERN))
+    rays = [shift(ray(a, MENU_BAR_LANTERN, MENU_BAR_GLOW)) for a in GLOW_ANGLES]
+    every = [pt for shape in body + [lantern] + rays for pt in shape]
+    x0, x1 = min(x for x, _ in every), max(x for x, _ in every)
+    y0, y1 = min(y for _, y in every), max(y for _, y in every)
+    size = max(x1 - x0, y1 - y0)
+    flat = lambda points: [round(v, 1) for x, y in points for v in (x, y)]
     return json.dumps({
-        "viewBox": 128,
-        "body": [flat(points) for points, fill in shapes if fill != LIGHT_BG["pale"]],
-        "lantern": next(flat(points) for points, fill in shapes if fill == LIGHT_BG["pale"]),
+        "box": [round((x0 + x1 - size) / 2, 1), round((y0 + y1 - size) / 2, 1), round(size, 1)],
+        "body": [flat(points) for points in body],
+        "lantern": flat(lantern),
+        "rays": [flat(points) for points in rays],
+        "ink": WORDMARK_INK,
     }) + "\n"
 
 
