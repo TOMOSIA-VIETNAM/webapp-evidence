@@ -38,8 +38,8 @@ macOS only, like the screen capture itself. Windows is out of scope.
   2 s, idle went 7.67 s → 9.79 s.
 - A key posted to the HID tap does reset it: idle 3.2 s → 0.01 s after one shift down/up. So the
   file picker driver reports its own input, and input within 300 ms after it is not a person.
-- The framed firefly renders grey with a countdown and red, rays flashing, a second `showStatusItem()` adds no second
-  item, and it exits within a second of the lock being released.
+- The firefly renders orange with a countdown, red, and green after the lock is released; the
+  next take reuses the same item instead of adding a second.
 
 - `tests/e2e/run-window.sh`, with shift taps posted to the HID tap standing in for a person: taps
   for the first 6 s held the countdown at 3 and the browser closed; one tap mid-take turned the
