@@ -1010,12 +1010,17 @@ function assertIgnoredByGit(outDir) {
 function runArtifacts(outDir, name) {
   return fs.readdirSync(outDir).filter((f) => (
     /^\d{2}-.*\.png$/.test(f)
+    // A screenshot's own edit list: its boxes belong to the take it was made on
+    || /^\d{2}-.*-edits\.json$/.test(f)
     || f === '99-full-page.png'
     // .webm and .raw.mp4 are what a backend captures before the encode reads it and deletes it.
     // They are only ever left behind by a run that died partway, and they are large.
     || [
       `${name}.mp4`, `${name}.webm`, `${name}.raw.mp4`,
       `${name}-runbook.md`, `${name}-timeline.json`, `${name}-console.log`,
+      // What edit.js wrote: its times, steps and boxes are the previous take's, so left beside a new
+      // take the next edit would load them and render them onto footage they were never aimed at
+      `${name}-edits.json`, `${name}-edited.mp4`, `${name}-edited-runbook.md`, `${name}-edited-timeline.json`,
     ].includes(f)
   ));
 }

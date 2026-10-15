@@ -186,6 +186,18 @@ test('what a crashed run left behind counts as a previous take, not as a project
   assert.deepEqual(runArtifacts(dir, 'user-search').sort(), ['user-search.raw.mp4', 'user-search.webm']);
 });
 
+test('what edit.js wrote goes with the take it was made on', () => {
+  const edited = [
+    '01-list-edited.png', '01-list-edits.json', '02-still-3.5.png', 'user-search-edited-runbook.md',
+    'user-search-edited-timeline.json', 'user-search-edited.mp4', 'user-search-edits.json',
+  ];
+  const dir = outDir([...edited, 'user-search.mp4', 'steps.js']);
+  const archive = archivePreviousRun(dir, 'user-search', false);
+
+  assert.deepEqual(fs.readdirSync(archive).sort(), [...edited, 'user-search.mp4'].sort());
+  assert.deepEqual(fs.readdirSync(dir).sort(), ['steps.js', 'v1']);
+});
+
 test('artifacts of a differently named recording are left alone', () => {
   const dir = outDir(['other-flow.mp4', 'user-search.mp4']);
   assert.deepEqual(runArtifacts(dir, 'user-search'), ['user-search.mp4']);

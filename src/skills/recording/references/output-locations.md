@@ -72,7 +72,7 @@ Inside `OUT_DIR`:
 | `<name>-edited-runbook.md` | The runbook with every timestamp moved onto the edited video, and a section listing the edits applied |
 | `<name>-edited-timeline.json` | The edited video's frame size, duration and the transitions at its cuts, which the `vision` contact sheet skips |
 | `NN-*-edits.json`, `NN-*-edited.png` | A screenshot's own list of edits, and the screenshot with them applied |
-| `NN-still-*.png` | A moment of the edited video saved as the next numbered screenshot |
+| `NN-still-*.png` | A moment of the edited video saved as the next numbered screenshot. It is final: the video's edits are already on it, no timeline lists it, so `edit.js` does not edit it and the edited runbook does not list it |
 
 The runbook is the thing that makes a later re-recording cheap: open it, run the command inside. To
 change what gets recorded, edit `steps.js`, not the runbook — the runbook is regenerated on every

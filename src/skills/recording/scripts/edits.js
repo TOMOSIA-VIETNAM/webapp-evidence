@@ -269,7 +269,10 @@ function resolve(request, take, edits) {
   const step = request.step != null ? stepTarget(take, request.step, video) : null;
   const timed = request.at != null || request.to != null;
   const range = timed
-    ? { from: video.toTake(request.at ?? 0), to: video.toTake(request.to ?? video.duration) }
+    ? {
+      from: request.at != null ? video.toTake(request.at) : step?.range.from ?? video.toTake(0),
+      to: request.to != null ? video.toTake(request.to) : step?.range.to ?? video.toTake(video.duration),
+    }
     : step?.range ?? null;
   if (range && range.to <= range.from) {
     throw new Error('The range ends before it starts, or is not in the edited video at all.');

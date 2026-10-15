@@ -21,7 +21,6 @@
 // Usage: node edit.js <OUT_DIR>/<name>.mp4 <operation> [target] [options]   (see --help)
 //        node edit.js <OUT_DIR>/NN-<shot>.png <operation> [target]
 const fs = require('fs');
-const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const {
@@ -298,11 +297,12 @@ function chooseSides(video, take, edits, fps, marks) {
 }
 
 // Renders into a scratch file and moves it into place once ffmpeg has finished, so a render that
-// fails leaves the previous edited video as it was rather than half of a new one. Returns the
-// edited video and the list as it was drawn.
+// fails leaves the previous edited video as it was rather than half of a new one. The scratch
+// directory sits beside the result: a rename only moves a file within one filesystem, and the
+// system temp directory is often another one. Returns the edited video and the list as it was drawn.
 async function render(video, take, edits, files) {
   const fps = frameRate(video);
-  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'webapp-evidence-edit-'));
+  const scratch = fs.mkdtempSync(path.join(files.dir, '.edit-'));
   try {
     const planned = planMarks(editedVideo(take, edits), edits, fps);
     const marks = chooseSides(video, take, edits, fps, planned).map((mark, i) => {
@@ -342,7 +342,7 @@ async function render(video, take, edits, files) {
 // was drawn.
 async function renderShot(files, edits) {
   const original = path.join(files.dir, files.shot);
-  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'webapp-evidence-edit-'));
+  const scratch = fs.mkdtempSync(path.join(files.dir, '.edit-'));
   try {
     let picture = original;
     const covers = edits.filter((e) => e.kind === 'cover');
@@ -537,7 +537,8 @@ const OPERATIONS = {
   },
   still: {
     usage: 'still <seconds>',
-    about: 'save that moment of the edited video as the next numbered screenshot',
+    about: 'save that moment of the edited video as the next numbered screenshot; it is final, with the '
+      + 'video\'s edits already on it, and cannot be edited itself',
     async run({ source: video, files, args }) {
       const at = number('still', args.value);
       const source = fs.existsSync(files.edited) ? files.edited : video;

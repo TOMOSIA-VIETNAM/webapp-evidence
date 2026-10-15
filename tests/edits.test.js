@@ -78,6 +78,12 @@ test('a step that acted on no element needs a box given', () => {
   assert.deepEqual(given.box, { x: 1, y: 2, width: 3, height: 4 });
 });
 
+test('--at or --to given with a step replaces only that end of the step', () => {
+  // The recorded video is one second behind the take, so 8 on it is 9 of the take
+  assert.deepEqual(resolve({ kind: 'cover', step: 'Fill in the email', at: 8 }, TAKE, []).range, { from: 9, to: 12 });
+  assert.deepEqual(resolve({ kind: 'cover', step: 'Fill in the email', to: 8 }, TAKE, []).range, { from: 6, to: 9 });
+});
+
 // ---------- the forward map ----------
 
 test('with no edits the edited video is the recorded one', () => {
