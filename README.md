@@ -5,64 +5,35 @@
   </picture>
 </p>
 
+<h3 align="center">Describe the flow. Get the recording.</h3>
+
 <p align="center">
-  <strong>Describe the flow, get the recording.</strong><br>
-  <sub>One command records your web app and returns a video, screenshots, and a runbook. For UAT, hand-offs, bug reports, and reviews.</sub><br>
-  <code>/webapp-evidence:recording</code>
+  <sub>
+    <strong>English</strong> · <a href="./README.vi-VN.md">Tiếng Việt</a> · <a href="./README.ja-JP.md">日本語</a> · <a href="./README.zh-Hans.md">简体中文</a>
+    &nbsp;&nbsp;|&nbsp;&nbsp; <a href="https://evdrec.vercel.app">evdrec.vercel.app</a> · <a href="./LICENSE">MIT</a>
+  </sub>
 </p>
 
 <p align="center">
-  <a href="https://evdrec.vercel.app"><img alt="Website: evdrec.vercel.app" src="https://img.shields.io/badge/website-evdrec.vercel.app-5C8F0F?style=flat-square"></a>
-  <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/github/license/TOMOSIA-VIETNAM/webapp-evidence?style=flat-square&color=blue"></a>
-  <a href="#install"><img alt="Claude Code" src="https://img.shields.io/badge/Claude_Code-supported-D97757?style=flat-square&logo=anthropic&logoColor=white"></a>
-  <a href="#install"><img alt="Cursor" src="https://img.shields.io/badge/Cursor-supported-000000?style=flat-square&logo=cursor&logoColor=white"></a>
-  <a href="#install"><img alt="Codex" src="https://img.shields.io/badge/Codex-supported-412991?style=flat-square&logo=openai&logoColor=white"></a>
-  <a href="#install"><img alt="Gemini CLI" src="https://img.shields.io/badge/Gemini_CLI-supported-4285F4?style=flat-square&logo=google&logoColor=white"></a>
-  <a href="#install"><img alt="Antigravity" src="https://img.shields.io/badge/Antigravity-supported-6E56CF?style=flat-square"></a>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/images/readme/pipeline-dark.svg">
+    <img src="./docs/images/readme/pipeline.svg" width="900" alt="Describe a flow, the agent drives Chrome, and a video, screenshots and a runbook come back">
+  </picture>
 </p>
-
-<p align="center">
-  <strong>English</strong> · <a href="./README.vi-VN.md">Tiếng Việt</a> · <a href="./README.ja-JP.md">日本語</a> · <a href="./README.zh-Hans.md">简体中文</a>
-</p>
-
-AI made the change fast. Proving it works did not get faster — UAT, a hand-off, a bug report and a
-review all ask for the same thing, and recording it by hand still costs half an hour.
-
-**`webapp-evidence` records that proof for you.** Describe the flow to the coding agent you already
-use; it drives Chrome and hands back a video, screenshots of the main steps, and a runbook.
 
 <p align="center">
   <a href="https://evdrec.vercel.app"><img src="./docs/demo/evd-tour.gif" width="820" alt="The webapp-evidence landing page recording itself: the command is copied, a terminal panel opens over the page and reads back the SEO meta it serves, then each acceptance criterion in the UAT report is picked and lights the runbook lines that prove it."></a><br>
   <sub>This project's own landing page, recorded by the skill it describes. One take, no editing.</sub>
 </p>
 
-- **One take, three kinds of proof** — the screen, the endpoint called with the browser's own
-  session, and the database row it wrote. One video, one runbook.
-- **It reads like a person did it** — the pointer travels, the typing is uneven, a scroll comes to
-  rest on what it travelled to. Nothing jumps.
-- **A runbook, not just a file** — the timeline, the captions, the commands run, the page errors
-  seen, and the command that produces the same take again.
-- **Edited after you watch it** — faster, a wait cut out, a step highlighted, a value covered, on
-  the finished take. The recording itself stays as it was.
-- **Nothing leaves your machine** — no service, no bot account; it runs inside the agent CLI you
-  already have, against the site you name and nothing else.
-
-## Built for UAT
-
-Acceptance testing still means someone clicking through every criterion and recording it by hand.
-Write the criteria as a flow instead, and sign off against timestamps:
-
-| 1 · Write the criteria | 2 · Record one take | 3 · Read the runbook | 4 · Sign off |
-|---|---|---|---|
-| Numbered steps in plain words, in any language — or an MR/PR link, and the agent derives the flow from the diff. | Chrome is driven by a visible pointer. A step that calls an endpoint asserts its status, so a wrong answer stops the take. | Every step with its time in the video, every command with its exit code, every console error and failed request. | The reviewer checks each criterion against a timestamp instead of re-running the flow. After a fix, `record that again`. |
-
-The recording above is that loop run on this project's own site:
-**[evdrec.vercel.app](https://evdrec.vercel.app)** reads its own take back as a UAT report.
-
 ## What one take proves
 
-A screen recording shows half of a full-stack change. The same take can call the API with the
-session the browser is already holding, and read the database back:
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/images/readme/proofs-dark.svg">
+    <img src="./docs/images/readme/proofs.svg" width="900" alt="One take showing the screen, the endpoint called with the browser's session, and the database row">
+  </picture>
+</p>
 
 ```
 /webapp-evidence:recording Page: https://app.example.com/orders
@@ -72,21 +43,32 @@ Flow:
 3. Query the orders table and show the row that appeared
 ```
 
-- **The screen.** The form is filled in and submitted by a visible pointer, at the pace a viewer
-  reads at.
-- **The endpoint.** A terminal panel opens over the page and curl runs there with the browser's
-  cookies — `HTTP 201 in 0.184s`, on camera. The step asserts the status, so a wrong one fails the
-  take instead of shipping as evidence.
-- **The database.** `psql`, `mysql`, a rake task — whatever you would run yourself, in that same
-  panel, with the new row in frame beside the screen that created it.
+<sub>Cookies reach curl through a file, never the command line. A wrong status fails the take instead of
+shipping as evidence. `recording.terminal.scrub` covers only the text it matches.</sub>
 
-Cookies and tokens reach curl through a file, so they are never typed on the command line. Nothing
-is covered on its own: a pattern in `recording.terminal.scrub` replaces only the text it matches.
+## Built for UAT
 
-## What comes back
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/images/readme/uat-dark.svg">
+    <img src="./docs/images/readme/uat.svg" width="900" alt="Write the criteria, record one take, read the runbook, sign off; after a fix, record it again">
+  </picture>
+</p>
 
-`<name>.mp4`, numbered screenshots, and `<name>-runbook.md` — so the person on the other end can
-read the take instead of watching it. From the take above:
+<p align="center"><sub>The recording above is that loop, run on this project's own site:
+<a href="https://evdrec.vercel.app">evdrec.vercel.app</a> reads its take back as a UAT report.</sub></p>
+
+## And without being asked
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/images/readme/traits-dark.svg">
+    <img src="./docs/images/readme/traits.svg" width="900" alt="Moves like a person, edited after you watch, catches console errors, stays on your machine">
+  </picture>
+</p>
+
+<details>
+<summary><b>What a runbook looks like</b> — the take above, as the person on the other end reads it</summary>
 
 ```markdown
 ## Steps in the video
@@ -104,14 +86,27 @@ read the take instead of watching it. From the take above:
 - none
 ```
 
-It watches the console and the network while it records, so a 401 from a call nobody was looking at
-lands in that last block with its status and URL. Recorded in the session where you built the
-feature, the agent reads the screenshots and errors back the way an e2e pass would and proposes a
-fix, rather than only handing over files.
+</details>
 
-Nothing is committed to Git. Attaching the files to a ticket, an MR or a report is yours to do.
+## Read a take back
+
+An agent cannot watch a video. `vision` tiles one into sheets stamped `mm:ss`, so a finding comes back
+as *"the header overlaps the table at 00:14"*.
+
+<p align="center">
+  <a href="./docs/demo/vision-sheet-01.png"><img src="./docs/demo/vision-sheet-01.png" width="268" alt="Contact sheet 1 of the take above"></a>
+  <a href="./docs/demo/vision-sheet-02.png"><img src="./docs/demo/vision-sheet-02.png" width="268" alt="Contact sheet 2 of the take above"></a>
+  <a href="./docs/demo/vision-sheet-03.png"><img src="./docs/demo/vision-sheet-03.png" width="268" alt="Contact sheet 3 of the take above"></a>
+</p>
 
 ## Install
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/images/readme/platforms-dark.svg">
+    <img src="./docs/images/readme/platforms.svg" width="900" alt="Runs in Claude Code, Cursor, Codex, Gemini CLI and Antigravity">
+  </picture>
+</p>
 
 **Claude Code**
 
@@ -126,10 +121,12 @@ claude plugin install webapp-evidence@webapp-evidence
 curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash
 ```
 
-It asks which platform you use and says where things landed. Recording needs Chrome, ffmpeg and
-Node; the agent names anything missing and offers to install it.
+Needs Chrome, ffmpeg and Node — the agent names anything missing and offers to install it. Then type
+`/webapp-evidence:recording` in Claude Code, `/webapp-evidence-recording` in Cursor, Gemini CLI and
+Antigravity, `$webapp-evidence-recording` in Codex.
 
-To pin a release or follow a branch:
+<details>
+<summary><b>Pin a release, update, uninstall</b></summary>
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash -s -- --ref v1.1.3
@@ -139,55 +136,34 @@ curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/mai
 whichever was asked for last. Update with `~/.webapp-evidence/scripts/install-local.sh --update`,
 remove it with `--uninstall --all`.
 
-Where you type the command depends on the platform: `/webapp-evidence:recording` in Claude Code,
-`/webapp-evidence-recording` in Cursor, Gemini CLI and Antigravity, `$webapp-evidence-recording` in
-Codex.
+</details>
 
 ## Ways to ask
 
-There is no syntax to learn. *"Get evidence for the screen I just fixed"* works, in whatever
-language you write it, and the agent answers in that language.
+No syntax to learn — *"get evidence for the screen I just fixed"* works, in any language.
 
-| You want | Type this |
+| You want | Type |
 |---|---|
-| Evidence of the screen you just changed | `/webapp-evidence:recording` — it knows what you were working on |
-| Evidence for an MR or PR | `/webapp-evidence:recording https://gitlab.example.com/group/admin/-/merge_requests/1783` |
-| The same take again, after the data changed | `/webapp-evidence:recording record that again` — old takes are kept as `v1`, `v2`, … |
-| A slower take, or captions in another language | `record it slower`, `captions in Japanese` — remembered per project |
-| A take changed after watching it | `cover the API key in step 3`, `twice as fast` — the recording itself stays as it was |
-| The dropdown or dialog itself in the video | `--screen` — records the browser window, so what the OS draws is in frame |
-| To stay off the screen, whatever the flow | `--headless` — the default, and the way to settle that question outright |
-| A gif for a README, a webm for a page you control | `-f gif`, `-f webm` — mp4 otherwise, because it plays inline everywhere |
-| To know what a video shows, without watching it | `/webapp-evidence:vision <the mp4>` — see below |
-| Recordings that start signed in | `/webapp-evidence:recording set up the evidence config for this project` |
-| To tell us something is wrong, or missing | `/webapp-evidence:feedback` |
-
-## Read a take back
-
-An agent cannot watch a video. `vision` tiles one into contact sheets — frames at a steady interval,
-each stamped `mm:ss` — so a finding comes back as "the header overlaps the table at 00:14", a time
-you can check against the runbook. The take above, as the agent reads it:
-
-<p align="center">
-  <a href="./docs/demo/vision-sheet-01.png"><img src="./docs/demo/vision-sheet-01.png" width="268" alt="Contact sheet 1 of the take above"></a>
-  <a href="./docs/demo/vision-sheet-02.png"><img src="./docs/demo/vision-sheet-02.png" width="268" alt="Contact sheet 2 of the take above"></a>
-  <a href="./docs/demo/vision-sheet-03.png"><img src="./docs/demo/vision-sheet-03.png" width="268" alt="Contact sheet 3 of the take above"></a>
-</p>
+| The screen you just changed | `/webapp-evidence:recording` |
+| An MR or PR | `/webapp-evidence:recording https://gitlab.example.com/group/admin/-/merge_requests/1783` |
+| The same take, data changed | `record that again` — old takes kept as `v1`, `v2`, … |
+| Slower, or other captions | `record it slower`, `captions in Japanese` — remembered per project |
+| A finished take, changed | `cover the API key in step 3`, `twice as fast` |
+| A dropdown or dialog in frame | `--screen` — records the browser window |
+| Never on your screen | `--headless` — the default |
+| A gif or webm | `-f gif`, `-f webm` — mp4 otherwise |
+| What a video shows | `/webapp-evidence:vision <the mp4>` |
+| Takes that start signed in | `set up the evidence config for this project` |
+| To report a problem | `/webapp-evidence:feedback` |
 
 ## Limits
 
-It records the page, not your screen, so what the operating system draws stays out: `<select>`
-dropdowns, the file picker, `confirm`/`alert` dialogs. Each gets a caption of what was chosen and a
-screenshot of the state right after; modals, date pickers and JS dropdowns record normally. When one
-of those dialogs *is* the evidence, `--screen` records the browser window instead — that needs a
-screen, your permission and the machine left alone for the length of the take, so the agent asks
-first.
-
-The terminal panel takes line-oriented output: `vim`, `less` and `htop` are out.
+It records the page, not your screen: `<select>` menus, the file picker and `confirm`/`alert` get a
+caption and a screenshot instead — or `--screen`, which asks first. The terminal panel takes
+line-oriented output, so `vim`, `less` and `htop` are out.
 
 ---
 
-The recording above is real output from this repo's runner: `docs/demo/record.sh` records the site
-in `webapp/` from `docs/demo/tour-steps.js`, and the same take plays on
-[evdrec.vercel.app](https://evdrec.vercel.app). To work on the skill itself, see
-**[CONTRIBUTING.md](./CONTRIBUTING.md)**.
+<sub>Every picture here is drawn by `docs/images/readme/build-readme-art.py`; the recording is
+`docs/demo/record.sh` run on `webapp/`. To work on the skill itself, see
+**[CONTRIBUTING.md](./CONTRIBUTING.md)**.</sub>
