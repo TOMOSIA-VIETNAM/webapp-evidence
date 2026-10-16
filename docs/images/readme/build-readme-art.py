@@ -5,19 +5,22 @@
 
 The README shows each one through <picture>, so the dark file is picked when the viewer's
 theme is dark. Colours and the firefly come from the logo's generator, so a change to the
-brand reaches these too. Every word is outlined with Inter, as the logo's wordmark is: an SVG
-shown through <img> draws <text> in whatever font the viewer has. That needs fontTools and
-brotli (pip install fonttools brotli) and the Inter the site installs (pnpm install in webapp/).
+brand reaches these too. Every word is outlined, as the logo's wordmark is: an SVG shown through
+<img> draws <text> in whatever font the viewer has. That needs fontTools and brotli (pip install
+fonttools brotli) and the Inter the site installs (pnpm install in webapp/).
 
-The words live in LABELS, keyed by language, and the drawing code never spells one out: a
-translated README gets its pictures by adding a language there. Inter has no CJK glyphs, so
-Japanese and Chinese also need a font that has them, chosen per language in FONTS.
+The words live in LABELS, keyed by the suffix of the README they appear in, and the drawing code
+never spells one out: a translated README gets its pictures by adding a language there. Inter has
+no CJK glyphs, so Japanese and Chinese fall back to Noto Sans, which the first run downloads.
 """
+import hashlib
 import importlib.util
 import math
+import os
 import pathlib
 import re
 import sys
+import urllib.request
 
 from fontTools.pens.svgPathPen import SVGPathPen
 from fontTools.ttLib import TTFont
@@ -47,7 +50,41 @@ THEMES = {
     ),
 }
 
-FONTS = {"en": brand.INTER}
+# --- fonts -------------------------------------------------------------------
+# Each language is a chain of fonts, tried in order for every character: Inter for Latin, so the
+# commands and file names look the same in every language, then a font for that script.
+INTER = [brand.INTER.parent / f"inter-{subset}-wght-normal.woff2" for subset in ("latin", "vietnamese")]
+
+# Noto Sans for Japanese and Simplified Chinese, from Google Fonts at a pinned commit and checked
+# against a hash, kept in the user's cache rather than in the repository (10 and 17 MB).
+GOOGLE_FONTS = "https://raw.githubusercontent.com/google/fonts/1d0e46c7933245c8180fe83e47917961c913bbdb/ofl/"
+NOTO = {
+    "ja": ("notosansjp/NotoSansJP[wght].ttf", "c2f3b4d463500a2ddcd3849cded1fceeb9fd6d1c32e6cbecd568453ba50fc68f"),
+    "sc": ("notosanssc/NotoSansSC[wght].ttf", "a3041811a78c361b1de50f953c805e0244951c21c5bd412f7232ef0d899af0da"),
+}
+CACHE = pathlib.Path(os.environ.get("XDG_CACHE_HOME", pathlib.Path.home() / ".cache")) / "webapp-evidence/fonts"
+
+
+def noto(script):
+    path, sha = NOTO[script]
+    file = CACHE / pathlib.Path(path).name
+    if not file.exists():
+        url = GOOGLE_FONTS + path.replace("[", "%5B").replace("]", "%5D")
+        print("downloading", url)
+        data = urllib.request.urlopen(url).read()
+        if hashlib.sha256(data).hexdigest() != sha:
+            raise SystemExit(f"{url} does not match its pinned hash")
+        CACHE.mkdir(parents=True, exist_ok=True)
+        file.write_bytes(data)
+    return file
+
+
+FONTS = {
+    "en": lambda: INTER,
+    "vi-VN": lambda: INTER,
+    "ja-JP": lambda: INTER + [noto("ja")],
+    "zh-Hans": lambda: INTER + [noto("sc")],
+}
 
 # The colour the recorder's menu bar item lights its lantern with while a take records, read from
 # the item itself so the picture shows what a person actually sees on their own screen.
@@ -106,6 +143,129 @@ LABELS = {
             platforms="Runs in Claude Code, Cursor, Codex, Gemini CLI and Antigravity",
         ),
     ),
+    "vi-VN": dict(
+        flow_title="Mô tả luồng",
+        flow_sub="ngôn ngữ nào cũng được, hoặc một link MR",
+        flow_steps=("Mở trang đơn hàng", "Tạo một đơn hàng", "Kiểm tra đơn đã lưu"),
+        drive_title="Agent lái Chrome",
+        drive_sub="con trỏ nhìn thấy được, gõ phím thật",
+        rec="REC",
+        url="app.example.com/orders",
+        get_title="Bạn nhận về bằng chứng",
+        get_sub="đính thẳng vào PR hoặc ticket",
+        files=(("evidence.mp4", "bản quay"), ("01.png  02.png  03.png", "từng bước chính"),
+               ("evidence-runbook.md", "thời điểm, lệnh, lỗi")),
+        form_heading="Đơn hàng mới",
+        form_fields=(("SKU", "ABC"), ("Số lượng", "2")),
+        form_button="Tạo đơn",
+        term_lines=(("$ curl -X POST /api/orders", "cmd"), ("HTTP 201 in 0.184s", "ok"),
+                    ("$ psql -c 'select * from orders'", "cmd"), ("1042   ABC   2   created", "out")),
+        proofs=(("MÀN HÌNH", "con trỏ điền form", "ở nhịp người xem đọc kịp"),
+                ("ENDPOINT", "gọi bằng chính session", "của trình duyệt, assert status"),
+                ("DATABASE", "dòng nó ghi xuống, trong khung", "ngay cạnh màn hình tạo ra nó")),
+        uat=(("Viết tiêu chí", "lời thường, ngôn ngữ nào cũng được"),
+             ("Quay một lần", "status sai là dừng"),
+             ("Đọc runbook", "mỗi bước có mốc thời gian"),
+             ("Ký duyệt", "đối chiếu mốc, không chạy lại")),
+        uat_back="sửa xong:  record that again",
+        traits=(("Như người thật thao tác", "con trỏ lướt, gõ không đều"),
+                ("Xem xong rồi sửa", "tăng tốc, cắt, che một giá trị"),
+                ("Thấy chỗ bạn bỏ sót", "lỗi console, request thất bại"),
+                ("Không rời khỏi máy bạn", "không service, không bot")),
+        edit_chips=("2×", "cắt", "che"),
+        error_lines=("GET /api/me", "401"),
+        platforms_title="Chạy ngay trong agent bạn đang dùng",
+        platforms=("Claude Code", "Cursor", "Codex", "Gemini CLI", "Antigravity"),
+        alt=dict(
+            pipeline="Mô tả luồng, agent lái Chrome, rồi trả về video, screenshot và runbook",
+            proofs="Một bản quay cho thấy màn hình, endpoint gọi bằng session của trình duyệt, và dòng trong database",
+            uat="Viết tiêu chí, quay một lần, đọc runbook, ký duyệt; sửa xong thì quay lại",
+            traits="Như người thật thao tác, xem xong rồi sửa, bắt lỗi console, không rời khỏi máy bạn",
+            platforms="Chạy trong Claude Code, Cursor, Codex, Gemini CLI và Antigravity",
+        ),
+    ),
+    "ja-JP": dict(
+        flow_title="フローを伝える",
+        flow_sub="どの言語でも、MR のリンクでも",
+        flow_steps=("注文ページを開く", "注文を作成する", "保存されたか確認する"),
+        drive_title="エージェントが Chrome を操作",
+        drive_sub="見えるポインター、本物のタイピング",
+        rec="REC",
+        url="app.example.com/orders",
+        get_title="証拠が返ってくる",
+        get_sub="PR やチケットにそのまま添付",
+        files=(("evidence.mp4", "テイク本体"), ("01.png  02.png  03.png", "主要ステップごと"),
+               ("evidence-runbook.md", "時刻・コマンド・エラー")),
+        form_heading="新規注文",
+        form_fields=(("SKU", "ABC"), ("数量", "2")),
+        form_button="注文を作成",
+        term_lines=(("$ curl -X POST /api/orders", "cmd"), ("HTTP 201 in 0.184s", "ok"),
+                    ("$ psql -c 'select * from orders'", "cmd"), ("1042   ABC   2   created", "out")),
+        proofs=(("画面", "ポインターが入力する", "見る人が読める速さで"),
+                ("エンドポイント", "ブラウザー自身のセッションで", "呼び、ステータスを検証"),
+                ("データベース", "書き込まれた行を", "それを作った画面の隣に")),
+        uat=(("基準を書く", "普段の言葉で、どの言語でも"),
+             ("1 テイク録画", "誤ったステータスで停止"),
+             ("runbook を読む", "各ステップに時刻つき"),
+             ("承認する", "時刻と照合、再実行なし")),
+        uat_back="修正後:  record that again",
+        traits=(("人が操作したように", "滑らかなポインター、自然な入力"),
+                ("見てから直せる", "加速・カット・値を隠す"),
+                ("見落としを拾う", "コンソールエラー、失敗した通信"),
+                ("マシンの外に出ない", "サービスもボットも不要")),
+        edit_chips=("2×", "カット", "隠す"),
+        error_lines=("GET /api/me", "401"),
+        platforms_title="いつものエージェントの中で動きます",
+        platforms=("Claude Code", "Cursor", "Codex", "Gemini CLI", "Antigravity"),
+        alt=dict(
+            pipeline="フローを伝えると、エージェントが Chrome を操作し、動画・スクリーンショット・runbook が返ってくる",
+            proofs="1 つのテイクに、画面、ブラウザーのセッションで呼んだエンドポイント、データベースの行",
+            uat="基準を書き、1 テイク録画し、runbook を読み、承認する。修正後はもう一度録画",
+            traits="人が操作したように動き、見てから直せ、コンソールエラーを拾い、マシンの外に出ない",
+            platforms="Claude Code、Cursor、Codex、Gemini CLI、Antigravity で動きます",
+        ),
+    ),
+    "zh-Hans": dict(
+        flow_title="描述流程",
+        flow_sub="任何语言都行，或一个 MR 链接",
+        flow_steps=("打开订单页面", "创建一个订单", "确认已经保存"),
+        drive_title="agent 驱动 Chrome",
+        drive_sub="看得见的指针，真实的键入",
+        rec="REC",
+        url="app.example.com/orders",
+        get_title="拿回证据",
+        get_sub="直接附到 PR 或工单上",
+        files=(("evidence.mp4", "录制本身"), ("01.png  02.png  03.png", "每个关键步骤"),
+               ("evidence-runbook.md", "时间、命令、错误")),
+        form_heading="新建订单",
+        form_fields=(("SKU", "ABC"), ("数量", "2")),
+        form_button="创建订单",
+        term_lines=(("$ curl -X POST /api/orders", "cmd"), ("HTTP 201 in 0.184s", "ok"),
+                    ("$ psql -c 'select * from orders'", "cmd"), ("1042   ABC   2   created", "out")),
+        proofs=(("页面", "由指针填写", "按观看者读得过来的节奏"),
+                ("接口", "用浏览器自己的会话调用", "并断言状态码"),
+                ("数据库", "它写入的那一行", "就在创建它的页面旁边")),
+        uat=(("写下标准", "普通的话，任何语言"),
+             ("录制一次", "状态码不对就停止"),
+             ("读 runbook", "每一步都有时间戳"),
+             ("签字验收", "对照时间，不必重跑")),
+        uat_back="修复后:  record that again",
+        traits=(("像人在操作", "指针滑动，键入不均匀"),
+                ("看完再改", "加速、剪掉、遮住某个值"),
+                ("发现你漏看的", "控制台错误、失败的请求"),
+                ("不离开你的机器", "没有服务，没有机器人账号")),
+        edit_chips=("2×", "剪掉", "遮住"),
+        error_lines=("GET /api/me", "401"),
+        platforms_title="就在你已经在用的 agent 里运行",
+        platforms=("Claude Code", "Cursor", "Codex", "Gemini CLI", "Antigravity"),
+        alt=dict(
+            pipeline="描述流程，agent 驱动 Chrome，交回视频、截图和 runbook",
+            proofs="一次录制里有页面、用浏览器会话调用的接口，以及数据库里的那一行",
+            uat="写下标准，录制一次，读 runbook，签字验收；修复后再录一次",
+            traits="像人在操作，看完再改，发现控制台错误，不离开你的机器",
+            platforms="在 Claude Code、Cursor、Codex、Gemini CLI 和 Antigravity 中运行",
+        ),
+    ),
 }
 
 
@@ -117,55 +277,58 @@ class Pen:
         self.lang, self.c, self.parts, self.glyphs, self.blinks = lang, THEMES[theme], [], {}, False
         self.tones = self.c["tones"]
 
-    def font(self, weight, cache={}):
-        key = (self.lang, weight)
+    @staticmethod
+    def font(file, weight, cache={}):
+        """One font at one weight, with what laying out text in it needs."""
+        key = (file, weight)
         if key not in cache:
-            cache[key] = instantiateVariableFont(TTFont(FONTS[self.lang]), {"wght": weight})
+            font = instantiateVariableFont(TTFont(file), {"wght": weight})
+            cache[key] = dict(file=file, font=font, cmap=font.getBestCmap(), glyphs=font.getGlyphSet(),
+                              em=font["head"].unitsPerEm, kerning=brand._kerning(font))
         return cache[key]
 
-    def measure(self, text, size, weight=400, tracking=0.0):
-        font = self.font(weight)
-        scale, cmap, glyphs = size / font["head"].unitsPerEm, font.getBestCmap(), font.getGlyphSet()
-        table, width, prev = brand._kerning(font), 0.0, None
+    def layout(self, text, size, weight, tracking):
+        """Where each glyph of `text` goes, as (font, glyph name, x, scale), and the total width.
+        Each character takes the first font in the language's chain that has it."""
+        chain = [self.font(file, weight) for file in FONTS[self.lang]()]
+        placed, x, prev = [], 0.0, None
         for ch in text:
-            if ord(ch) not in cmap:
-                raise SystemExit(f"{ch!r} in {text!r} has no glyph in {FONTS[self.lang].name}")
-            name = cmap[ord(ch)]
-            if prev:
-                width += brand._kern(font, prev, name, table) * scale
-            width += glyphs[name].width * scale + tracking
-            prev = name
-        return width - tracking
+            f = next((f for f in chain if ord(ch) in f["cmap"]), None)
+            if not f:
+                raise SystemExit(f"{ch!r} in {text!r} has no glyph in any font for {self.lang}")
+            name, scale = f["cmap"][ord(ch)], size / f["em"]
+            if prev and prev[0] is f:
+                x += brand._kern(f["font"], prev[1], name, f["kerning"]) * scale
+            placed.append((f, name, x, scale))
+            x += f["glyphs"][name].width * scale + tracking
+            prev = (f, name)
+        return placed, x - tracking
+
+    def measure(self, text, size, weight=400, tracking=0.0):
+        return self.layout(text, size, weight, tracking)[1]
 
     def text(self, text, x, y, size=14, weight=400, fill="ink", anchor="start", tracking=0.0, fit=None):
         """Outline `text` at a baseline. `fit` is the room it has: a translation that runs
         longer stops the build instead of spilling out of its card."""
-        font = self.font(weight)
-        scale, cmap, glyphs = size / font["head"].unitsPerEm, font.getBestCmap(), font.getGlyphSet()
-        width = self.measure(text, size, weight, tracking)
+        placed, width = self.layout(text, size, weight, tracking)
         if fit and width > fit:
-            raise SystemExit(f"{text!r} is {width:.0f} wide, the space for it is {fit}")
+            raise SystemExit(f"{self.lang}: {text!r} is {width:.0f} wide, the space for it is {fit}")
         x -= {"start": 0, "middle": width / 2, "end": width}[anchor]
         # Each glyph is drawn once, in font units, and placed with <use>: a picture repeats the
         # same few letters hundreds of times, and inlining every outline made each file ~400 KB.
-        table, uses, prev = brand._kerning(font), [], None
-        for ch in text:
-            name = cmap[ord(ch)]
-            if prev:
-                x += brand._kern(font, prev, name, table) * scale
-            ref = self.glyph(weight, glyphs, name)
+        uses = []
+        for f, name, dx, scale in placed:
+            ref = self.glyph(f, weight, name)
             if ref:
-                uses.append(f'<use href="#{ref}" transform="translate({x:.2f} {y}) scale({scale:.5f} {-scale:.5f})"/>')
-            x += glyphs[name].width * scale + tracking
-            prev = name
+                uses.append(f'<use href="#{ref}" transform="translate({x + dx:.2f} {y}) scale({scale:.5f} {-scale:.5f})"/>')
         self.add(f'<g fill="{self.color(fill)}">{"".join(uses)}</g>')
         return width
 
-    def glyph(self, weight, glyphs, name):
-        key = (weight, name)
+    def glyph(self, f, weight, name):
+        key = (f["file"], weight, name)
         if key not in self.glyphs:
-            pen = SVGPathPen(glyphs, ntos=lambda v: f"{v:.0f}")
-            glyphs[name].draw(pen)
+            pen = SVGPathPen(f["glyphs"], ntos=lambda v: f"{v:.0f}")
+            f["glyphs"][name].draw(pen)
             self.glyphs[key] = (f"g{len(self.glyphs)}", pen.getCommands())
         ref, d = self.glyphs[key]
         return ref if d else None
@@ -262,7 +425,7 @@ def pipeline(p, L):
         y = top + 82 + i * 36
         p.circle(x + 30, y - 4, 10, "sunken")
         p.text(str(i + 1), x + 30, y, 11, 600, "accent", "middle")
-        p.text(step, x + 50, y, 13, 400, "ink")
+        p.text(step, x + 50, y, 13, 400, "ink", fit=176)
 
     # the browser, driven
     x = cols[1]
@@ -294,8 +457,8 @@ def pipeline(p, L):
             p.rect(x + 28, y + 9, 20, 23, 3, "card", "accent", 1.3)
             for j in range(3):
                 p.line(f"M{x + 32} {y + 16 + j * 5} H{x + 44 - (j == 2) * 5}", "accent", 1.3)
-        p.text(name, x + 72, y + 18, 12.5, 500, "ink")
-        p.text(note, x + 72, y + 34, 11.5, 400, "muted")
+        p.text(name, x + 72, y + 18, 12.5, 500, "ink", fit=156)
+        p.text(note, x + 72, y + 34, 11.5, 400, "muted", fit=156)
 
     for a in (cols[0] + 240, cols[1] + 240):
         p.arrow(a + 14, top + ch / 2, a + 66, top + ch / 2)
@@ -319,12 +482,12 @@ def proofs(p, L):
     p.text(L["form_heading"], fx, by + 74, 17, 600, "ink")
     for i, (label, value) in enumerate(L["form_fields"]):
         x = fx + i * 170
-        p.text(label, x, by + 102, 11, 500, "muted")
+        p.text(label, x, by + 102, 11, 500, "muted", fit=150)
         p.rect(x, by + 110, 150, 30, 7, "card", "line")
         p.text(value, x + 12, by + 130, 13, 400, "ink")
     bt = p.measure(L["form_button"], 12.5, 600) + 32
     p.rect(fx + 340, by + 110, bt, 30, 8, "accent")
-    p.text(L["form_button"], fx + 340 + bt / 2, by + 130, 12.5, 600, "card", "middle")
+    p.text(L["form_button"], fx + 340 + bt / 2, by + 130, 12.5, 600, "card", "middle", fit=bx + bw - fx - 380)
     p.pointer(fx + 340 + bt - 8, by + 134, 1.0)
 
     # the terminal panel the take opens over the page
@@ -351,8 +514,8 @@ def proofs(p, L):
         p.circle(edge, ty_, 3.2, "accent")
         p.lantern(ax - 2, y - 4, 4)
         p.caps(cap, ax + 12, y, "accent")
-        p.text(a, ax + 12, y + 22, 13.5, 500, "ink")
-        p.text(b, ax + 12, y + 41, 13.5, 400, "muted")
+        p.text(a, ax + 12, y + 22, 13.5, 500, "ink", fit=W - ax - 16)
+        p.text(b, ax + 12, y + 41, 13.5, 400, "muted", fit=W - ax - 16)
     return W, H
 
 
@@ -416,11 +579,14 @@ def traits(p, L):
             p.rect(cx - 72, cy - 4, 40, 8, 4, "accent")
             p.add(f'<rect x="{cx - 20}" y="{cy - 4}" width="26" height="8" fill="{p.color("sunken")}"/>')
             p.line(f"M{cx - 20} {cy - 10} V{cy + 10} M{cx + 6} {cy - 10} V{cy + 10}", "accent", 1.4, "2 3")
-            for j, chip in enumerate(L["edit_chips"]):
-                w = p.measure(chip, 11, 600) + 18
-                xx = (cx - 62, cx - 18, cx + 30)[j]
+            chips = [(chip, p.measure(chip, 11, 600) + 18) for chip in L["edit_chips"]]
+            xx = cx - (sum(w for _, w in chips) + 8 * (len(chips) - 1)) / 2
+            if xx < x + 22:
+                raise SystemExit(f"{p.lang}: the edit chips do not fit their tile")
+            for chip, w in chips:
                 p.rect(xx, cy + 20, w, 22, 11, "card", "line")
                 p.text(chip, xx + w / 2, cy + 35, 11, 600, "accent", "middle")
+                xx += w + 8
             p.rect(cx + 24, cy - 40, 48, 18, 5, "card", "line")
             for j in range(4):
                 p.rect(cx + 29 + j * 10, cy - 35, 8, 8, 1.5, "faint")
@@ -453,6 +619,8 @@ def platforms(p, L):
     p.caps(L["platforms_title"].upper(), W / 2, 22, "muted", "middle")
     names = L["platforms"]
     widths = [p.measure(n, 14, 500) + 40 for n in names]
+    if sum(widths) + 14 * (len(names) - 1) > W - 40:
+        raise SystemExit(f"{p.lang}: the agent names do not fit one row")
     x = (W - sum(widths) - 14 * (len(names) - 1)) / 2
     for name, w in zip(names, widths):
         p.rect(x, 40, w, 38, 19, "card", "line")
