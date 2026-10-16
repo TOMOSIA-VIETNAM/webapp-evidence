@@ -43,8 +43,9 @@ Flow:
 3. Query the orders table and show the row that appeared
 ```
 
-<sub>Cookies reach curl through a file, never the command line. A wrong status fails the take instead of
-shipping as evidence. `recording.terminal.scrub` covers only the text it matches.</sub>
+<sub>Cookies and tokens reach curl through a file, so they're never typed on the command line. The step
+asserts the status: a wrong one fails the take rather than shipping as evidence. And nothing gets redacted
+on its own: a pattern in `recording.terminal.scrub` replaces only the text it matches.</sub>
 
 ## Built for UAT
 
@@ -90,8 +91,9 @@ shipping as evidence. `recording.terminal.scrub` covers only the text it matches
 
 ## Read a take back
 
-An agent cannot watch a video. `vision` tiles one into sheets stamped `mm:ss`, so a finding comes back
-as *"the header overlaps the table at 00:14"*.
+An agent cannot watch a video. `vision` tiles one into contact sheets — frames at a steady interval,
+each stamped `mm:ss` — so a finding comes back as *"the header overlaps the table at 00:14"*, a timestamp
+you can check against the runbook. The take above, as the agent reads it:
 
 <p align="center">
   <a href="./docs/demo/vision-sheet-01.png"><img src="./docs/demo/vision-sheet-01.png" width="268" alt="Contact sheet 1 of the take above"></a>
@@ -121,9 +123,12 @@ claude plugin install webapp-evidence@webapp-evidence
 curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash
 ```
 
-Needs Chrome, ffmpeg and Node — the agent names anything missing and offers to install it. Then type
-`/webapp-evidence:recording` in Claude Code, `/webapp-evidence-recording` in Cursor, Gemini CLI and
-Antigravity, `$webapp-evidence-recording` in Codex.
+It asks which platform you use, then tells you where everything landed. Recording needs Chrome, ffmpeg,
+and Node — the agent names anything missing and offers to install it.
+
+Where you type the command depends on the platform: `/webapp-evidence:recording` in Claude Code,
+`/webapp-evidence-recording` in Cursor, Gemini CLI and Antigravity, `$webapp-evidence-recording` in
+Codex.
 
 <details>
 <summary><b>Pin a release, update, uninstall</b></summary>
@@ -132,35 +137,36 @@ Antigravity, `$webapp-evidence-recording` in Codex.
 curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash -s -- --ref v1.1.3
 ```
 
-`--ref main` follows the branch and `--ref latest` goes back to releases; every later run stays on
+`--ref main` follows the branch and `--ref latest` follows the latest release; every later run stays on
 whichever was asked for last. Update with `~/.webapp-evidence/scripts/install-local.sh --update`,
-remove it with `--uninstall --all`.
+remove with `--uninstall --all`.
 
 </details>
 
 ## Ways to ask
 
-No syntax to learn — *"get evidence for the screen I just fixed"* works, in any language.
+No syntax to learn. *"Get evidence for the screen I just fixed"* works — write it in any language, and
+the agent answers in that language.
 
-| You want | Type |
+| You want | Type this |
 |---|---|
-| The screen you just changed | `/webapp-evidence:recording` |
-| An MR or PR | `/webapp-evidence:recording https://gitlab.example.com/group/admin/-/merge_requests/1783` |
-| The same take, data changed | `record that again` — old takes kept as `v1`, `v2`, … |
-| Slower, or other captions | `record it slower`, `captions in Japanese` — remembered per project |
-| A finished take, changed | `cover the API key in step 3`, `twice as fast` |
-| A dropdown or dialog in frame | `--screen` — records the browser window |
-| Never on your screen | `--headless` — the default |
-| A gif or webm | `-f gif`, `-f webm` — mp4 otherwise |
-| What a video shows | `/webapp-evidence:vision <the mp4>` |
-| Takes that start signed in | `set up the evidence config for this project` |
-| To report a problem | `/webapp-evidence:feedback` |
+| Evidence for the screen you just changed | `/webapp-evidence:recording` |
+| Evidence for an MR or PR | `/webapp-evidence:recording https://gitlab.example.com/group/admin/-/merge_requests/1783` |
+| The same take again, after the data changed | `record that again` — old takes kept as `v1`, `v2`, … |
+| A slower take, or captions in another language | `record it slower`, `captions in Japanese` — remembered per project |
+| Edit a finished take | `cover the API key in step 3`, `twice as fast` |
+| The OS dropdown or dialog, in frame | `--screen` — records the browser window |
+| Never touch the screen, whatever the flow | `--headless` — the default |
+| A gif for a README, a webm for a page you control | `-f gif`, `-f webm` — mp4 otherwise |
+| Know what a video shows, without watching it | `/webapp-evidence:vision <the mp4>` |
+| Takes that start already signed in | `set up the evidence config for this project` |
+| Report a problem | `/webapp-evidence:feedback` |
 
 ## Limits
 
-It records the page, not your screen: `<select>` menus, the file picker and `confirm`/`alert` get a
-caption and a screenshot instead — or `--screen`, which asks first. The terminal panel takes
-line-oriented output, so `vim`, `less` and `htop` are out.
+It records the page, not your screen: `<select>` menus, the file picker, and `confirm`/`alert` get a
+caption plus a screenshot instead — or use `--screen`, which asks first. The terminal panel takes
+line-oriented output, so `vim`, `less`, and `htop` are out.
 
 ---
 
