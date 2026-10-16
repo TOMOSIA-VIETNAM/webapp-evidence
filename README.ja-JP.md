@@ -23,10 +23,10 @@
 
 <p align="center">
   <a href="https://evdrec.vercel.app"><img src="./docs/demo/evd-tour.gif" width="820" alt="webapp-evidence のランディングページが自分自身を録画する様子: コマンドをコピーし、ページの上に開いたターミナルパネルがページの返す SEO メタを読み返し、UAT 報告書の受け入れ基準をひとつずつ選ぶと、それを証明する runbook の行が光ります。"></a><br>
-  <sub>このプロジェクト自身のランディングページを、紹介している skill そのもので録画。1 テイク、編集なし。</sub>
+  <sub>このプロジェクトのランディングページを、紹介している skill そのもので録画しました。ワンテイク、編集なし。</sub>
 </p>
 
-## 1 つのテイクが示せること
+## 1 テイクが示せること
 
 <p align="center">
   <picture>
@@ -43,8 +43,9 @@ Flow:
 3. Query the orders table and show the row that appeared
 ```
 
-<sub>Cookie はファイル経由で curl に渡り、コマンドラインには現れません。誤ったステータスは証拠になる前にテイク
-を失敗させます。`recording.terminal.scrub` は一致した文字列だけを隠します。</sub>
+<sub>Cookie とトークンはファイル経由で curl に渡すので、コマンドラインに打ち込まれることはありません。ステー
+タスを検証するステップなので、値が違えばテイクは失敗し、証拠として出回ることはありません。勝手に隠されるもの
+はなく、`recording.terminal.scrub` のパターンが一致した部分だけを置き換えます。</sub>
 
 ## UAT のために
 
@@ -55,8 +56,8 @@ Flow:
   </picture>
 </p>
 
-<p align="center"><sub>上の録画は、このループをプロジェクト自身のサイトで回したものです:
-<a href="https://evdrec.vercel.app">evdrec.vercel.app</a> は自分のテイクを UAT 報告書として読み返します。</sub></p>
+<p align="center"><sub>上の録画は、このループをプロジェクト自身のサイトで回したものです —
+<a href="https://evdrec.vercel.app">evdrec.vercel.app</a> が自分のテイクを UAT 報告書として読み返しています。</sub></p>
 
 ## 頼まなくても
 
@@ -90,8 +91,9 @@ Flow:
 
 ## テイクを読み返す
 
-エージェントは動画を見られません。`vision` は動画を `mm:ss` 付きのシートに並べるので、指摘は
-*「00:14 でヘッダーが表に重なっている」* という形で返ってきます。
+エージェントは動画を観られません。`vision` は動画から一定間隔でフレームを切り出し、各フレームに `mm:ss` を
+焼き込んだコンタクトシートに並べます。指摘は *「00:14 でヘッダーが表に重なっている」* という形で返ってくるの
+で、その時刻を runbook と突き合わせられます。上のテイクを、エージェントが読む形で:
 
 <p align="center">
   <a href="./docs/demo/vision-sheet-01.png"><img src="./docs/demo/vision-sheet-01.png" width="268" alt="上のテイクのコンタクトシート 1"></a>
@@ -121,49 +123,51 @@ claude plugin install webapp-evidence@webapp-evidence
 curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash
 ```
 
-Chrome、ffmpeg、Node が必要です。足りないものはエージェントが名前を挙げてインストールを申し出ます。
+使っているプラットフォームを聞いて、どこに何を置いたかを教えます。録画には Chrome・ffmpeg・Node が必要で、
+足りないものがあればエージェントが名指ししてインストールを申し出ます。
+
 あとは Claude Code で `/webapp-evidence:recording`、Cursor・Gemini CLI・Antigravity で
 `/webapp-evidence-recording`、Codex で `$webapp-evidence-recording` と打つだけです。
 
 <details>
-<summary><b>リリースの固定・更新・削除</b></summary>
+<summary><b>リリースの固定やブランチの追従、更新・削除</b></summary>
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash -s -- --ref v1.1.3
 ```
 
-`--ref main` はブランチを追い、`--ref latest` はリリース追従に戻します。以降の実行は最後に指定したも
-のを保ちます。更新は `~/.webapp-evidence/scripts/install-local.sh --update`、削除は
-`--uninstall --all`。
+`--ref main` でブランチ追従、`--ref latest` で最新のリリース追従。以降の実行は、最後に指定した設定のままで
+す。更新は `~/.webapp-evidence/scripts/install-local.sh --update`、削除は `--uninstall --all` で。
 
 </details>
 
 ## 頼み方
 
-覚える構文はありません。*「さっき直した画面のエビデンスを撮って」* で通じます。言語も問いません。
+覚える構文はありません。*「さっき直した画面のエビデンスを取って」* で通じます。書いた言語で、そのまま返事が来
+ます。
 
-| やりたいこと | 打つもの |
+| やりたいこと | こう打つ |
 |---|---|
-| 直したばかりの画面 | `/webapp-evidence:recording` |
-| MR / PR | `/webapp-evidence:recording https://gitlab.example.com/group/admin/-/merge_requests/1783` |
-| データが変わった後にもう一度 | `record that again` — 古いテイクは `v1`、`v2`… として残ります |
-| ゆっくり、または別の言語の字幕 | `record it slower`、`captions in Japanese` — プロジェクトごとに覚えます |
-| 撮り終えたテイクを直す | `cover the API key in step 3`、`twice as fast` |
-| ドロップダウンやダイアログを映す | `--screen` — ブラウザーウィンドウを録ります |
-| 画面を使わない | `--headless` — 既定 |
-| gif や webm | `-f gif`、`-f webm` — それ以外は mp4 |
-| 動画に何が映っているか | `/webapp-evidence:vision <the mp4>` |
+| 直したばかりの画面のエビデンス | `/webapp-evidence:recording` |
+| MR / PR のエビデンス | `/webapp-evidence:recording https://gitlab.example.com/group/admin/-/merge_requests/1783` |
+| データが変わった後、同じテイクをもう一度 | `record that again` — 古いテイクは `v1`、`v2`… として残ります |
+| ゆっくり録る、別の言語の字幕で | `record it slower`、`captions in Japanese` — プロジェクトごとに覚えます |
+| 見た後でテイクを直す | `cover the API key in step 3`、`twice as fast` |
+| OS のドロップダウンやダイアログも映す | `--screen` — ブラウザーウィンドウを録ります |
+| どんな内容でも画面を使わない | `--headless` — 既定 |
+| README 用の gif、自分の管理下のページ用の webm | `-f gif`、`-f webm` — それ以外は mp4 |
+| 動画を見ずに中身を知る | `/webapp-evidence:vision <the mp4>` |
 | ログイン済みの状態から始める | `set up the evidence config for this project` |
-| 問題を伝える | `/webapp-evidence:feedback` |
+| おかしい点・足りない点を伝える | `/webapp-evidence:feedback` |
 
 ## 制限
 
-録るのはページで、画面ではありません。`<select>` のメニュー、ファイル選択、`confirm`/`alert` は字幕とス
-クリーンショットで代わりに記録されます。映す必要があれば `--screen` で、エージェントが先に確認します。
-ターミナルパネルは行単位の出力のみで、`vim`、`less`、`htop` は使えません。
+録るのはページであって、画面ではありません。`<select>` のメニュー、ファイル選択、`confirm`/`alert` は字幕と
+スクリーンショットで代用されます。どうしても映す必要があれば `--screen` で — エージェントが先に確認します。
+ターミナルパネルは行単位の出力しか受けないので、`vim`、`less`、`htop` は使えません。
 
 ---
 
 <sub>ここの図はすべて `docs/images/readme/build-readme-art.py` が描いています。録画は `webapp/` に対して
-`docs/demo/record.sh` を実行したものです。skill 自体の開発は **[CONTRIBUTING.md](./CONTRIBUTING.md)**
+`docs/demo/record.sh` を実行したものです。skill 自体の開発については **[CONTRIBUTING.md](./CONTRIBUTING.md)**
 を参照してください。</sub>
