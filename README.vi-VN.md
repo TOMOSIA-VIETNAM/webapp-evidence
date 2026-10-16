@@ -23,7 +23,7 @@
 
 <p align="center">
   <a href="https://evdrec.vercel.app"><img src="./docs/demo/evd-tour.gif" width="820" alt="Trang landing của webapp-evidence tự quay chính nó: lệnh được copy, một panel terminal mở đè lên trang và đọc lại thẻ SEO trang trả về, rồi từng tiêu chí nghiệm thu trong báo cáo UAT được chọn và sáng lên đúng những dòng runbook chứng minh nó."></a><br>
-  <sub>Trang landing của chính dự án này, do chính skill mà nó giới thiệu quay lại. Một lần quay, không cắt ghép.</sub>
+  <sub>Trang landing của chính dự án này, được quay bởi đúng skill mà nó giới thiệu. Một lần quay duy nhất, không cắt ghép.</sub>
 </p>
 
 ## Một bản quay chứng minh được gì
@@ -43,27 +43,28 @@ Flow:
 3. Query the orders table and show the row that appeared
 ```
 
-<sub>Cookie tới curl qua một file, không bao giờ nằm trên dòng lệnh. Status sai làm hỏng bản quay thay vì
-thành bằng chứng. `recording.terminal.scrub` chỉ che đúng phần chữ nó khớp.</sub>
+<sub>Cookie và token được truyền cho curl qua file, nên không bao giờ bị gõ lộ trên dòng lệnh. Bước gọi
+endpoint có assert status: sai là hỏng bản quay, chứ không lọt ra ngoài thành "bằng chứng". Pattern trong
+`recording.terminal.scrub` chỉ thay đúng phần nó khớp.</sub>
 
 ## Sinh ra cho UAT
 
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="./docs/images/readme/uat.vi-VN-dark.svg">
-    <img src="./docs/images/readme/uat.vi-VN.svg" width="900" alt="Viết tiêu chí, quay một lần, đọc runbook, ký duyệt; sửa xong thì quay lại">
+    <img src="./docs/images/readme/uat.vi-VN.svg" width="900" alt="Viết tiêu chí, quay một lần, đọc runbook, duyệt; sửa xong thì quay lại">
   </picture>
 </p>
 
-<p align="center"><sub>Bản quay ở trên chính là vòng đó, chạy trên site của dự án:
-<a href="https://evdrec.vercel.app">evdrec.vercel.app</a> đọc lại bản quay của nó như một báo cáo UAT.</sub></p>
+<p align="center"><sub>Bản quay ở trên chính là vòng đó, chạy ngay trên site của dự án:
+<a href="https://evdrec.vercel.app">evdrec.vercel.app</a> đọc lại bản quay của chính nó như một báo cáo UAT.</sub></p>
 
 ## Và không cần ai nhắc
 
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="./docs/images/readme/traits.vi-VN-dark.svg">
-    <img src="./docs/images/readme/traits.vi-VN.svg" width="900" alt="Như người thật thao tác, xem xong rồi sửa, bắt lỗi console, không rời khỏi máy bạn">
+    <img src="./docs/images/readme/traits.vi-VN.svg" width="900" alt="Như người thật thao tác, quay xong vẫn sửa được, bắt lỗi console, chạy trên máy bạn">
   </picture>
 </p>
 
@@ -90,8 +91,9 @@ thành bằng chứng. `recording.terminal.scrub` chỉ che đúng phần chữ 
 
 ## Đọc lại một bản quay
 
-Agent không xem được video. `vision` xếp video thành các tấm ảnh đóng dấu `mm:ss`, nên phát hiện trả
-về sẽ là *"header đè lên bảng ở 00:14"*.
+Agent không xem được video. `vision` bẻ video thành các contact sheet — khung hình cách đều, mỗi khung
+đóng dấu `mm:ss` — nên một lỗi hiển thị sẽ quay về dạng *"header đè lên bảng ở 00:14"*, đúng mốc bạn đối
+chiếu được với runbook. Đây là bản quay ở trên, nhìn theo cách agent đọc nó:
 
 <p align="center">
   <a href="./docs/demo/vision-sheet-01.png"><img src="./docs/demo/vision-sheet-01.png" width="268" alt="Contact sheet 1 của bản quay ở trên"></a>
@@ -121,48 +123,53 @@ claude plugin install webapp-evidence@webapp-evidence
 curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash
 ```
 
-Cần Chrome, ffmpeg và Node — thiếu cái nào agent gọi tên cái đó và đề nghị cài giúp. Sau đó gõ
-`/webapp-evidence:recording` trong Claude Code, `/webapp-evidence-recording` trong Cursor, Gemini CLI
-và Antigravity, `$webapp-evidence-recording` trong Codex.
+Nó hỏi bạn dùng nền tảng nào, rồi báo rõ mọi thứ nằm ở đâu. Để quay cần Chrome, ffmpeg và Node — thiếu
+cái nào, agent gọi đúng tên cái đó và đề nghị cài giúp.
+
+Gõ lệnh ở đâu tuỳ nền tảng: `/webapp-evidence:recording` trong Claude Code, `/webapp-evidence-recording`
+trong Cursor, Gemini CLI và Antigravity, `$webapp-evidence-recording` trong Codex.
 
 <details>
-<summary><b>Ghim một release, cập nhật, gỡ cài đặt</b></summary>
+<summary><b>Muốn ghim một release hoặc bám theo branch, cập nhật, gỡ cài đặt</b></summary>
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash -s -- --ref v1.1.3
 ```
 
-`--ref main` bám theo branch, `--ref latest` quay về nhánh release; những lần chạy sau giữ nguyên
-thứ được yêu cầu gần nhất. Cập nhật bằng `~/.webapp-evidence/scripts/install-local.sh --update`, gỡ
+`--ref main` bám theo branch, `--ref latest` quay về nhánh release mới nhất; những lần chạy sau giữ
+nguyên lựa chọn gần nhất. Cập nhật bằng `~/.webapp-evidence/scripts/install-local.sh --update`, gỡ
 bằng `--uninstall --all`.
 
 </details>
 
 ## Các kiểu yêu cầu
 
-Không có cú pháp nào phải học — *"lấy evidence cho màn hình tôi vừa sửa"* là đủ, ngôn ngữ nào cũng được.
+Không có cú pháp nào phải học. Cứ nói *"Lấy evidence cho màn hình tôi vừa sửa"* là chạy — viết bằng tiếng
+nào, agent trả lời bằng tiếng đó.
 
-| Bạn muốn | Gõ |
+| Bạn muốn | Gõ thế này |
 |---|---|
-| Màn hình bạn vừa sửa | `/webapp-evidence:recording` |
-| Một MR hoặc PR | `/webapp-evidence:recording https://gitlab.example.com/group/admin/-/merge_requests/1783` |
-| Quay lại, dữ liệu đã đổi | `record that again` — bản cũ giữ thành `v1`, `v2`, … |
-| Chậm hơn, hoặc caption khác | `record it slower`, `captions in Japanese` — nhớ theo từng project |
-| Sửa bản quay đã xong | `cover the API key in step 3`, `twice as fast` |
-| Dropdown hay dialog có trong khung | `--screen` — quay cửa sổ trình duyệt |
-| Không đụng tới màn hình | `--headless` — mặc định |
-| Gif hoặc webm | `-f gif`, `-f webm` — còn lại là mp4 |
-| Video cho thấy gì | `/webapp-evidence:vision <the mp4>` |
-| Bắt đầu ở trạng thái đã đăng nhập | `set up the evidence config for this project` |
-| Báo lỗi | `/webapp-evidence:feedback` |
+| Lấy evidence cho màn hình vừa sửa | `/webapp-evidence:recording` |
+| Lấy evidence cho một MR/PR | `/webapp-evidence:recording https://gitlab.example.com/group/admin/-/merge_requests/1783` |
+| Dữ liệu đổi, muốn quay lại đúng bản đó | `record that again` — bản cũ giữ thành `v1`, `v2`, … |
+| Muốn quay chậm lại, hoặc caption tiếng khác | `record it slower`, `captions in Japanese` — nhớ theo từng project |
+| Xem xong muốn chỉnh lại bản quay | `cover the API key in step 3`, `twice as fast` |
+| Muốn dropdown/dialog của hệ điều hành cũng vào khung hình | `--screen` — quay cửa sổ trình duyệt |
+| Không muốn động tới màn hình, dù luồng nào | `--headless` — mặc định |
+| Muốn gif cho README, webm cho trang tự host | `-f gif`, `-f webm` — còn lại là mp4 |
+| Muốn biết video có gì mà khỏi phải xem | `/webapp-evidence:vision <the mp4>` |
+| Muốn bản quay bắt đầu ở trạng thái đã đăng nhập | `set up the evidence config for this project` |
+| Thấy sai hoặc thiếu gì, muốn báo | `/webapp-evidence:feedback` |
 
 ## Giới hạn
 
-Nó quay trang, không quay màn hình của bạn: menu `<select>`, hộp chọn file và `confirm`/`alert` được
-thay bằng caption kèm screenshot — hoặc dùng `--screen`, agent sẽ hỏi trước. Panel terminal nhận output
-theo từng dòng, nên `vim`, `less` và `htop` không dùng được.
+Nó quay trang web, không quay màn hình máy bạn — nên thứ hệ điều hành vẽ sẽ nằm ngoài: dropdown
+`<select>`, hộp chọn file, `confirm`/`alert` được thay bằng caption kèm screenshot. Muốn lấy cả những thứ
+đó thì dùng `--screen`, agent sẽ hỏi trước. Panel terminal nhận output theo từng dòng, nên `vim`, `less`,
+`htop` không xài được.
 
 ---
 
-<sub>Mọi hình ở đây do `docs/images/readme/build-readme-art.py` vẽ; bản quay là `docs/demo/record.sh`
-chạy trên `webapp/`. Muốn làm việc trên chính skill, xem **[CONTRIBUTING.md](./CONTRIBUTING.md)**.</sub>
+<sub>Mọi hình ở đây được vẽ bởi `docs/images/readme/build-readme-art.py`; còn bản quay là
+`docs/demo/record.sh` chạy trên `webapp/`. Muốn đóng góp cho chính skill này, xem
+**[CONTRIBUTING.md](./CONTRIBUTING.md)**.</sub>
