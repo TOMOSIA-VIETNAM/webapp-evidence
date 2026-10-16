@@ -43,8 +43,9 @@ Flow:
 3. Query the orders table and show the row that appeared
 ```
 
-<sub>Cookie 通过文件交给 curl，从不出现在命令行上。状态码不对会让这次录制失败，而不是当成证据交出去。
-`recording.terminal.scrub` 只遮住它匹配到的文字。</sub>
+<sub>Cookie 和令牌走文件交给 curl，所以不会出现在你敲出的命令行里。这一步会断言状态码：状态不对，录制直接失败，
+而不会把错误当成证据发出去。也没有任何内容会被自动遮盖：`recording.terminal.scrub` 里的模式，只替换它匹配到的
+文本。</sub>
 
 ## 为 UAT 而生
 
@@ -55,8 +56,8 @@ Flow:
   </picture>
 </p>
 
-<p align="center"><sub>上面的录制就是这个循环在本项目自己的站点上跑了一遍：
-<a href="https://evdrec.vercel.app">evdrec.vercel.app</a> 把自己的录制当作 UAT 报告读回来。</sub></p>
+<p align="center"><sub>上面的录制，就是这个循环在本项目自家网站上跑的一遍：
+<a href="https://evdrec.vercel.app">evdrec.vercel.app</a> 把自己的录制当 UAT 报告读了回来。</sub></p>
 
 ## 不用你开口
 
@@ -90,8 +91,8 @@ Flow:
 
 ## 读回一次录制
 
-agent 看不了视频。`vision` 把视频铺成标有 `mm:ss` 的联系表，所以发现的问题会以
-*“00:14 处表头压住了表格”* 的形式回来。
+agent 看不了视频。`vision` 把视频按固定间隔抽帧，每帧打上 `mm:ss` 拼成联系表 —— 于是结论会变成
+*“00:14 处表头压住了表格”*，这个时间点正好对上 runbook。上面那次录制，就是 agent 眼中的样子：
 
 <p align="center">
   <a href="./docs/demo/vision-sheet-01.png"><img src="./docs/demo/vision-sheet-01.png" width="268" alt="上面那次录制的联系表 1"></a>
@@ -121,9 +122,11 @@ claude plugin install webapp-evidence@webapp-evidence
 curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash
 ```
 
-需要 Chrome、ffmpeg 和 Node；缺哪个 agent 会点名，并提出替你安装。之后在 Claude Code 输入
-`/webapp-evidence:recording`，在 Cursor、Gemini CLI 和 Antigravity 输入 `/webapp-evidence-recording`，
-在 Codex 输入 `$webapp-evidence-recording`。
+它会先问你用哪个平台，再告诉你文件都放在哪里。录制需要 Chrome、ffmpeg 和 Node；缺哪个 agent 会点名，并主动
+提出替你装上。
+
+在哪里输入命令取决于平台：Claude Code 用 `/webapp-evidence:recording`，Cursor、Gemini CLI 和 Antigravity
+用 `/webapp-evidence-recording`，Codex 用 `$webapp-evidence-recording`。
 
 <details>
 <summary><b>固定发布版、更新、卸载</b></summary>
@@ -132,35 +135,35 @@ curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/mai
 curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/main/install.sh | bash -s -- --ref v1.1.3
 ```
 
-`--ref main` 跟随分支，`--ref latest` 回到跟随发布版；之后每次运行都保持最后一次指定的那个。更新用
+`--ref main` 跟随分支，`--ref latest` 跟随最新发布版；之后每次运行都沿用最后一次的指定。更新用
 `~/.webapp-evidence/scripts/install-local.sh --update`，卸载用 `--uninstall --all`。
 
 </details>
 
 ## 怎么提要求
 
-没有语法要学 —— *“给我刚改的页面录个证据”* 就行，用什么语言都可以。
+没有语法要学。*“给我刚修的那个页面的证据”* 就能跑，用什么语言写，agent 就用什么语言回。
 
-| 你想要 | 输入 |
+| 你想要 | 这样输入 |
 |---|---|
-| 刚改完的页面 | `/webapp-evidence:recording` |
-| 一个 MR 或 PR | `/webapp-evidence:recording https://gitlab.example.com/group/admin/-/merge_requests/1783` |
-| 数据变了，再录一次 | `record that again` —— 旧的保留为 `v1`、`v2`…… |
-| 慢一点，或换字幕语言 | `record it slower`、`captions in Japanese` —— 按项目记住 |
-| 修改录好的视频 | `cover the API key in step 3`、`twice as fast` |
-| 让下拉框或对话框入镜 | `--screen` —— 录浏览器窗口 |
-| 不占用屏幕 | `--headless` —— 默认 |
-| gif 或 webm | `-f gif`、`-f webm` —— 其余是 mp4 |
-| 视频里有什么 | `/webapp-evidence:vision <the mp4>` |
-| 一开始就是已登录状态 | `set up the evidence config for this project` |
-| 反馈问题 | `/webapp-evidence:feedback` |
+| 刚改完的页面的证据 | `/webapp-evidence:recording` |
+| 给 MR 或 PR 的证据 | `/webapp-evidence:recording https://gitlab.example.com/group/admin/-/merge_requests/1783` |
+| 数据变了，再录一次同样的 | `record that again` —— 旧的保留为 `v1`、`v2`…… |
+| 录慢一点，或换个字幕语言 | `record it slower`、`captions in Japanese` —— 按项目记住 |
+| 看完再改 | `cover the API key in step 3`、`twice as fast` |
+| 让系统下拉框或对话框也入镜 | `--screen` —— 录浏览器窗口 |
+| 任何流程都不占用屏幕 | `--headless` —— 默认行为，一步到位 |
+| 给 README 用的 gif，自己托管页面用的 webm | `-f gif`、`-f webm` —— 其余是 mp4 |
+| 不看视频也知道里面是什么 | `/webapp-evidence:vision <the mp4>` |
+| 录制一开始就是已登录状态 | `set up the evidence config for this project` |
+| 告诉我们哪里不对、还缺什么 | `/webapp-evidence:feedback` |
 
 ## 限制
 
-它录的是页面，不是你的屏幕：`<select>` 菜单、文件选择框和 `confirm`/`alert` 会改为字幕加截图 ——
-或者用 `--screen`，agent 会先问你。终端面板只接受按行输出，所以 `vim`、`less` 和 `htop` 用不了。
+它录的是页面，不是你的屏幕：`<select>` 菜单、文件选择框、`confirm`/`alert` 会用字幕加截图代替 ——
+或者用 `--screen`，agent 会先问你。终端面板只接受逐行输出，所以 `vim`、`less`、`htop` 就别想了。
 
 ---
 
 <sub>这里的每张图都由 `docs/images/readme/build-readme-art.py` 绘制；录制是在 `webapp/` 上运行
-`docs/demo/record.sh` 得到的。要开发 skill 本身，请看 **[CONTRIBUTING.md](./CONTRIBUTING.md)**。</sub>
+`docs/demo/record.sh` 得到的。想参与 skill 本身的开发，请看 **[CONTRIBUTING.md](./CONTRIBUTING.md)**。</sub>
