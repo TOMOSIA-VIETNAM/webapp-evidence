@@ -127,7 +127,7 @@ LABELS = {
              ("Sign off", "check times, don't re-run")),
         uat_back="after a fix:  record that again",
         traits=(("Moves like a person", "a gliding pointer, uneven typing"),
-                ("Edited after you watch", "sped up, cut, a value covered"),
+                ("Edited after you watch", "speed up, cut, cover a value"),
                 ("Sees what you missed", "console errors, failed requests"),
                 ("Stays on your machine", "no service, no bot account")),
         edit_chips=("2×", "cut", "blur"),
