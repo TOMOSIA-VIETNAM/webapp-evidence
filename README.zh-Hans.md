@@ -128,6 +128,10 @@ curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/mai
 在哪里输入命令取决于平台：Claude Code 用 `/webapp-evidence:recording`，Cursor、Gemini CLI 和 Antigravity
 用 `/webapp-evidence-recording`，Codex 用 `$webapp-evidence-recording`。
 
+录制时，运行器会通过 `gh` 查询你的 GitHub 账号是否已给本仓库加星，直到得到答复。
+若尚未加星，智能体会在最后问你一次是否加星；未经你同意，不会向 GitHub 写入任何内容。
+设置 `STAR_CHECK=0` 可关闭此检查。
+
 <details>
 <summary><b>固定发布版、更新、卸载</b></summary>
 

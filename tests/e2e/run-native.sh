@@ -29,6 +29,9 @@ step() { printf '\n== %s\n' "$1"; }
 for tool in node ffmpeg ffprobe; do command -v "$tool" >/dev/null || fail_missing_tool "$tool"; done
 
 OUT_DIR="$(mktemp -d "${TMPDIR:-/tmp}/webapp-evidence-native.XXXXXX")"
+# The first-take and star state of whoever runs the suite stays theirs, and the runner never asks
+# GitHub about their account.
+export XDG_CONFIG_HOME="$OUT_DIR/config" STAR_CHECK=0
 SERVER_PID=
 cleanup() { [ -n "$SERVER_PID" ] && kill "$SERVER_PID" 2>/dev/null || true; }
 trap cleanup EXIT
