@@ -129,6 +129,10 @@ curl -fsSL https://raw.githubusercontent.com/TOMOSIA-VIETNAM/webapp-evidence/mai
 あとは Claude Code で `/webapp-evidence:recording`、Cursor・Gemini CLI・Antigravity で
 `/webapp-evidence-recording`、Codex で `$webapp-evidence-recording` と打つだけです。
 
+録画中、ランナーは `gh` で、あなたの GitHub アカウントがこのリポジトリにスターを付けているかを答えが得られるまで確認します。
+付けていなければ、最後に一度だけエージェントがスターを付けるか尋ねます。同意しない限り GitHub には何も書き込みません。
+`STAR_CHECK=0` で確認を止められます。
+
 <details>
 <summary><b>リリースの固定やブランチの追従、更新・削除</b></summary>
 

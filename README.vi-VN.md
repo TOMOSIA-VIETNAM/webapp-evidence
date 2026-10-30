@@ -129,6 +129,10 @@ cái nào, agent gọi đúng tên cái đó và đề nghị cài giúp.
 Gõ lệnh ở đâu tuỳ nền tảng: `/webapp-evidence:recording` trong Claude Code, `/webapp-evidence-recording`
 trong Cursor, Gemini CLI và Antigravity, `$webapp-evidence-recording` trong Codex.
 
+Trong lúc quay, runner hỏi `gh` xem tài khoản GitHub của bạn đã star repo này chưa, cho đến khi có
+câu trả lời. Nếu chưa, cuối cùng agent hỏi bạn đúng một lần có muốn star không — không có gì được
+ghi lên GitHub nếu bạn không đồng ý. Đặt `STAR_CHECK=0` để tắt việc kiểm tra này.
+
 <details>
 <summary><b>Muốn ghim một release hoặc bám theo branch, cập nhật, gỡ cài đặt</b></summary>
 

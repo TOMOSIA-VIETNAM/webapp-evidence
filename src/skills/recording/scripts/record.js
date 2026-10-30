@@ -57,6 +57,7 @@ function help() {
     VIDEO_NAME        Video/runbook file name (defaults to the name in the step script)
     CAPTIONS          on|off — captions in the video (default on)
     CAPTION_LOCALE    Caption language: en | ja | vi (default en)
+    STAR_CHECK        0 — never ask gh whether this GitHub account has starred the repository
 
 ${HELP_ENV}
 

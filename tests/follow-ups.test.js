@@ -10,9 +10,12 @@ const path = require('node:path');
 
 const { startFollowUps, REPO } = require('../src/skills/recording/scripts/follow-ups');
 
+const scratch = [];
 function freshMachine() {
   process.env.XDG_CONFIG_HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'evidence-follow-ups-'));
+  scratch.push(process.env.XDG_CONFIG_HOME);
 }
+test.after(() => scratch.forEach((dir) => fs.rmSync(dir, { recursive: true, force: true })));
 
 const answer = (status) => {
   let calls = 0;
@@ -61,6 +64,15 @@ test('a take that fails before it is handed over does not use the star up', asyn
   startFollowUps({ check: star.check });   // never finished: the take threw
   const next = await startFollowUps({ check: star.check })();
   assert.ok(next.some((l) => l.startsWith('STAR:')));
+});
+
+test('STAR_CHECK=0 keeps the runner from asking GitHub at all', async (t) => {
+  freshMachine();
+  process.env.STAR_CHECK = '0';
+  t.after(() => delete process.env.STAR_CHECK);
+  const star = answer('not-starred');
+  assert.ok(!(await startFollowUps({ check: star.check })()).some((l) => l.startsWith('STAR:')));
+  assert.equal(star.calls(), 0);
 });
 
 test('the repository offered is the one the plugin manifest names', () => {

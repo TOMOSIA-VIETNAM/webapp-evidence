@@ -5,6 +5,7 @@
 //
 // The star check runs in the background while the take records, so the user sees no command and
 // waits for nothing. No gh, not signed in, offline: it prints nothing and tries again next take.
+// STAR_CHECK=0 turns it off for anyone who would rather the runner did not call GitHub at all.
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -50,7 +51,8 @@ function startFollowUps({ check = starStatus } = {}) {
   const state = readState();
   const firstTake = !state.firstTakeAt;
   if (firstTake) writeState({ firstTakeAt: new Date().toISOString() });
-  const star = state.star ? Promise.resolve(null) : check().catch(() => null);
+  const skip = state.star || process.env.STAR_CHECK === '0';
+  const star = skip ? Promise.resolve(null) : check().catch(() => null);
 
   return async () => {
     const lines = [];

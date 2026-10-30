@@ -130,6 +130,10 @@ Where you type the command depends on the platform: `/webapp-evidence:recording`
 `/webapp-evidence-recording` in Cursor, Gemini CLI and Antigravity, `$webapp-evidence-recording` in
 Codex.
 
+While a take records, the runner asks `gh` whether your GitHub account has starred this repository,
+until it gets an answer. If it has not, the agent asks you once, at the end, whether to star it —
+nothing is written to GitHub unless you say yes. `STAR_CHECK=0` turns the check off.
+
 <details>
 <summary><b>Pin a release, update, uninstall</b></summary>
 
