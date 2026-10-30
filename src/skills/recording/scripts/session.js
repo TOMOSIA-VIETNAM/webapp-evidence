@@ -7,6 +7,7 @@ const { execFileSync } = require('child_process');
 const { chromium } = require('./playwright');
 const { resolveSettings } = require('./settings');
 const lock = require('./lock');
+const { browserPid } = require('./capture');
 
 const VIEWPORT = { width: 1280, height: 800 };
 const SKILL_DIR = path.resolve(__dirname, '..');
@@ -206,7 +207,7 @@ const NO_BROWSER_POPUPS = [
 
 async function launchBrowser(settings) {
   const { headed, browserChannel, viewport, devtools } = settings.recording;
-  return chromium.launch({
+  const browser = await chromium.launch({
     headless: !headed,
     channel: browserChannel,
     args: [
@@ -223,6 +224,10 @@ async function launchBrowser(settings) {
       ] : []),
     ],
   });
+  // Every caller holds the lock by now; a run killed outright leaves this pid for the next one to end.
+  // Not knowing it costs only that cleanup, never the take.
+  lock.update(ROOT, { browserPid: await browserPid(browser).catch(() => null) });
+  return browser;
 }
 
 // The project prepares its own environment before the browser opens: an environment error screen that ends up

@@ -127,3 +127,55 @@ test('the holder adds its state to the lock, and nobody else can', () => {
   update(root, { screen: 'recording' });
   assert.equal(fs.existsSync(fileFor(root)), false);
 });
+
+// A take killed outright runs no handler, and the Chrome it launched outlives it. Left running
+// beside the next take's, two of them hung the GPU of an Intel Mac and restarted it. The next run
+// that takes any lock ends that browser — and only a browser: a reused pid is left alone.
+const { spawn, spawnSync } = require('node:child_process');
+
+const deadPid = () => spawnSync(process.execPath, ['-e', '']).pid;
+
+// Its own process group, as Playwright starts Chrome, with the flag the check looks for or not
+function fakeBrowser(flag) {
+  const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)', '--', ...(flag ? [flag] : [])], {
+    detached: true, stdio: 'ignore',
+  });
+  child.unref();
+  return child;
+}
+
+const exited = (child) => new Promise((resolve) => {
+  if (child.exitCode !== null || child.signalCode !== null) resolve(true);
+  child.once('exit', () => resolve(true));
+  setTimeout(() => resolve(false), 3000);
+});
+
+function leaveLock(root, browserPid) {
+  fs.mkdirSync(path.dirname(fileFor(root)), { recursive: true });
+  fs.writeFileSync(fileFor(root), JSON.stringify({ pid: deadPid(), browserPid, kind: 'take' }));
+}
+
+test('the browser of a run that was killed outright is ended by the next take, in any project', async () => {
+  const browser = fakeBrowser('--remote-debugging-pipe');
+  leaveLock(project(), browser.pid);
+  const release = acquire(project());   // another project entirely
+  try {
+    assert.ok(await exited(browser), 'the left-behind browser is still running');
+  } finally {
+    release();
+  }
+});
+
+test('a process that has taken over the browser\'s pid is left running', async () => {
+  const other = fakeBrowser(null);
+  const root = project();
+  leaveLock(root, other.pid);
+  const release = acquire(root);
+  try {
+    assert.equal(await Promise.race([exited(other), new Promise((r) => setTimeout(() => r(false), 500))]), false);
+    assert.ok(isRunning(other.pid));
+  } finally {
+    release();
+    process.kill(-other.pid, 'SIGKILL');
+  }
+});
