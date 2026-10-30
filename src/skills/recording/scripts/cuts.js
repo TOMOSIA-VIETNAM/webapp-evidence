@@ -5,6 +5,7 @@
 // Everything here is arithmetic and ffmpeg argument strings, so it is testable without a video,
 // a browser or a screen.
 
+const { execFileSync } = require('child_process');
 const { TRANSITION } = require('./style');
 
 // What a frame held at a join fades toward: blurred and darkened, but still the same scene. The
@@ -26,11 +27,22 @@ const SHADE = [
 const HOLD_OUT = TRANSITION.holdBefore + TRANSITION.fadeOut;
 const HOLD_IN = TRANSITION.fadeIn + TRANSITION.holdAfter;
 const JOIN = HOLD_OUT + HOLD_IN;
-// tpad turns a pad's duration into frames by rounding to the nearest one, half up. At 25 fps each
-// hold is 17.5 frames, so both sides rounded up and every join came out one frame longer than JOIN,
-// moving everything after it. The opening hold is asked a millisecond short so it rounds down while
-// the closing one rounds up: a join is then exactly JOIN whenever JOIN is a whole number of frames.
-const HOLD_IN_PAD = HOLD_IN - 0.001;
+
+// The two holds of a join in whole frames of the video's rate. tpad pads in frames, and 0.7 s is
+// 17.5 of them at 25 fps, so the closing hold takes the nearest whole number and the opening one
+// what is left of JOIN: together they are JOIN to the frame whenever JOIN is a whole number of
+// frames, which is what the edit model counts.
+function holdFrames(fps) {
+  const closing = Math.round(HOLD_OUT * fps);
+  return { opening: Math.round(JOIN * fps) - closing, closing };
+}
+
+function frameRate(video) {
+  const [num, den] = execFileSync('ffprobe', [
+    '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=r_frame_rate', '-of', 'csv=p=0', video,
+  ], { encoding: 'utf8' }).trim().split('/').map(Number);
+  return num / (den || 1);
+}
 
 const seconds = (value) => Number(value.toFixed(3));
 
@@ -102,7 +114,7 @@ function padBox(box, padding, frame) {
 
 // The graph that removes the cut stretches and joins what is left, or null for a take with
 // nothing cut. `removed` and `inserted` are on the trimmed video the encode starts from.
-function buildFilter(cuts, trimAt) {
+function buildFilter(cuts, trimAt, fps) {
   if (!cuts.length) return null;
   const steps = [];
   let next = 0;
@@ -111,14 +123,14 @@ function buildFilter(cuts, trimAt) {
     from: rebase(c.from, trimAt), to: rebase(c.to, trimAt), ...(c.reason ? { reason: c.reason } : {}),
   })));
   const kept = keptSegments(removed);
-  const label = joinKept('0:v', kept, take, steps);
+  const label = joinKept('0:v', kept, take, steps, fps);
   return { graph: steps.join(';'), label, removed, inserted: joinsBetween(kept) };
 }
 
 // The kept segments of one stream, played end to end with the held-frame transition at every join
 // between two of them. `take` hands out fresh pad names and `steps` collects the filters; the
 // label of the joined stream is returned.
-function joinKept(label, kept, take, steps) {
+function joinKept(label, kept, take, steps, fps) {
   // Each kept segment reads the same stream, and a filter graph lets a pad be consumed once,
   // so it has to be split as many ways as there are segments before any of them is trimmed.
   const sources = kept.map(() => take());
@@ -126,7 +138,7 @@ function joinKept(label, kept, take, steps) {
   const parts = kept.map((segment, index) => {
     const head = index > 0;
     const tail = index < kept.length - 1;
-    return transitionSegment(sources[index], segment, { head, tail }, take, steps);
+    return transitionSegment(sources[index], segment, { head, tail }, take, steps, fps);
   });
   const out = take();
   steps.push(`${parts.map((p) => `[${p}]`).join('')}concat=n=${parts.length}:v=1:a=0[${out}]`);
@@ -142,14 +154,16 @@ function joinKept(label, kept, take, steps) {
 // So the segment is padded while it still has its rate, and moved to zero afterwards. A head pad
 // is laid down from zero whatever the first frame's time is, so setpts then moves only the
 // segment's own frames down, the ones from the pad's end onwards, by where the segment started.
-function transitionSegment(source, segment, { head, tail }, take, steps) {
+function transitionSegment(source, segment, { head, tail }, take, steps, fps) {
   const end = segment.end === Infinity ? '' : `:end=${seconds(segment.end)}`;
+  const holds = holdFrames(fps);
+  const opening = holds.opening / fps;
   const pads = [
-    ...(head ? [`start_mode=clone:start_duration=${seconds(HOLD_IN_PAD)}`] : []),
-    ...(tail ? [`stop_mode=clone:stop_duration=${seconds(HOLD_OUT)}`] : []),
+    ...(head ? [`start_mode=clone:start=${holds.opening}`] : []),
+    ...(tail ? [`stop_mode=clone:stop=${holds.closing}`] : []),
   ];
   const rebaseTo = head
-    ? `setpts='PTS-gte(T,${seconds(HOLD_IN)})*${seconds(segment.start)}/TB'`
+    ? `setpts='PTS-gte(T,${seconds(opening)})*${seconds(segment.start)}/TB'`
     : 'setpts=PTS-STARTPTS';
   const padded = take();
   steps.push(`[${source}]trim=start=${seconds(segment.start)}${end},`
@@ -179,7 +193,7 @@ function transitionSegment(source, segment, { head, tail }, take, steps) {
     });
   }
   if (heldOut) {
-    const from = seconds((head ? HOLD_IN : 0) + (segment.end - segment.start) + TRANSITION.holdBefore);
+    const from = seconds((head ? opening : 0) + (segment.end - segment.start) + TRANSITION.holdBefore);
     lay(heldOut, {
       trim: `trim=start=${from}`,
       alpha: `fade=t=in:st=${from}:d=${seconds(TRANSITION.fadeOut)}:alpha=1`,
@@ -285,6 +299,6 @@ function takeRemap(trimAt, removed = [], inserted = []) {
 }
 
 module.exports = {
-  createCuts, buildFilter, joinKept, fadeWindows, shiftTime, unionBox, padBox, mergeRanges, keptSegments,
+  createCuts, buildFilter, joinKept, frameRate, fadeWindows, shiftTime, unionBox, padBox, mergeRanges, keptSegments,
   joinsBetween, takeStage, placeAt, takeRemap, JOIN,
 };

@@ -16,7 +16,7 @@ const { createTerminal, isBehindPanel } = require('./terminal');
 const scroll = require('./scroll');
 const { loadCases, applyCases } = require('./cases');
 const {
-  createCuts, buildFilter, fadeWindows, unionBox, placeAt, takeRemap,
+  createCuts, buildFilter, frameRate, fadeWindows, unionBox, placeAt, takeRemap,
 } = require('./cuts');
 const { createCapture, browserPid, ceilingAdvice } = require('./capture');
 const picker = require('./picker');
@@ -903,7 +903,7 @@ function failedTakeError({ error, raw, endedEarly }, {
   let partial = null;
   if (raw) {
     try {
-      const filter = buildFilter(cuts.all(), trimAt);
+      const filter = cutFilter(cuts, trimAt, raw);
       partial = encodeMp4(outDir, `${name}-failed`, raw, trimAt, videoOpts, filter);
     } catch {
       // Too short to hold a frame, or cut off mid-fragment. Either way it is not evidence, and
@@ -931,6 +931,13 @@ function failedTakeError({ error, raw, endedEarly }, {
   const failed = new Error(`The take failed ${fmt(at)} in, during ${step}:\n${said}\n\n${left}`);
   failed.cause = error;
   return failed;
+}
+
+// The video is probed for its frame rate only when there is a join to lay: a take cut off
+// mid-fragment may not answer ffprobe, and one with nothing cut needs no rate.
+function cutFilter(cuts, trimAt, video) {
+  const all = cuts.all();
+  return all.length ? buildFilter(all, trimAt, frameRate(video)) : null;
 }
 
 function encodeMp4(outDir, name, webm, trimAt, video, filter) {
@@ -1448,7 +1455,7 @@ async function main() {
   }
   await browser.close();
 
-  const filter = buildFilter(cuts.all(), trimAt);
+  const filter = cutFilter(cuts, trimAt, recorded);
   const removed = filter?.removed ?? [];
   const inserted = filter?.inserted ?? [];
   const mp4 = encodeMp4(outDir, name, recorded, trimAt, videoOpts, filter);
