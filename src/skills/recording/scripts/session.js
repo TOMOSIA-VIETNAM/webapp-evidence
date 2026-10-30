@@ -226,7 +226,7 @@ async function launchBrowser(settings) {
   });
   // Every caller holds the lock by now; a run killed outright leaves this pid for the next one to end.
   // Not knowing it costs only that cleanup, never the take.
-  lock.update(ROOT, { browserPid: await browserPid(browser).catch(() => null) });
+  lock.recordBrowser(ROOT, await browserPid(browser).catch(() => null));
   return browser;
 }
 
