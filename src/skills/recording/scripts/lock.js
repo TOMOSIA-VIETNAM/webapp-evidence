@@ -14,6 +14,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
+const { execFileSync } = require('child_process');
 
 const DIR = path.join(os.tmpdir(), 'webapp-evidence-locks');
 
@@ -66,10 +67,43 @@ function refusal(holder, file) {
   );
 }
 
+// A run killed outright — SIGKILL, a crash — runs no handler, and the Chrome it launched outlives
+// it: the browser and its GPU process keep running beside the next take's. On an Intel Mac two of
+// them were enough to hang the GPU and restart the machine. So the browser's pid goes into the lock
+// (launchBrowser), and a lock found with its run gone has that browser ended before it is removed.
+// Playwright starts Chrome as the leader of its own process group, so the group takes its helpers
+// with it. The command line is checked first: a pid can be reused by an unrelated process.
+function endLeftBrowser(holder) {
+  const pid = holder?.browserPid;
+  if (!Number.isInteger(pid) || pid <= 0) return;
+  try {
+    const command = execFileSync('ps', ['-o', 'command=', '-p', String(pid)], { encoding: 'utf8' });
+    if (!command.includes('--remote-debugging-pipe')) return;
+    process.kill(-pid, 'SIGKILL');
+  } catch {
+    // Gone already, or no `ps` to tell what it is: either way there is nothing safe to end
+  }
+}
+
+// Locks left by runs that are gone, in every project: an interrupted take in one project leaves its
+// Chrome running into the next take, whichever project that is in.
+function clearLeftBehind() {
+  let files = [];
+  try { files = fs.readdirSync(DIR).filter((f) => f.endsWith('.lock')); } catch { return; }
+  for (const name of files) {
+    const file = path.join(DIR, name);
+    const holder = readHolder(file);
+    if (!holder || isRunning(holder.pid)) continue;
+    endLeftBrowser(holder);
+    try { fs.unlinkSync(file); } catch { /* another run got to it first */ }
+  }
+}
+
 // Take the lock, or refuse with what is holding it. Returns a release function; calling it more
 // than once, or after another run has taken the lock over, does nothing.
 function acquire(projectRoot, { outDir = null, pid = process.pid, kind = 'take' } = {}) {
   fs.mkdirSync(DIR, { recursive: true });
+  clearLeftBehind();
   const file = fileFor(projectRoot);
   const mine = JSON.stringify({
     pid, outDir, kind, startedAt: Date.now(), project: path.resolve(projectRoot),
@@ -84,6 +118,7 @@ function acquire(projectRoot, { outDir = null, pid = process.pid, kind = 'take' 
       const holder = readHolder(file);
       if (holder && holder.pid !== pid && isRunning(holder.pid)) throw refusal(holder, file);
       // Left behind by a run that is no longer there — a crash, or a machine that restarted.
+      endLeftBrowser(holder);
       try { fs.unlinkSync(file); } catch { /* another run got to it first */ }
     }
   }
