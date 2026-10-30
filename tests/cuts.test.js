@@ -47,7 +47,11 @@ test('the shading starts once the frame has been held, so nothing moving is unde
   assert.match(graph, new RegExp(`trim=start=${at},[^;]*fade=t=in:st=${at}:d=${TRANSITION.fadeOut}`));
   // The next segment opens shaded and is clear by the end of fadeIn, then held sharp
   assert.match(graph, new RegExp(`trim=end=${TRANSITION.fadeIn},[^;]*fade=t=out:st=0:d=${TRANSITION.fadeIn}`));
-  assert.match(graph, new RegExp(`start_duration=${TRANSITION.fadeIn + TRANSITION.holdAfter}`));
+  // A hair under the hold, so tpad rounds it down where the closing hold rounds up: whole frames
+  // between them, and well under a frame short at any rate a video plays at
+  const opening = Number(graph.match(/start_duration=([\d.]+)/)[1]);
+  const hold = TRANSITION.fadeIn + TRANSITION.holdAfter;
+  assert.ok(opening < hold && opening > hold - 1 / 120, `${opening} against ${hold}`);
 });
 
 test('padding comes before setpts, which would otherwise leave tpad with no frame rate to pad in', () => {

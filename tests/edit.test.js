@@ -177,6 +177,26 @@ test('edits render to the edited video and never write to what was recorded', ()
   assert.deepEqual(originals.map(hash), before);
 });
 
+test('a cut on whole frames renders exactly as many frames as the model counts, join included', () => {
+  // tpad rounds each hold to the nearest frame, half up, and at 25 fps both holds are 17.5 frames:
+  // rounded up on both sides, every join was a frame longer than JOIN and moved all that followed.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'evidence-join-'));
+  try {
+    const source = path.join(dir, 'take.mp4');
+    execFileSync('ffmpeg', ['-v', 'error', '-f', 'lavfi', '-i', `testsrc=size=160x100:rate=${FPS}:duration=6`,
+      '-pix_fmt', 'yuv420p', source]);
+    const take = { trimAt: 0, removed: [], inserted: [], fades: [], duration: 6, frame: { width: 160, height: 100 }, marks: [] };
+    const { graph, label, video } = buildGraph({ take, edits: [{ kind: 'cut', range: { from: 2, to: 3 } }], fps: FPS });
+    const out = path.join(dir, 'edited.mp4');
+    execFileSync('ffmpeg', ['-v', 'error', '-i', source, '-filter_complex', graph, '-map', `[${label}]`, '-pix_fmt', 'yuv420p', out]);
+    const frames = Number(execFileSync('ffprobe', ['-v', 'error', '-count_frames', '-select_streams', 'v:0',
+      '-show_entries', 'stream=nb_read_frames', '-of', 'csv=p=0', out], { encoding: 'utf8' }));
+    assert.equal(frames, Math.round(video.duration * FPS));
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('an arrow is placed on the frame it starts on, after the cuts, away from the detail there', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'evidence-edit-'));
   const video = path.join(dir, 'take.mp4');
