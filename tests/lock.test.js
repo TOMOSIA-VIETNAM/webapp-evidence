@@ -9,7 +9,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const { acquire, update, fileFor, isRunning } = require('../src/skills/recording/scripts/lock');
+const { acquire, update, fileFor, isRunning, processStart } = require('../src/skills/recording/scripts/lock');
 
 const project = () => fs.mkdtempSync(path.join(os.tmpdir(), 'evidence-lock-'));
 
@@ -135,9 +135,9 @@ const { spawn, spawnSync } = require('node:child_process');
 
 const deadPid = () => spawnSync(process.execPath, ['-e', '']).pid;
 
-// Its own process group, as Playwright starts Chrome, with the flag the check looks for or not
-function fakeBrowser(flag) {
-  const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)', '--', ...(flag ? [flag] : [])], {
+// Its own process group, as Playwright starts Chrome
+function fakeBrowser() {
+  const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], {
     detached: true, stdio: 'ignore',
   });
   child.unref();
@@ -150,32 +150,35 @@ const exited = (child) => new Promise((resolve) => {
   setTimeout(() => resolve(false), 3000);
 });
 
-function leaveLock(root, browserPid) {
+function leaveLock(root, browserPid, browserStarted = processStart(browserPid)) {
   fs.mkdirSync(path.dirname(fileFor(root)), { recursive: true });
-  fs.writeFileSync(fileFor(root), JSON.stringify({ pid: deadPid(), browserPid, kind: 'take' }));
+  fs.writeFileSync(fileFor(root), JSON.stringify({ pid: deadPid(), browserPid, browserStarted, kind: 'take' }));
 }
 
+const endGroup = (child) => { try { process.kill(-child.pid, 'SIGKILL'); } catch { /* already ended */ } };
+
 test('the browser of a run that was killed outright is ended by the next take, in any project', async () => {
-  const browser = fakeBrowser('--remote-debugging-pipe');
+  const browser = fakeBrowser();
   leaveLock(project(), browser.pid);
   const release = acquire(project());   // another project entirely
   try {
     assert.ok(await exited(browser), 'the left-behind browser is still running');
   } finally {
     release();
+    endGroup(browser);
   }
 });
 
-test('a process that has taken over the browser\'s pid is left running', async () => {
-  const other = fakeBrowser(null);
+test('a process that has taken over the browser\'s pid since — after a restart — is left running', async () => {
+  const other = fakeBrowser();
   const root = project();
-  leaveLock(root, other.pid);
+  leaveLock(root, other.pid, 'Thu Jan  1 00:00:00 1970');
   const release = acquire(root);
   try {
     assert.equal(await Promise.race([exited(other), new Promise((r) => setTimeout(() => r(false), 500))]), false);
     assert.ok(isRunning(other.pid));
   } finally {
     release();
-    process.kill(-other.pid, 'SIGKILL');
+    endGroup(other);
   }
 });

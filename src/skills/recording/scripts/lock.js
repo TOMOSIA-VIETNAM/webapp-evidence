@@ -70,18 +70,33 @@ function refusal(holder, file) {
 // A run killed outright — SIGKILL, a crash — runs no handler, and the Chrome it launched outlives
 // it: the browser and its GPU process keep running beside the next take's. On an Intel Mac two of
 // them were enough to hang the GPU and restart the machine. So the browser's pid goes into the lock
-// (launchBrowser), and a lock found with its run gone has that browser ended before it is removed.
+// (recordBrowser), and a lock found with its run gone has that browser ended before it is removed.
 // Playwright starts Chrome as the leader of its own process group, so the group takes its helpers
-// with it. The command line is checked first: a pid can be reused by an unrelated process.
+// with it.
+//
+// A pid alone is not enough to kill by: the lock outlives a restart, pids are handed out again, and
+// the new owner can be another take's Chrome. So the process's start time goes in beside it, and a
+// browser is ended only while both still match.
+function processStart(pid) {
+  try {
+    return execFileSync('ps', ['-o', 'lstart=', '-p', String(pid)], { encoding: 'utf8' }).trim() || null;
+  } catch {
+    return null;   // gone, or no `ps` to ask
+  }
+}
+
+function recordBrowser(projectRoot, browserPid) {
+  update(projectRoot, { browserPid, browserStarted: browserPid ? processStart(browserPid) : null });
+}
+
 function endLeftBrowser(holder) {
   const pid = holder?.browserPid;
-  if (!Number.isInteger(pid) || pid <= 0) return;
+  if (!Number.isInteger(pid) || pid <= 0 || !holder.browserStarted) return;
+  if (processStart(pid) !== holder.browserStarted) return;
   try {
-    const command = execFileSync('ps', ['-o', 'command=', '-p', String(pid)], { encoding: 'utf8' });
-    if (!command.includes('--remote-debugging-pipe')) return;
     process.kill(-pid, 'SIGKILL');
   } catch {
-    // Gone already, or no `ps` to tell what it is: either way there is nothing safe to end
+    // Already gone between the check and the kill
   }
 }
 
@@ -118,7 +133,7 @@ function acquire(projectRoot, { outDir = null, pid = process.pid, kind = 'take' 
       const holder = readHolder(file);
       if (holder && holder.pid !== pid && isRunning(holder.pid)) throw refusal(holder, file);
       // Left behind by a run that is no longer there — a crash, or a machine that restarted.
-      endLeftBrowser(holder);
+      if (holder?.pid !== pid) endLeftBrowser(holder);
       try { fs.unlinkSync(file); } catch { /* another run got to it first */ }
     }
   }
@@ -154,4 +169,4 @@ function update(projectRoot, fields, pid = process.pid) {
   }
 }
 
-module.exports = { acquire, update, fileFor, isRunning, DIR };
+module.exports = { acquire, update, recordBrowser, processStart, fileFor, isRunning, DIR };
