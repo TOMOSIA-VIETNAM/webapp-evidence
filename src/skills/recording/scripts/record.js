@@ -23,6 +23,7 @@ const picker = require('./picker');
 const lock = require('./lock');
 const { watchInput, createHandsOff, holdWhenTouched } = require('./idle');
 const { showStatusItem } = require('./status-item');
+const { startFollowUps } = require('./follow-ups');
 
 const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
@@ -1204,6 +1205,7 @@ async function main() {
   // signal, which runs no exit handler at all.
   const releaseLock = lock.acquire(ROOT, { outDir });
   process.once('exit', releaseLock);
+  const followUps = startFollowUps();
 
   archivePreviousRun(outDir, name, settings.output.overwrite);
 
@@ -1503,6 +1505,7 @@ async function main() {
     console.log(`PROBLEMS: ${problems.length} page errors — see ${path.relative(process.cwd(), problemFile)}`);
   }
   reportResult(outDir, name, mp4, runbook, shotFiles, duration);
+  for (const line of await followUps()) console.log(line);
 }
 
 // Only self-runs when invoked directly; a require pulls in just the functions (used by the tests)

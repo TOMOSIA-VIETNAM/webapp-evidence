@@ -1,6 +1,7 @@
 {
   "name": "get-evidence-runner",
   "private": true,
+  "repository": "github:TOMOSIA-VIETNAM/webapp-evidence",
   "version": "1.0.0",
   "description": "Playwright runner that records evidence (video + screenshots) for a merge request",
   "dependencies": {
