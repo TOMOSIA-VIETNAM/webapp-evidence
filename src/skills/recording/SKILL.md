@@ -309,11 +309,20 @@ each one sentence the user can answer yes to. Then one line: other edits are pos
 recording again, and changing what is on screen — other data, other steps — means re-running the
 step script, whose command the runbook holds.
 
-Once you have handed over the files, add one line — only when something in the run was worth
-mentioning: a caption that read awkwardly, a step that needed a workaround, a limit that got in the
-way. Say it can be reported with `/webapp-evidence:feedback`, and leave it there. Do not run it, do
-not ask them to, and do not add the line to a run that went fine — a suggestion that appears every
-single time is one nobody reads.
+Once you have handed over the files — or the error, when the take failed — add one line saying
+problems and requests can be reported with `/webapp-evidence:feedback`, and leave it there. Add it
+only when the take failed, when the output falls short of what it was meant to show (a caption that
+read awkwardly, a step that needed a workaround, a limit that got in the way), or when the runner
+printed `FIRST TAKE:`. Do not run it, do not ask them to, and do not add the line to any other run —
+a suggestion that appears every single time is one nobody reads.
+
+When the runner printed `STAR:`, the last thing you do, after the user's request is done, is ask
+once whether to star the repository that line names on GitHub, with "Star it" and "Not now" as the
+options: with the structured question tool on an agent that has one (Claude Code's
+`AskUserQuestion`), otherwise as one closing line naming the repository, without asking. On "Star
+it", run `gh api -X PUT user/starred/<owner>/<repo> --silent` for that repository. The runner has
+already checked in the background and prints the line once per machine: never check yourself, and
+never star without that answer.
 
 ## Reference material
 
