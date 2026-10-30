@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { execFileSync } = require('child_process');
-const { chromium } = require('playwright-core');
+const { chromium } = require('./playwright');
 const { resolveSettings } = require('./settings');
 const lock = require('./lock');
 

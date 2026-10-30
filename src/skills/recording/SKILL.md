@@ -100,9 +100,12 @@ node scripts/inspect.js /path-of-the-screen
 ```
 
 Recording drives a real Chrome and encodes the result, so the machine needs Chrome, ffmpeg, Node and
-the runner's own npm dependency. When something is missing the command says so. Do not walk the user
-through installing it and do not paste instructions from here — offer to install it yourself, wait
-for them to agree, then do it with whatever the machine already uses. Their machine, their call.
+the runner's own npm dependency, at the exact version its `package.json` pins. When something is
+missing, or that dependency is another version, the command says so. Do not walk the user through
+installing it and do not paste instructions from here — offer to install it yourself, as a question
+whose recommended option is that you install it: with the structured question tool on an agent that
+has one (Claude Code's `AskUserQuestion`), otherwise in one chat message. Wait for the answer, then
+do it with whatever the machine already uses. Their machine, their call.
 
 It prints buttons, inputs, selects (with their real option lists) and links, one usable selector per
 line. Shared navigation chrome is filtered out; `--all` shows everything.

@@ -6,7 +6,7 @@
 // `svgFor` is plain string building, testable without a browser. Coordinates are frame pixels.
 const fs = require('fs');
 const { execFileSync } = require('child_process');
-const { chromium } = require('playwright-core');
+const { chromium } = require('./playwright');
 const { ACCENT, HALO, DRAW, CROSSING, scaled } = require('./style');
 const { resolveSettings } = require('./settings');
 
