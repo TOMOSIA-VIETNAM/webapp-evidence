@@ -198,20 +198,24 @@ PREDICTED="$(node -e '
   const s = scaled(pngSize(shot).width);
   const ring = { x: Math.round(mark.box.x + mark.box.width / 2), y: Math.round(Math.max(s.haloWidth / 2, mark.box.y - s.padding)) };
   const [fade] = video.fades;
+  // Every place ffmpeg cuts the stream starts or ends a piece on a whole frame, which can move the
+  // length by up to one: the seek past the page load, both ends of each stretch the take or the
+  // edits removed, and each change of speed. The model counts in continuous time.
+  const cuts = 1 + 2 * ((take.removed ?? []).length + video.cut.removed.length) + video.speed.length - 1;
   console.log([
     video.duration, Math.floor(video.toEdited(last.at)), ring.x, ring.y,
-    fade.from, fade.to, TRANSITION.fadeOut, JSON.stringify(video.fades), last.label,
+    fade.from, fade.to, TRANSITION.fadeOut, cuts, JSON.stringify(video.fades), last.label,
   ].join(" "));
 ' "$SKILL" "$TIMELINE" "$VIDEO" "$KEY_SHOT")" || fail "the edit model could not read the take"
 # The label goes last, so `read` hands it over whole, spaces and all
-read -r PREDICTED_DURATION PREDICTED_LAST RING_X RING_Y FADE_FROM FADE_TO FADE_OUT PREDICTED_FADES LAST_LABEL <<<"$PREDICTED"
+read -r PREDICTED_DURATION PREDICTED_LAST RING_X RING_Y FADE_FROM FADE_TO FADE_OUT FRAME_CUTS PREDICTED_FADES LAST_LABEL <<<"$PREDICTED"
 
-# The edited video is as long as the model says, to within one frame
+# The edited video is as long as the model says, to within a frame for each place the stream is cut
 EDITED_DURATION=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$EDITED")
 FPS=$(ffprobe -v error -select_streams v:0 -show_entries stream=r_frame_rate -of csv=p=0 "$EDITED")
-awk -v d="$EDITED_DURATION" -v p="$PREDICTED_DURATION" -v r="$FPS" \
-  'BEGIN { split(r, f, "/"); exit (d - p <= f[2] / f[1] && p - d <= f[2] / f[1]) ? 0 : 1 }' \
-  || fail "the edited video is ${EDITED_DURATION}s where the edits predict ${PREDICTED_DURATION}s"
+awk -v d="$EDITED_DURATION" -v p="$PREDICTED_DURATION" -v r="$FPS" -v n="$FRAME_CUTS" \
+  'BEGIN { split(r, f, "/"); slack = n * f[2] / f[1]; exit (d - p <= slack && p - d <= slack) ? 0 : 1 }' \
+  || fail "the edited video is ${EDITED_DURATION}s where the edits predict ${PREDICTED_DURATION}s, more than ${FRAME_CUTS} frames apart"
 
 # The last step starts earlier once a stretch is cut and another sped up, and the edited runbook
 # says where it is now

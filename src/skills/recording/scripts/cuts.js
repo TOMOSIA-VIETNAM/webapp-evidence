@@ -26,6 +26,11 @@ const SHADE = [
 const HOLD_OUT = TRANSITION.holdBefore + TRANSITION.fadeOut;
 const HOLD_IN = TRANSITION.fadeIn + TRANSITION.holdAfter;
 const JOIN = HOLD_OUT + HOLD_IN;
+// tpad turns a pad's duration into frames by rounding to the nearest one, half up. At 25 fps each
+// hold is 17.5 frames, so both sides rounded up and every join came out one frame longer than JOIN,
+// moving everything after it. The opening hold is asked a millisecond short so it rounds down while
+// the closing one rounds up: a join is then exactly JOIN whenever JOIN is a whole number of frames.
+const HOLD_IN_PAD = HOLD_IN - 0.001;
 
 const seconds = (value) => Number(value.toFixed(3));
 
@@ -140,7 +145,7 @@ function joinKept(label, kept, take, steps) {
 function transitionSegment(source, segment, { head, tail }, take, steps) {
   const end = segment.end === Infinity ? '' : `:end=${seconds(segment.end)}`;
   const pads = [
-    ...(head ? [`start_mode=clone:start_duration=${seconds(HOLD_IN)}`] : []),
+    ...(head ? [`start_mode=clone:start_duration=${seconds(HOLD_IN_PAD)}`] : []),
     ...(tail ? [`stop_mode=clone:stop_duration=${seconds(HOLD_OUT)}`] : []),
   ];
   const rebaseTo = head
