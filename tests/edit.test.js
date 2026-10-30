@@ -178,8 +178,8 @@ test('edits render to the edited video and never write to what was recorded', ()
 });
 
 test('a cut on whole frames renders exactly as many frames as the model counts, join included', () => {
-  // tpad rounds each hold to the nearest frame, half up, and at 25 fps both holds are 17.5 frames:
-  // rounded up on both sides, every join was a frame longer than JOIN and moved all that followed.
+  // At 25 fps each hold of a join is 17.5 frames, so the render lays them as whole frames that
+  // add up to JOIN; a join of any other length moves everything after it.
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'evidence-join-'));
   try {
     const source = path.join(dir, 'take.mp4');

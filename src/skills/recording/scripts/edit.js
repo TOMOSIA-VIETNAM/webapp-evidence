@@ -26,7 +26,7 @@ const { execFileSync } = require('child_process');
 const {
   editsFile, load, save, append, undo, editedVideo, resolve, resolveShot, formatList,
 } = require('./edits');
-const { joinKept, keptSegments, padBox, shiftTime } = require('./cuts');
+const { joinKept, keptSegments, padBox, shiftTime, frameRate } = require('./cuts');
 const { DRAW, scaled } = require('./style');
 const { svgFor, chooseArrow, lumaFrames, renderOver, renderTransparent, pngSize } = require('./overlay');
 const { resolveSettings, mp4Encode } = require('./settings');
@@ -144,7 +144,7 @@ function buildGraph({ take: takeData, edits, fps, marks = [] }) {
   }
 
   if (video.cut.removed.length) {
-    label = joinKept(label, keptSegments(video.cut.removed, video.cut.duration), take, steps);
+    label = joinKept(label, keptSegments(video.cut.removed, video.cut.duration), take, steps, fps);
   }
 
   if (video.speed.some((p) => p.factor !== 1)) {
@@ -247,13 +247,6 @@ function openTarget(file) {
   }
   const files = takeFiles(source);
   return { source, files, take: readTake(source, files) };
-}
-
-function frameRate(video) {
-  const [num, den] = execFileSync('ffprobe', [
-    '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=r_frame_rate', '-of', 'csv=p=0', video,
-  ], { encoding: 'utf8' }).trim().split('/').map(Number);
-  return num / (den || 1);
 }
 
 function durationOf(video) {

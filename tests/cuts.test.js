@@ -15,7 +15,7 @@ test('a take with nothing cut gets no filter at all', () => {
 });
 
 test('a removed stretch splits the stream before trimming, and concatenates what is left', () => {
-  const { graph, removed } = buildFilter([{ from: 5, to: 8 }], 2);
+  const { graph, removed } = buildFilter([{ from: 5, to: 8 }], 2, FPS);
   // A filter pad can be consumed once, so both kept segments cannot read the same label
   assert.match(graph, /split=2/);
   assert.match(graph, /trim=start=0:end=3/);
@@ -28,10 +28,11 @@ test('a removed stretch splits the stream before trimming, and concatenates what
 
 const { TRANSITION } = require('../src/skills/recording/scripts/style');
 const JOIN = TRANSITION.holdBefore + TRANSITION.fadeOut + TRANSITION.fadeIn + TRANSITION.holdAfter;
+const FPS = 25;
 const count = (graph, pattern) => (graph.match(pattern) || []).length;
 
 test('a cut in the middle holds the frame on each side of the join, once', () => {
-  const { graph, inserted } = buildFilter([{ from: 5, to: 8 }], 2);
+  const { graph, inserted } = buildFilter([{ from: 5, to: 8 }], 2, FPS);
   assert.equal(count(graph, /stop_mode=clone/g), 1);
   assert.equal(count(graph, /start_mode=clone/g), 1);
   // One shaded copy fading in over the held last frame, one fading out over the held first one
@@ -42,20 +43,19 @@ test('a cut in the middle holds the frame on each side of the join, once', () =>
 
 test('the shading starts once the frame has been held, so nothing moving is under it', () => {
   // Kept 0..3, so the last frame is held from 3, still for holdBefore, then fades for fadeOut
-  const { graph } = buildFilter([{ from: 5, to: 8 }], 2);
+  const { graph } = buildFilter([{ from: 5, to: 8 }], 2, FPS);
   const at = 3 + TRANSITION.holdBefore;
   assert.match(graph, new RegExp(`trim=start=${at},[^;]*fade=t=in:st=${at}:d=${TRANSITION.fadeOut}`));
   // The next segment opens shaded and is clear by the end of fadeIn, then held sharp
   assert.match(graph, new RegExp(`trim=end=${TRANSITION.fadeIn},[^;]*fade=t=out:st=0:d=${TRANSITION.fadeIn}`));
-  // A hair under the hold, so tpad rounds it down where the closing hold rounds up: whole frames
-  // between them, and well under a frame short at any rate a video plays at
-  const opening = Number(graph.match(/start_duration=([\d.]+)/)[1]);
-  const hold = TRANSITION.fadeIn + TRANSITION.holdAfter;
-  assert.ok(opening < hold && opening > hold - 1 / 120, `${opening} against ${hold}`);
+  // Held in whole frames: at 25 fps each hold is 17.5 of them, and the two together are JOIN
+  const opening = Number(graph.match(/start_mode=clone:start=(\d+)/)[1]);
+  const closing = Number(graph.match(/stop_mode=clone:stop=(\d+)/)[1]);
+  assert.equal(opening + closing, JOIN * FPS);
 });
 
 test('padding comes before setpts, which would otherwise leave tpad with no frame rate to pad in', () => {
-  const { graph } = buildFilter([{ from: 5, to: 8 }], 2);
+  const { graph } = buildFilter([{ from: 5, to: 8 }], 2, FPS);
   for (const step of graph.split(';').filter((s) => s.includes('tpad='))) {
     assert.ok(step.indexOf('tpad=') < step.indexOf('setpts='), step);
   }
@@ -65,15 +65,15 @@ test('two cuts make two joins, and the segment between them is held at both ends
   const { graph, inserted } = buildFilter([
     { from: 4, to: 6 },
     { from: 10, to: 12 },
-  ], 0);
+  ], 0, FPS);
   assert.equal(inserted.length, 2);
   assert.equal(count(graph, /stop_mode=clone/g), 2);
   assert.equal(count(graph, /start_mode=clone/g), 2);
-  assert.match(graph, /start_mode=clone:start_duration=[\d.]+:stop_mode=clone/);
+  assert.match(graph, /start_mode=clone:start=\d+:stop_mode=clone/);
 });
 
 test('a stretch cut from the start of the take has no scene before it, so nothing is held', () => {
-  const { graph, inserted } = buildFilter([{ from: 0, to: 3 }], 0);
+  const { graph, inserted } = buildFilter([{ from: 0, to: 3 }], 0, FPS);
   assert.deepEqual(inserted, []);
   assert.doesNotMatch(graph, /tpad|fade=/);
 });
@@ -83,7 +83,7 @@ test('the video is the kept footage plus one join for every place two stretches 
   const { removed, inserted } = buildFilter([
     { from: 5, to: 8 },
     { from: 15, to: 19 },
-  ], 0);
+  ], 0, FPS);
   const kept = 30 - removed.reduce((sum, r) => sum + r.to - r.from, 0);
   const length = kept + inserted.reduce((sum, i) => sum + i.duration, 0);
   assert.equal(Number(length.toFixed(3)), Number((23 + 2 * JOIN).toFixed(3)));
@@ -101,12 +101,12 @@ test('a moment after a join moves later by the held frames, one before it does n
 
 test('the first moment after a join has a place, whatever the stretch ends on', () => {
   // 38.859 - 1.172 is 37.687000000000005 in floating point: the join has to sit on that same value
-  const { removed, inserted } = buildFilter([{ from: 35.813, to: 38.859 }], 1.172);
+  const { removed, inserted } = buildFilter([{ from: 35.813, to: 38.859 }], 1.172, FPS);
   assert.notEqual(shiftTime(inserted[0].at, removed, inserted), null);
 });
 
 test('a stretch removed from the very start leaves one segment', () => {
-  const { graph } = buildFilter([{ from: 0, to: 3 }], 0);
+  const { graph } = buildFilter([{ from: 0, to: 3 }], 0, FPS);
   assert.doesNotMatch(graph, /concat=n=2/);
   assert.match(graph, /trim=start=3/);
 });
